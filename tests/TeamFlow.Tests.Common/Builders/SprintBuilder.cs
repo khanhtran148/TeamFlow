@@ -7,10 +7,13 @@ namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class SprintBuilder
 {
-    private static Faker F => FakerProvider.Instance;
+    private static readonly Faker F = FakerProvider.Instance;
+
+    private const int MinSprintNumber = 1;
+    private const int MaxSprintNumber = 99;
 
     private Guid _projectId = Guid.NewGuid();
-    private string _name = $"Sprint {F.Random.Number(1, 99)}";
+    private string _name = $"Sprint {F.Random.Number(MinSprintNumber, MaxSprintNumber)}";
     private string? _goal;
     private DateOnly? _startDate;
     private DateOnly? _endDate;

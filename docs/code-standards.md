@@ -106,7 +106,7 @@ public sealed class WorkItemsController : ApiControllerBase
 }
 ```
 
-All actions annotate `[ProducesResponseType]` for Swagger accuracy.
+All actions annotate `[ProducesResponseType]` for Swagger accuracy. Mutation endpoints apply `[EnableRateLimiting(RateLimitPolicies.Write)]`.
 
 ---
 
@@ -158,7 +158,15 @@ if (!await permissions.HasPermissionAsync(currentUser.Id, request.ProjectId, Per
     return Result.Failure<WorkItemDto>("Forbidden: insufficient permission");
 ```
 
-Never write permission logic in controllers, services, or repositories. All checks go through `IPermissionChecker`.
+Never write permission logic in controllers, services, or repositories. All checks go through `IPermissionChecker`. Resolution order: Individual → Team → Organization.
+
+---
+
+## Authentication
+
+`IAuthService` in Infrastructure handles JWT generation, refresh token generation, token hashing, and password hashing/verification. Human reviews all changes to auth code — do not modify JWT generation or validation logic without review. See `CLAUDE.md` for the full restriction list.
+
+JWT: HMAC-SHA256, 30-minute expiry. Refresh tokens: 64 random bytes, stored as SHA-256 hash. Passwords: BCrypt work factor 12.
 
 ---
 

@@ -17,13 +17,14 @@ TeamFlow.slnx
 │   └── apps/                              # Apps solution folder
 │       ├── TeamFlow.Api/                  # Controllers, middleware, SignalR hub
 │       ├── TeamFlow.BackgroundServices/   # MassTransit consumers, Quartz.NET jobs
-│       └── teamflow-web/                  # Next.js 15 frontend (App Router)
+│       └── teamflow-web/                  # Next.js 16 frontend (App Router)
 └── tests/
     ├── TeamFlow.Tests.Common/             # Shared builders, IntegrationTestBase
     ├── TeamFlow.Domain.Tests/             # Domain entity and enum unit tests
     ├── TeamFlow.Application.Tests/        # Handler, validator, behavior tests
     ├── TeamFlow.Infrastructure.Tests/     # EF Core and repository integration tests
-    └── TeamFlow.Api.Tests/                # Controller and API integration tests
+    ├── TeamFlow.Api.Tests/                # Controller and API integration tests
+    └── TeamFlow.BackgroundServices.Tests/ # Consumer and Quartz job tests
 ```
 
 ## Project Dependency Graph
@@ -54,10 +55,10 @@ The Domain layer has no outbound dependencies. The Application layer depends onl
 Each feature lives in its own folder under `Application/Features/{Domain}/{FeatureName}/`. A slice contains a command or query record, a handler, and optionally a validator. Slices do not import from each other at the handler level.
 
 ```
-Application/Features/WorkItems/CreateWorkItem/
-  CreateWorkItemCommand.cs   — IRequest<Result<WorkItemDto>>
-  CreateWorkItemHandler.cs   — IRequestHandler
-  CreateWorkItemValidator.cs — AbstractValidator
+Application/Features/Sprints/CreateSprint/
+  CreateSprintCommand.cs   — IRequest<Result<SprintDto>>
+  CreateSprintHandler.cs   — IRequestHandler
+  CreateSprintValidator.cs — AbstractValidator
 ```
 
 ### CQRS via MediatR
@@ -77,14 +78,18 @@ Two registered pipeline behaviors apply to every request in order:
 
 ### Event-Driven Architecture
 
-Handlers publish domain events via `IPublisher.Publish()`. MassTransit routes events over RabbitMQ to two consumers in `TeamFlow.BackgroundServices`:
+Handlers publish domain events via `IPublisher.Publish()`. MassTransit routes events over RabbitMQ to consumers in `TeamFlow.BackgroundServices`:
 
 - `DomainEventStoreConsumer` — persists every event to the `domain_events` partitioned table
-- `SignalRBroadcastConsumer` / `SignalRWorkItemStatusBroadcastConsumer` — broadcasts to SignalR groups via `IBroadcastService`
+- `SignalRBroadcastConsumer` — broadcasts to SignalR groups via `IBroadcastService`
+- `SprintStartedConsumer` — handles sprint start side effects (capacity snapshot, velocity history)
+- `SprintCompletedConsumer` — handles sprint completion side effects (velocity recording, snapshot finalization)
 
 ### Permission Resolution
 
 All permission checks go through `IPermissionChecker.HasPermissionAsync()`. Resolution order: Individual → Team → Organization. Checks happen inside command handlers, never in controllers or repositories.
+
+---
 
 ## What Is Implemented
 
@@ -99,29 +104,121 @@ All permission checks go through `IPermissionChecker.HasPermissionAsync()`. Reso
 - Test infrastructure: xUnit, Testcontainers, `IntegrationTestBase`, test data builders
 - Docker Compose full-stack configuration
 
-### Phase 1 — Work Item Management (complete, 124 tests passing)
+### Phase 1 — Work Item Management (complete)
 
 **Projects** — create, get by ID, list with filter/search/pagination, update, archive, delete
 
 **Work Items** — full CRUD, parent-child hierarchy (Epic → UserStory → Task/Bug/Spike), soft delete with cascade, status transitions, assign/unassign, move to new parent
 
-**Work Item Linking** — add link (6 types: blocks, relates_to, duplicates, depends_on, causes, clones), remove link, get all links grouped by type, check blockers, circular detection via graph traversal
+**Work Item Linking** — add link (6 types: Blocks, RelatesTo, Duplicates, DependsOn, Causes, Clones), remove link, get all links grouped by type, check blockers, circular detection via graph traversal
+
+**Work Item History** — paginated chronological feed via `GET /api/v1/workitems/{id}/history`
 
 **Backlog** — paginated list with filters (status, priority, assignee, type, sprint, release, unscheduled, full-text search), reorder (sort order)
 
-**Kanban** — board view grouped by status columns (ToDo, InProgress, InReview, Done), filters, blocked item detection, swimlane parameter (not yet applied server-side)
+**Kanban** — board view grouped by status columns (ToDo, InProgress, InReview, Done), filters, blocked item detection
 
-**Releases** — create, get, list paginated, update, delete, assign work item to release, unassign work item from release
+**Releases** — create, get, list paginated, update, delete, assign/unassign work item
 
-**Domain Events published** — `WorkItemCreatedDomainEvent`, `WorkItemStatusChangedDomainEvent`, `WorkItemEstimationChangedDomainEvent`, `WorkItemAssignedDomainEvent`, `WorkItemUnassignedDomainEvent`, `WorkItemPriorityChangedDomainEvent`, `WorkItemLinkAddedDomainEvent`, `WorkItemLinkRemovedDomainEvent`, `WorkItemRejectedDomainEvent`, `WorkItemNeedsClarificationFlaggedDomainEvent`
+**Organizations** — create, get by ID, list
+
+### Phase 2 — Auth & Authorization (complete)
+
+**Authentication** — register (POST `/api/v1/auth/register`), login (POST `/api/v1/auth/login`), refresh token (POST `/api/v1/auth/refresh`), change password (POST `/api/v1/auth/change-password`), logout (POST `/api/v1/auth/logout`)
+
+**JWT** — 30-minute access tokens (HMAC-SHA256), 64-byte cryptographically random refresh tokens stored as SHA-256 hashes, BCrypt password hashing (work factor 12)
+
+**Teams** — create team, get by ID, list (paginated, org-scoped), update, delete, add/remove members, change member role
+
+**Project Memberships** — add member to project (user or team), remove member, list memberships, get current user's permissions (`GET /api/v1/projects/{id}/memberships/me`)
+
+**Permission enforcement** — `IPermissionChecker` fully wired to real `project_memberships` data; 3-level resolution (Individual → Team → Organization) active on all mutating endpoints
+
+**Rate limiting** — `Auth` policy on register/login/refresh; `Write` policy on all mutation endpoints
+
+### Phase 3 — Sprint Planning & Hardening (complete)
+
+**Sprints** — create, get by ID, list (paginated, project-scoped), update, delete, start, complete, add/remove work items, update per-member capacity, get burndown chart data
+
+**Domain Events** — `SprintStartedDomainEvent`, `SprintCompletedDomainEvent`, `SprintItemAddedDomainEvent`, `SprintItemRemovedDomainEvent` all published and consumed
+
+**Background Jobs (Quartz.NET)**:
+- `BurndownSnapshotJob` — daily snapshot of remaining/completed points per active sprint; detects "At Risk" when remaining > ideal × 1.2; broadcasts `burndown.updated` via SignalR
+- `ReleaseOverdueDetectorJob` — detects releases past their release date with incomplete items; publishes `ReleaseOverdueDetectedDomainEvent`
+- `StaleItemDetectorJob` — flags work items with no updates beyond a threshold; publishes `WorkItemStaleFlaggedDomainEvent`
+- `EventPartitionCreatorJob` — pre-creates monthly partitions on the `domain_events` table
+
+**MassTransit Consumers**:
+- `SprintStartedConsumer` — reacts to sprint start event
+- `SprintCompletedConsumer` — reacts to sprint completion event
+
+**Integration tests** — full test suite across all six test projects (130 test files); covers Auth, Teams, Sprints, ProjectMemberships, background jobs, and all Phase 1 features
+
+**Frontend** — Next.js 16 (App Router) with pages for: login, register, projects list, project detail (backlog, board, sprints, releases, work items), teams list, team detail
+
+---
+
+## Domain Entities
+
+| Entity | Phase | Description |
+|---|---|---|
+| `User` | 0 | Authenticated user with BCrypt password hash |
+| `Organization` | 0 | Top-level tenant |
+| `Project` | 0 | Work container within an org |
+| `ProjectMembership` | 0 | Links user or team to a project with a role |
+| `Team` | 0 | Group of users within an org |
+| `TeamMember` | 0 | User membership in a team with a role |
+| `WorkItem` | 0 | Epic / UserStory / Task / Bug / Spike |
+| `WorkItemLink` | 0 | Directional link between two work items |
+| `WorkItemHistory` | 0 | Append-only audit trail for work item changes |
+| `Release` | 0 | Named release within a project |
+| `Sprint` | 0 | Time-boxed iteration within a project |
+| `RefreshToken` | 2 | Hashed refresh token with expiry |
+| `BurndownDataPoint` | 0/3 | Daily burndown snapshot per sprint |
+| `SprintSnapshot` | 0/3 | Sprint scope snapshot at start/end |
+| `TeamVelocityHistory` | 0/3 | Historical velocity per team/sprint |
+| `RetroSession` | 0 | Retrospective session (Phase 4) |
+| `RetroCard` | 0 | Card submitted in a retro |
+| `RetroVote` | 0 | Vote on a retro card |
+| `RetroActionItem` | 0 | Action item from a retro |
+| `WorkItemEmbedding` | 0 | AI vector embedding (Phase 4+) |
+| `AiInteraction` | 0 | AI suggestion record (Phase 4+) |
+| `JobExecutionMetric` | 0 | Quartz job run history |
+
+---
+
+## Domain Events Published
+
+| Event | Phase | Trigger |
+|---|---|---|
+| `WorkItemCreatedDomainEvent` | 1 | Work item created |
+| `WorkItemStatusChangedDomainEvent` | 1 | Status transition |
+| `WorkItemEstimationChangedDomainEvent` | 1 | Estimation updated |
+| `WorkItemAssignedDomainEvent` | 1 | Assignee set |
+| `WorkItemUnassignedDomainEvent` | 1 | Assignee removed |
+| `WorkItemPriorityChangedDomainEvent` | 1 | Priority changed |
+| `WorkItemLinkAddedDomainEvent` | 1 | Link created |
+| `WorkItemLinkRemovedDomainEvent` | 1 | Link removed |
+| `WorkItemRejectedDomainEvent` | 1 | Status set to Rejected |
+| `WorkItemNeedsClarificationFlaggedDomainEvent` | 1 | Status set to NeedsClarification |
+| `WorkItemStaleFlaggedDomainEvent` | 3 | StaleItemDetectorJob fires |
+| `ReleaseCreatedDomainEvent` | 1 | Release created |
+| `ReleaseItemAssignedDomainEvent` | 1 | Work item assigned to release |
+| `ReleaseStatusChangedDomainEvent` | 1 | Release status changes |
+| `ReleaseOverdueDetectedDomainEvent` | 3 | ReleaseOverdueDetectorJob fires |
+| `SprintStartedDomainEvent` | 3 | Sprint started |
+| `SprintCompletedDomainEvent` | 3 | Sprint completed |
+| `SprintItemAddedDomainEvent` | 3 | Work item added to sprint |
+| `SprintItemRemovedDomainEvent` | 3 | Work item removed from sprint |
+
+---
 
 ## What Is Next
 
-**Phase 2 — Authentication & Authorization** (Weeks 6–8)
+**Phase 4 — Retrospectives** (planned)
 
-- Register, login, JWT + refresh token, silent refresh, logout, change password
-- Team management: create team, add/remove members, assign Team Manager role
-- Permission enforcement on all Phase 1 endpoints (3-level resolution)
-- Work Item History UI: chronological feed, realtime updates
+- Retro sessions: create, start, add cards, reveal, vote, close
+- Action items linked to backlog
+- Retro domain events published and consumed
 
 See `docs/process/phases.md` for full scope and acceptance criteria.

@@ -2,18 +2,9 @@ using Bogus;
 
 namespace TeamFlow.Tests.Common.Fakers;
 
-public static class FakerProvider
+internal static class FakerProvider
 {
-    private static readonly Lock Lock = new();
+    private static readonly ThreadLocal<Faker> _faker = new(() => new Faker());
 
-    public static Faker Instance
-    {
-        get
-        {
-            lock (Lock)
-            {
-                return new Faker();
-            }
-        }
-    }
+    public static Faker Instance => _faker.Value!;
 }

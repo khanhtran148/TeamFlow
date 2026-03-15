@@ -6,7 +6,7 @@ namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class ProjectBuilder
 {
-    private static Faker F => FakerProvider.Instance;
+    private static readonly Faker F = FakerProvider.Instance;
 
     private Guid _orgId = Guid.NewGuid();
     private string _name = F.Commerce.ProductName();

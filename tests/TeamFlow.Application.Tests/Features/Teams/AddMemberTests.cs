@@ -29,7 +29,7 @@ public sealed class AddMemberTests
     public async Task Handle_ValidCommand_ReturnsSuccess()
     {
         var orgId = Guid.NewGuid();
-        var team = TeamBuilder.New().WithOrg(orgId).Build();
+        var team = TeamBuilder.New().WithOrganization(orgId).Build();
         var userId = Guid.NewGuid();
 
         _teamRepo.GetByIdWithMembersAsync(team.Id, Arg.Any<CancellationToken>()).Returns(team);

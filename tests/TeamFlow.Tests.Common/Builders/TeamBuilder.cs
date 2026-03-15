@@ -7,22 +7,22 @@ namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class TeamBuilder
 {
-    private static Faker F => FakerProvider.Instance;
+    private static readonly Faker F = FakerProvider.Instance;
 
     private Guid _orgId = Guid.NewGuid();
     private string _name = F.Commerce.Department();
     private string? _description;
-    private readonly List<TeamMember> _members = [];
+    private readonly List<(Guid UserId, ProjectRole Role)> _members = [];
 
     public static TeamBuilder New() => new();
 
-    public TeamBuilder WithOrg(Guid orgId) { _orgId = orgId; return this; }
+    public TeamBuilder WithOrganization(Guid orgId) { _orgId = orgId; return this; }
     public TeamBuilder WithName(string name) { _name = name; return this; }
     public TeamBuilder WithDescription(string? description) { _description = description; return this; }
 
     public TeamBuilder WithMember(Guid userId, ProjectRole role = ProjectRole.Developer)
     {
-        _members.Add(new TeamMember { TeamId = Guid.Empty, UserId = userId, Role = role });
+        _members.Add((userId, role));
         return this;
     }
 
@@ -34,8 +34,8 @@ public sealed class TeamBuilder
             Name = _name,
             Description = _description
         };
-        foreach (var m in _members)
-            team.Members.Add(m);
+        foreach (var (userId, role) in _members)
+            team.Members.Add(new TeamMember { TeamId = team.Id, UserId = userId, Role = role });
         return team;
     }
 }

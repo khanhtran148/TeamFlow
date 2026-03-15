@@ -51,15 +51,22 @@ TeamFlow.slnx
 - .NET 10 SDK
 - Node.js 20+ (for frontend)
 
-### 1. Start infrastructure
+### 1. Configure environment
+
+```bash
+cp .env.example .env
+# Edit .env with your local values (JWT secret, DB password, RabbitMQ credentials)
+```
+
+### 2. Start infrastructure
 
 ```bash
 docker compose up postgres rabbitmq -d
 ```
 
-PostgreSQL is available at `localhost:5432`. RabbitMQ management UI is at `http://localhost:15672` (user: `teamflow`, pass: `teamflow_dev`).
+PostgreSQL is available at `localhost:5432`. RabbitMQ management UI is at `http://localhost:15672` (credentials from `.env`).
 
-### 2. Run database migrations
+### 3. Run database migrations
 
 ```bash
 dotnet ef database update \
@@ -67,19 +74,31 @@ dotnet ef database update \
   --startup-project src/apps/TeamFlow.Api
 ```
 
-### 3. Run the API
+### 4. Run the API
 
 ```bash
 dotnet run --project src/apps/TeamFlow.Api
 ```
 
-API available at `http://localhost:5000`. Swagger UI at `http://localhost:5000/swagger`.
+API available at `http://localhost:5000`. Swagger UI at `http://localhost:5000/swagger`. Health check at `http://localhost:5000/health`.
 
-### 4. Run the background services (optional for local dev)
+### 5. Run the frontend
+
+```bash
+cd src/apps/teamflow-web
+npm install
+npm run dev
+```
+
+Frontend available at `http://localhost:3000`.
+
+### 6. Run the background services (optional for local dev)
 
 ```bash
 dotnet run --project src/apps/TeamFlow.BackgroundServices
 ```
+
+Background services include Quartz.NET scheduled jobs (BurndownSnapshotJob, ReleaseOverdueDetectorJob, StaleItemDetectorJob, EventPartitionCreatorJob) and MassTransit consumers.
 
 ### Full stack via Docker Compose
 
@@ -89,13 +108,31 @@ docker compose up
 
 All services start in dependency order (postgres and rabbitmq health-checked before API and background services start).
 
+### Production Docker Compose
+
+```bash
+docker compose -f docker-compose.prod.yml up
+```
+
+Production profile includes resource limits, health checks on all containers, and `restart: unless-stopped`.
+
 ---
 
 ## API Endpoints
 
 Base path: `/api/v1/`
 
-All responses use `ProblemDetails` (RFC 7807) for errors. All list endpoints are paginated with `?page=1&pageSize=20`.
+All responses use `ProblemDetails` (RFC 7807) for errors. All list endpoints are paginated with `?page=1&pageSize=20`. All endpoints require a valid JWT (Bearer token) unless noted as anonymous.
+
+### Auth — `/api/v1/auth`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/auth/register` | Anonymous | Register with email + password |
+| POST | `/auth/login` | Anonymous | Login; returns JWT + refresh token |
+| POST | `/auth/refresh` | Anonymous | Exchange refresh token for new JWT |
+| POST | `/auth/change-password` | Bearer | Change current password |
+| POST | `/auth/logout` | Bearer | Revoke all refresh tokens for current user |
 
 ### Projects — `/api/v1/projects`
 
@@ -107,6 +144,22 @@ All responses use `ProblemDetails` (RFC 7807) for errors. All list endpoints are
 | PUT | `/projects/{id}` | Update project name/description |
 | POST | `/projects/{id}/archive` | Archive a project |
 | DELETE | `/projects/{id}` | Soft-delete a project |
+| GET | `/projects/{id}/memberships` | List project memberships |
+| POST | `/projects/{id}/memberships` | Add user or team to project with a role |
+| DELETE | `/projects/{id}/memberships/{membershipId}` | Remove a project membership |
+
+### Teams — `/api/v1/teams`
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/teams` | Create a team |
+| GET | `/teams/{id}` | Get team by ID |
+| GET | `/teams` | List teams (`?orgId`) |
+| PUT | `/teams/{id}` | Update team name/description |
+| DELETE | `/teams/{id}` | Delete a team |
+| POST | `/teams/{id}/members` | Add a member to the team |
+| DELETE | `/teams/{id}/members/{userId}` | Remove a member |
+| PUT | `/teams/{id}/members/{userId}/role` | Change a member's role |
 
 ### Work Items — `/api/v1/workitems`
 
@@ -124,6 +177,23 @@ All responses use `ProblemDetails` (RFC 7807) for errors. All list endpoints are
 | DELETE | `/workitems/{id}/links/{linkId}` | Remove a link |
 | GET | `/workitems/{id}/links` | Get all links for a work item |
 | GET | `/workitems/{id}/blockers` | Check if work item is blocked |
+| GET | `/workitems/{id}/history` | Get paginated history feed (newest first) |
+
+### Sprints — `/api/v1/sprints`
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/sprints` | Create a sprint |
+| GET | `/sprints` | List sprints for a project (`?projectId`) |
+| GET | `/sprints/{id}` | Get sprint detail with items and capacity |
+| PUT | `/sprints/{id}` | Update sprint name/goal/dates |
+| DELETE | `/sprints/{id}` | Delete a planning-status sprint |
+| POST | `/sprints/{id}/start` | Start a sprint (scope locks) |
+| POST | `/sprints/{id}/complete` | Complete a sprint (carries over unfinished items) |
+| POST | `/sprints/{id}/items/{workItemId}` | Add item to sprint |
+| DELETE | `/sprints/{id}/items/{workItemId}` | Remove item from sprint |
+| PUT | `/sprints/{id}/capacity` | Update per-member capacity |
+| GET | `/sprints/{id}/burndown` | Get burndown chart data (ideal + actual lines) |
 
 ### Releases — `/api/v1/releases`
 
@@ -150,42 +220,65 @@ All responses use `ProblemDetails` (RFC 7807) for errors. All list endpoints are
 |---|---|---|
 | GET | `/kanban` | Get status-grouped board (`?projectId`, `?assigneeId`, `?type`, `?priority`, `?sprintId`, `?releaseId`, `?swimlane`) |
 
+### Health — `/health`
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | Full health check (PostgreSQL + RabbitMQ) |
+| GET | `/health/ready` | Readiness probe (tagged checks only) |
+
 ---
 
 ## Running Tests
 
 ```bash
-# All tests
+# All backend tests
 dotnet test
 
-# Specific project
+# Specific test project
 dotnet test tests/TeamFlow.Domain.Tests
 dotnet test tests/TeamFlow.Application.Tests
 dotnet test tests/TeamFlow.Infrastructure.Tests
 dotnet test tests/TeamFlow.Api.Tests
+dotnet test tests/TeamFlow.BackgroundServices.Tests
+
+# Frontend E2E tests (requires API + frontend running)
+cd src/apps/teamflow-web
+npx playwright test
+
+# E2E with UI mode (for debugging)
+npx playwright test --ui
+
+# E2E for specific feature
+npx playwright test e2e/sprints/
 ```
 
-Integration tests use Testcontainers and spin up a real PostgreSQL instance automatically. Docker must be running.
+Integration tests (TeamFlow.Api.Tests) use Testcontainers and start a real PostgreSQL container automatically. Docker must be running.
 
-Current test count: **124** (17 domain, 99 application, 8 integration).
+Current test count: **513 backend** (48 domain, 298 application, 25 background services, 132 API integration, 10 infrastructure) + **63 Playwright E2E**.
 
 ---
 
 ## Current Status
 
-**Phase 1 — Work Item Management: complete**
+**Phase 3 — Hardening + Sprint Planning: in progress** (branch: `feat/phase-3-sprint-hardening`)
 
-- Project CRUD with archive and soft-delete
-- Work item hierarchy: Epic > Story > Task / Bug / Spike
-- Status transitions with validation, assignment with history tracking
-- Item linking with 6 link types and circular blocking detection
-- Release management with one-release-per-item constraint
-- Backlog query (hierarchy-grouped, filterable, searchable, reorderable)
-- Kanban board query (status-grouped, swimlane by assignee or epic)
-- Realtime broadcast infrastructure: MassTransit publishes domain events, SignalR hub broadcasts to clients
-- Domain events persisted to event store
+**Completed phases:**
 
-**Phase 2 — Sprints and Teams** is next. See [docs/process/phases.md](docs/process/phases.md) for the full roadmap.
+Phase 0 — Foundation: .NET 10 + Next.js solution, full database schema, Docker Compose, test infrastructure.
+
+Phase 1 — Work Item Management: Project CRUD, work item hierarchy (Epic > Story > Task/Bug/Spike), status transitions, item linking with 6 link types and circular blocking detection, release management, backlog query, Kanban board, realtime via SignalR + RabbitMQ.
+
+Phase 2 — Authentication & Authorization: JWT + refresh token auth, bcrypt password hashing, 3-level permission resolution (Individual/Team/Org), team management with Team Manager scope enforcement, work item history UI, Playwright test infrastructure.
+
+Phase 3 (in progress): Sprint planning backend (11 endpoints), sprint planning frontend with drag-and-drop and burndown chart, 4 scheduled background jobs, health checks, global exception handler, performance indexes, 513 backend tests + 63 E2E tests.
+
+**Pending in Phase 3:**
+- 1 week dogfooding with real sprint cycle
+- Lighthouse ≥80 on main screens
+- Production zero-downtime deploy verification
+
+See [docs/process/phases.md](docs/process/phases.md) for the full roadmap and [docs/changelog.md](docs/changelog.md) for detailed change history.
 
 ---
 

@@ -6,9 +6,9 @@ namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class UserBuilder
 {
-    private static Faker F => FakerProvider.Instance;
+    private static readonly Faker F = FakerProvider.Instance;
 
-    private string _email = F.Internet.Email();
+    private string _email = F.Internet.Email(provider: "example.com");
     private string _name = F.Name.FullName();
     private string _passwordHash = "hashed_Test@1234";
 

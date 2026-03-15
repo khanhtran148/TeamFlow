@@ -6,7 +6,7 @@ namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class OrganizationBuilder
 {
-    private static Faker F => FakerProvider.Instance;
+    private static readonly Faker F = FakerProvider.Instance;
 
     private string _name = F.Company.CompanyName();
 

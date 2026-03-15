@@ -71,7 +71,7 @@ public sealed class PermissionCheckerTests : IntegrationTestBase
 
         // Team with TeamDevUser and OverrideUser as members
         var team = TeamBuilder.New()
-            .WithOrg(SeedOrgId)
+            .WithOrganization(SeedOrgId)
             .WithName("Dev Team")
             .Build();
         DbContext.Entry(team).Property(nameof(Team.Id)).CurrentValue = TeamId;

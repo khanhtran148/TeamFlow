@@ -7,10 +7,17 @@ namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class ReleaseBuilder
 {
-    private static Faker F => FakerProvider.Instance;
+    private static readonly Faker F = FakerProvider.Instance;
+
+    private const int MinMajor = 1;
+    private const int MaxMajor = 9;
+    private const int MinMinor = 0;
+    private const int MaxMinor = 20;
+    private const int MinPatch = 0;
+    private const int MaxPatch = 99;
 
     private Guid _projectId = Guid.NewGuid();
-    private string _name = $"v{F.Random.Number(1, 9)}.{F.Random.Number(0, 20)}.{F.Random.Number(0, 99)}";
+    private string _name = $"v{F.Random.Number(MinMajor, MaxMajor)}.{F.Random.Number(MinMinor, MaxMinor)}.{F.Random.Number(MinPatch, MaxPatch)}";
     private string? _description;
     private DateOnly? _releaseDate;
     private ReleaseStatus _status = ReleaseStatus.Unreleased;
