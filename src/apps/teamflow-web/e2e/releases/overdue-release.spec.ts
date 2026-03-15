@@ -69,8 +69,8 @@ test.describe("Overdue Release Badge", () => {
       page.getByRole("heading", { name: "Releases" }),
     ).toBeVisible({ timeout: 10_000 });
 
-    // Verify our release appears
-    await expect(page.getByText("Overdue Release E2E")).toBeVisible({
+    // Verify our release appears (use getByRole to avoid strict mode - project name also matches)
+    await expect(page.getByRole("main").getByText("Overdue Release E2E", { exact: true })).toBeVisible({
       timeout: 5_000,
     });
 

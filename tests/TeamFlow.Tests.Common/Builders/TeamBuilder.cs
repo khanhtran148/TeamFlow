@@ -1,12 +1,16 @@
+using Bogus;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common.Fakers;
 
 namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class TeamBuilder
 {
+    private static Faker F => FakerProvider.Instance;
+
     private Guid _orgId = Guid.NewGuid();
-    private string _name = "Test Team";
+    private string _name = F.Commerce.Department();
     private string? _description;
     private readonly List<TeamMember> _members = [];
 

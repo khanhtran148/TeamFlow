@@ -1,14 +1,18 @@
+using Bogus;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common.Fakers;
 
 namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class WorkItemBuilder
 {
+    private static Faker F => FakerProvider.Instance;
+
     private Guid _projectId = Guid.NewGuid();
     private Guid? _parentId;
     private WorkItemType _type = WorkItemType.UserStory;
-    private string _title = "Test Work Item";
+    private string _title = F.Lorem.Sentence(4);
     private string? _description;
     private WorkItemStatus _status = WorkItemStatus.ToDo;
     private Priority? _priority = Priority.Medium;

@@ -47,7 +47,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
   const { mutate: deleteSprintMut, isPending: isDeleting } = useDeleteSprint(projectId);
 
   const canStart = useHasPermission(projectId, "Sprint_Start");
-  const canClose = useHasPermission(projectId, "Sprint_Close");
+  const canClose = useHasPermission(projectId, "Sprint_Complete");
   const canEdit = useHasPermission(projectId, "Sprint_Edit");
 
   function handleStartConfirm() {

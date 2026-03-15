@@ -66,8 +66,8 @@ test.describe("Sprint Backlog Interaction", () => {
     ).toBeVisible({ timeout: 10_000 });
 
     // Verify both panels are visible
-    await expect(page.getByText("Backlog")).toBeVisible();
-    await expect(page.getByText("E2E Backlog Board Sprint").last()).toBeVisible();
+    await expect(page.getByTestId("backlog-panel")).toBeVisible();
+    await expect(page.getByTestId("sprint-panel")).toBeVisible();
 
     // Verify backlog items appear in the backlog panel
     await expect(page.getByText("Backlog Item Alpha")).toBeVisible({

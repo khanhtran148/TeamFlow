@@ -249,7 +249,7 @@ test.describe("Sprint Permission-Based UI", () => {
         page.getByRole("button", { name: /start sprint/i }),
       ).not.toBeVisible();
       await expect(
-        page.getByRole("button", { name: /^edit$/i }),
+        page.getByRole("button", { name: /edit sprint/i }),
       ).not.toBeVisible();
       await expect(
         page.getByRole("button", { name: /capacity/i }),
@@ -303,7 +303,7 @@ test.describe("Sprint Permission-Based UI", () => {
         page.getByRole("button", { name: /start sprint/i }),
       ).not.toBeVisible();
       await expect(
-        page.getByRole("button", { name: /^edit$/i }),
+        page.getByRole("button", { name: /edit sprint/i }),
       ).not.toBeVisible();
       await expect(
         page.getByRole("button", { name: /capacity/i }),
@@ -357,7 +357,7 @@ test.describe("Sprint Permission-Based UI", () => {
         page.getByRole("button", { name: /start sprint/i }),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: /^edit$/i }),
+        page.getByRole("button", { name: /edit sprint/i }),
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: /capacity/i }),

@@ -42,29 +42,29 @@ public sealed class StaleItemDetectorJobTests : IDisposable
         _dbContext.ChangeTracker.Clear();
     }
 
-    private async Task AddProjectAsync(string status = "Active")
+    private async Task<Project> AddProjectAsync(string status = "Active")
     {
         var org = OrganizationBuilder.New().Build();
         _dbContext.Organizations.Add(org);
         await _dbContext.SaveChangesAsync();
 
-        _currentProject = ProjectBuilder.New()
+        var project = ProjectBuilder.New()
             .WithOrganization(org.Id)
             .WithStatus(status)
             .Build();
-        _dbContext.Projects.Add(_currentProject);
+        _dbContext.Projects.Add(project);
         await _dbContext.SaveChangesAsync();
-    }
 
-    private Project _currentProject = null!;
+        return project;
+    }
 
     [Fact]
     public async Task ExecuteInternal_ItemNotUpdatedIn14Days_FlagsAsStale()
     {
-        await AddProjectAsync();
+        var project = await AddProjectAsync();
 
         var item = WorkItemBuilder.New()
-            .WithProject(_currentProject.Id)
+            .WithProject(project.Id)
             .WithStatus(WorkItemStatus.InProgress)
             .Build();
 
@@ -92,10 +92,10 @@ public sealed class StaleItemDetectorJobTests : IDisposable
     [InlineData(WorkItemStatus.Rejected)]
     public async Task ExecuteInternal_DoneAndRejectedItems_AreSkipped(WorkItemStatus status)
     {
-        await AddProjectAsync();
+        var project = await AddProjectAsync();
 
         var item = WorkItemBuilder.New()
-            .WithProject(_currentProject.Id)
+            .WithProject(project.Id)
             .WithStatus(status)
             .Build();
 
@@ -116,10 +116,10 @@ public sealed class StaleItemDetectorJobTests : IDisposable
     [Fact]
     public async Task ExecuteInternal_ItemInArchivedProject_IsSkipped()
     {
-        await AddProjectAsync("Archived");
+        var project = await AddProjectAsync("Archived");
 
         var item = WorkItemBuilder.New()
-            .WithProject(_currentProject.Id)
+            .WithProject(project.Id)
             .WithStatus(WorkItemStatus.ToDo)
             .Build();
 
@@ -140,10 +140,10 @@ public sealed class StaleItemDetectorJobTests : IDisposable
     [Fact]
     public async Task ExecuteInternal_ItemInActiveSprint_SeverityIsCritical()
     {
-        await AddProjectAsync();
+        var project = await AddProjectAsync();
 
         var sprint = SprintBuilder.New()
-            .WithProject(_currentProject.Id)
+            .WithProject(project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)))
             .Build();
@@ -152,7 +152,7 @@ public sealed class StaleItemDetectorJobTests : IDisposable
         await _dbContext.SaveChangesAsync();
 
         var item = WorkItemBuilder.New()
-            .WithProject(_currentProject.Id)
+            .WithProject(project.Id)
             .WithSprint(sprint.Id)
             .WithStatus(WorkItemStatus.InProgress)
             .Build();
@@ -177,10 +177,10 @@ public sealed class StaleItemDetectorJobTests : IDisposable
     [Fact]
     public async Task ExecuteInternal_ItemInRelease_SeverityIsHigh()
     {
-        await AddProjectAsync();
+        var project = await AddProjectAsync();
 
         var release = ReleaseBuilder.New()
-            .WithProject(_currentProject.Id)
+            .WithProject(project.Id)
             .WithStatus(ReleaseStatus.Unreleased)
             .Build();
 
@@ -188,7 +188,7 @@ public sealed class StaleItemDetectorJobTests : IDisposable
         await _dbContext.SaveChangesAsync();
 
         var item = WorkItemBuilder.New()
-            .WithProject(_currentProject.Id)
+            .WithProject(project.Id)
             .WithRelease(release.Id)
             .WithStatus(WorkItemStatus.ToDo)
             .Build();
@@ -213,10 +213,10 @@ public sealed class StaleItemDetectorJobTests : IDisposable
     [Fact]
     public async Task ExecuteInternal_SoftDeletedItem_IsSkipped()
     {
-        await AddProjectAsync();
+        var project = await AddProjectAsync();
 
         var item = WorkItemBuilder.New()
-            .WithProject(_currentProject.Id)
+            .WithProject(project.Id)
             .WithStatus(WorkItemStatus.InProgress)
             .Build();
         item.DeletedAt = DateTime.UtcNow.AddDays(-5);

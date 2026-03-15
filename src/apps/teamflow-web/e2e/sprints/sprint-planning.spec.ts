@@ -76,8 +76,8 @@ test.describe("Sprint Planning Flow", () => {
 
     await expect(page.getByRole("heading", { name: "Sprints" })).toBeVisible();
 
-    // Click "New Sprint" button
-    await page.getByRole("button", { name: /new sprint/i }).click();
+    // Click "New Sprint" button (use the header button with specific aria-label)
+    await page.getByRole("button", { name: "Create new sprint" }).click();
 
     // Fill in sprint form dialog using data-testid selectors
     const dialog = page.getByTestId("sprint-form-dialog");
@@ -189,8 +189,8 @@ test.describe("Sprint Planning Flow", () => {
       page.getByRole("heading", { name: "E2E Date Update Sprint" }),
     ).toBeVisible({ timeout: 10_000 });
 
-    // Click Edit button
-    await page.getByRole("button", { name: /^edit$/i }).click();
+    // Click Edit button (aria-label is "Edit sprint")
+    await page.getByRole("button", { name: /edit sprint/i }).click();
 
     // Update dates in the form dialog
     const dialog = page.getByTestId("sprint-form-dialog");
