@@ -1,11 +1,15 @@
+using Bogus;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common.Fakers;
 
 namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class ProjectBuilder
 {
+    private static Faker F => FakerProvider.Instance;
+
     private Guid _orgId = Guid.NewGuid();
-    private string _name = "Test Project";
+    private string _name = F.Commerce.ProductName();
     private string? _description;
     private string _status = "Active";
 

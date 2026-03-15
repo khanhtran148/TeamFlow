@@ -1,11 +1,15 @@
+using Bogus;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common.Fakers;
 
 namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class UserBuilder
 {
-    private string _email = "test@teamflow.dev";
-    private string _name = "Test User";
+    private static Faker F => FakerProvider.Instance;
+
+    private string _email = F.Internet.Email();
+    private string _name = F.Name.FullName();
     private string _passwordHash = "hashed_Test@1234";
 
     public static UserBuilder New() => new();

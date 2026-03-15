@@ -1,12 +1,16 @@
+using Bogus;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common.Fakers;
 
 namespace TeamFlow.Tests.Common.Builders;
 
 public sealed class SprintBuilder
 {
+    private static Faker F => FakerProvider.Instance;
+
     private Guid _projectId = Guid.NewGuid();
-    private string _name = "Test Sprint";
+    private string _name = $"Sprint {F.Random.Number(1, 99)}";
     private string? _goal;
     private DateOnly? _startDate;
     private DateOnly? _endDate;
