@@ -1,14 +1,10 @@
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
-using TeamFlow.Tests.Builders;
+using TeamFlow.Tests.Common.Builders;
 
-namespace TeamFlow.Tests.Domain;
+namespace TeamFlow.Domain.Tests;
 
-/// <summary>
-/// Tests for domain entity construction and defaults.
-/// TFD: Written before entity implementation (now verifying behavior).
-/// </summary>
-public class EntityTests
+public sealed class EntityTests
 {
     [Fact]
     public void User_Build_ShouldHaveValidDefaults()
@@ -63,7 +59,6 @@ public class EntityTests
     [Fact]
     public void WorkItemHistory_ShouldBeReadonly()
     {
-        // WorkItemHistory has no UpdatedAt — it's append-only
         var history = new WorkItemHistory
         {
             WorkItemId = Guid.NewGuid(),

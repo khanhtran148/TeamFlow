@@ -1,9 +1,9 @@
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
 
-namespace TeamFlow.Tests.Builders;
+namespace TeamFlow.Tests.Common.Builders;
 
-public class WorkItemBuilder
+public sealed class WorkItemBuilder
 {
     private Guid _projectId = Guid.NewGuid();
     private Guid? _parentId;

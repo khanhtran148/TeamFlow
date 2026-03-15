@@ -1,8 +1,8 @@
 using TeamFlow.Application.Common.Models;
 
-namespace TeamFlow.Tests.Application;
+namespace TeamFlow.Application.Tests;
 
-public class PagedResultTests
+public sealed class PagedResultTests
 {
     [Fact]
     public void PagedResult_ShouldCalculateTotalPagesCorrectly()

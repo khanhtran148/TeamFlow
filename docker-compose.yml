@@ -36,7 +36,7 @@ services:
   teamflow-api:
     build:
       context: .
-      dockerfile: apps/TeamFlow.Api/Dockerfile
+      dockerfile: src/apps/TeamFlow.Api/Dockerfile
     container_name: teamflow-api
     ports:
       - "5000:8080"
@@ -59,7 +59,7 @@ services:
   teamflow-background:
     build:
       context: .
-      dockerfile: apps/TeamFlow.BackgroundServices/Dockerfile
+      dockerfile: src/apps/TeamFlow.BackgroundServices/Dockerfile
     container_name: teamflow-background
     depends_on:
       postgres:

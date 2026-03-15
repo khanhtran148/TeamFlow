@@ -1,12 +1,8 @@
 using TeamFlow.Domain.Enums;
 
-namespace TeamFlow.Tests.Domain;
+namespace TeamFlow.Domain.Tests;
 
-/// <summary>
-/// Tests for domain enums — verify all values defined per the data model.
-/// TFD: These tests verify enum values match the schema spec.
-/// </summary>
-public class EnumTests
+public sealed class EnumTests
 {
     [Fact]
     public void ProjectRole_ShouldHaveSixValues()

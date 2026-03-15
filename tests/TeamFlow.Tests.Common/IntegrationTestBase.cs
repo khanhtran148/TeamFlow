@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using TeamFlow.Infrastructure.Persistence;
 
-namespace TeamFlow.Tests.Infrastructure;
+namespace TeamFlow.Tests.Common;
 
 /// <summary>
 /// Base class for integration tests using Testcontainers to spin up a real PostgreSQL instance.
@@ -38,7 +38,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         Services = services.BuildServiceProvider();
         DbContext = Services.GetRequiredService<TeamFlowDbContext>();
 
-        // Apply migrations (EnsureCreated for Phase 0, migrations once they exist)
         await DbContext.Database.EnsureCreatedAsync();
     }
 

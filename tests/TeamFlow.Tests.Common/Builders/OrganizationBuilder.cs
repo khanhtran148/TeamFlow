@@ -1,8 +1,8 @@
 using TeamFlow.Domain.Entities;
 
-namespace TeamFlow.Tests.Builders;
+namespace TeamFlow.Tests.Common.Builders;
 
-public class OrganizationBuilder
+public sealed class OrganizationBuilder
 {
     private string _name = "Test Organization";
 

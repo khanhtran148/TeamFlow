@@ -32,13 +32,13 @@ Phase 0 — Foundation & Design Ready (Weeks 1-2)
 - API errors: ProblemDetails (RFC 7807)
 - Event-driven: API → RabbitMQ → Background Service → SignalR → clients
 
-## Planning Documents Available
-- `planning/01-vision.md` — Product vision, tech decisions, project structure
-- `planning/02-roles-permissions.md` — 6 roles, 3-level permission system, status flow
-- `planning/03-data-model.md` — Full database schema with AI-ready tables
-- `planning/04-features.md` — Feature inventory, item linking, release management
-- `planning/05-phases.md` — 5-phase breakdown with acceptance criteria
-- `planning/06-events.md` — Domain event catalog, RabbitMQ/SignalR architecture
-- `planning/07-background-jobs.md` — Background job design per phase
-- `planning/08-definition-of-done.md` — DoD, cross-phase rules, risk register
-- `planning/CLAUDE.md` — Architecture rules, code patterns, conventions
+## Documentation (migrated from planning/)
+- `docs/product/vision.md` — Product vision, tech decisions, project structure
+- `docs/product/roles-permissions.md` — 6 roles, 3-level permission system, status flow
+- `docs/architecture/data-model.md` — Full database schema with AI-ready tables
+- `docs/product/features.md` — Feature inventory, item linking, release management
+- `docs/process/phases.md` — 5-phase breakdown with acceptance criteria
+- `docs/architecture/events.md` — Domain event catalog, RabbitMQ/SignalR architecture
+- `docs/architecture/background-jobs.md` — Background job design per phase
+- `docs/process/definition-of-done.md` — DoD, cross-phase rules, risk register
+- `CLAUDE.md` — Architecture rules, code patterns, conventions (root level)

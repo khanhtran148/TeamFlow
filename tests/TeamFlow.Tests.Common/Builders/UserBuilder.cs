@@ -1,8 +1,8 @@
 using TeamFlow.Domain.Entities;
 
-namespace TeamFlow.Tests.Builders;
+namespace TeamFlow.Tests.Common.Builders;
 
-public class UserBuilder
+public sealed class UserBuilder
 {
     private string _email = "test@teamflow.dev";
     private string _name = "Test User";

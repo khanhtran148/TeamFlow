@@ -1,9 +1,9 @@
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
 
-namespace TeamFlow.Tests.Builders;
+namespace TeamFlow.Tests.Common.Builders;
 
-public class SprintBuilder
+public sealed class SprintBuilder
 {
     private Guid _projectId = Guid.NewGuid();
     private string _name = "Test Sprint";

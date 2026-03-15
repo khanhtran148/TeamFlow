@@ -1,8 +1,8 @@
 using TeamFlow.Domain.Entities;
 
-namespace TeamFlow.Tests.Builders;
+namespace TeamFlow.Tests.Common.Builders;
 
-public class ProjectBuilder
+public sealed class ProjectBuilder
 {
     private Guid _orgId = Guid.NewGuid();
     private string _name = "Test Project";
