@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { createQueryClient } from "@/lib/query-client";
 import { useThemeStore } from "@/lib/stores/theme-store";
+import { SignalRProvider } from "@/lib/signalr/signalr-provider";
 
 // ---- ThemeSync: applies persisted theme to <html> on first render ----
 
@@ -36,23 +37,25 @@ export function Providers({ children }: ProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ThemeSync />
-        {children}
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: "var(--tf-bg2)",
-              border: "1px solid var(--tf-border)",
-              color: "var(--tf-text)",
-            },
-          }}
-        />
-        {process.env.NODE_ENV === "development" && (
-          <ReactQueryDevtools initialIsOpen={false} />
-        )}
-      </TooltipProvider>
+      <SignalRProvider>
+        <TooltipProvider>
+          <ThemeSync />
+          {children}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: "var(--tf-bg2)",
+                border: "1px solid var(--tf-border)",
+                color: "var(--tf-text)",
+              },
+            }}
+          />
+          {process.env.NODE_ENV === "development" && (
+            <ReactQueryDevtools initialIsOpen={false} />
+          )}
+        </TooltipProvider>
+      </SignalRProvider>
     </QueryClientProvider>
   );
 }

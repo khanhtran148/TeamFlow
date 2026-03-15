@@ -246,7 +246,7 @@ export function CreateProjectDialog({ open, onClose }: CreateProjectDialogProps)
                 borderRadius: 6,
                 border: "1px solid var(--tf-accent)",
                 background: "var(--tf-accent)",
-                color: "#0a0a0b",
+                color: "var(--primary-foreground)",
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: isPending ? "not-allowed" : "pointer",

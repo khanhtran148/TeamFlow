@@ -1,74 +1,68 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
-import { useUpdateProject } from "@/lib/hooks/use-projects";
-import type { ProjectDto } from "@/lib/api/types";
+import { useCreateRelease } from "@/lib/hooks/use-releases";
 import type { ApiError } from "@/lib/api/client";
 
-interface EditProjectDialogProps {
-  project: ProjectDto | null;
+interface CreateReleaseDialogProps {
+  open: boolean;
+  projectId: string;
   onClose: () => void;
 }
 
-export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) {
+export function CreateReleaseDialog({ open, projectId, onClose }: CreateReleaseDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [releaseDate, setReleaseDate] = useState("");
   const [nameError, setNameError] = useState("");
 
-  const { mutate: updateProject, isPending } = useUpdateProject();
-
-  useEffect(() => {
-    if (project) {
-      setName(project.name);
-      setDescription(project.description ?? "");
-      setNameError("");
-    }
-  }, [project]);
+  const { mutate: createRelease, isPending } = useCreateRelease(projectId);
 
   function handleClose() {
+    setName("");
+    setDescription("");
+    setReleaseDate("");
     setNameError("");
     onClose();
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!project) return;
-
     const trimmedName = name.trim();
+
     if (!trimmedName) {
-      setNameError("Project name is required.");
+      setNameError("Release name is required.");
       return;
     }
     if (trimmedName.length > 100) {
-      setNameError("Project name must be 100 characters or fewer.");
+      setNameError("Release name must be 100 characters or fewer.");
       return;
     }
 
     setNameError("");
-    updateProject(
+    createRelease(
       {
-        id: project.id,
-        data: {
-          name: trimmedName,
-          description: description.trim() || undefined,
-        },
+        projectId,
+        name: trimmedName,
+        description: description.trim() || undefined,
+        releaseDate: releaseDate || undefined,
       },
       {
         onSuccess: () => {
-          toast.success("Project updated successfully.");
+          toast.success("Release created successfully.");
           handleClose();
         },
         onError: (err) => {
           const apiErr = err as ApiError;
-          toast.error(apiErr.message ?? "Failed to update project.");
+          toast.error(apiErr.message ?? "Failed to create release.");
         },
       },
     );
   }
 
-  if (!project) return null;
+  if (!open) return null;
 
   return (
     <div
@@ -87,7 +81,7 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="edit-project-title"
+        aria-labelledby="create-release-title"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "var(--tf-bg2)",
@@ -109,7 +103,7 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
           }}
         >
           <h2
-            id="edit-project-title"
+            id="create-release-title"
             style={{
               fontFamily: "var(--tf-font-head)",
               fontWeight: 700,
@@ -117,7 +111,7 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
               color: "var(--tf-text)",
             }}
           >
-            Edit Project
+            New Release
           </h2>
           <button
             onClick={handleClose}
@@ -142,19 +136,20 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
           {/* Name field */}
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label
-              htmlFor="edit-project-name"
+              htmlFor="release-name"
               style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
             >
               Name <span style={{ color: "var(--tf-red)" }}>*</span>
             </label>
             <input
-              id="edit-project-name"
+              id="release-name"
               type="text"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
                 if (nameError) setNameError("");
               }}
+              placeholder="e.g. v1.0.0"
               autoFocus
               style={{
                 padding: "7px 10px",
@@ -186,15 +181,16 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
           {/* Description field */}
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label
-              htmlFor="edit-project-description"
+              htmlFor="release-description"
               style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
             >
               Description
             </label>
             <textarea
-              id="edit-project-description"
+              id="release-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder="Short release description..."
               rows={3}
               style={{
                 padding: "7px 10px",
@@ -213,6 +209,40 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
               }}
               onBlur={(e) => {
                 (e.currentTarget as HTMLTextAreaElement).style.borderColor = "var(--tf-border)";
+              }}
+            />
+          </div>
+
+          {/* Release date field */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <label
+              htmlFor="release-date"
+              style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+            >
+              Release Date
+            </label>
+            <input
+              id="release-date"
+              type="date"
+              value={releaseDate}
+              onChange={(e) => setReleaseDate(e.target.value)}
+              style={{
+                padding: "7px 10px",
+                borderRadius: 6,
+                border: "1px solid var(--tf-border)",
+                background: "var(--tf-bg3)",
+                color: "var(--tf-text)",
+                fontSize: 13,
+                outline: "none",
+                fontFamily: "var(--tf-font-body)",
+                transition: "border-color var(--tf-tr)",
+                colorScheme: "dark",
+              }}
+              onFocus={(e) => {
+                (e.currentTarget as HTMLInputElement).style.borderColor = "var(--tf-accent)";
+              }}
+              onBlur={(e) => {
+                (e.currentTarget as HTMLInputElement).style.borderColor = "var(--tf-border)";
               }}
             />
           </div>
@@ -253,7 +283,7 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
                 fontFamily: "var(--tf-font-body)",
               }}
             >
-              {isPending ? "Saving..." : "Save Changes"}
+              {isPending ? "Creating..." : "Create Release"}
             </button>
           </div>
         </form>

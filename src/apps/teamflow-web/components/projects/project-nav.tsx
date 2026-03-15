@@ -42,7 +42,7 @@ export function ProjectNav({ projectId }: ProjectNavProps) {
               padding: "10px 12px",
               fontSize: 12,
               fontWeight: isActive ? 600 : 400,
-              color: isActive ? "var(--tf-text)" : "var(--tf-text3)",
+              color: isActive ? "var(--tf-accent)" : "var(--tf-text3)",
               textDecoration: "none",
               borderBottom: isActive
                 ? "2px solid var(--tf-accent)"

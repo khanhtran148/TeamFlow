@@ -1,19 +1,43 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Layers, CheckSquare, Archive, Pencil, Trash2 } from "lucide-react";
-import type { ProjectDto } from "@/lib/api/types";
+import { MoreHorizontal, Pencil, Trash2, Calendar, Package } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type { ReleaseDto, ReleaseStatus, WorkItemStatus } from "@/lib/api/types";
 
-interface ProjectCardProps {
-  project: ProjectDto;
-  onEdit: (project: ProjectDto) => void;
-  onArchive: (project: ProjectDto) => void;
-  onDelete: (project: ProjectDto) => void;
-  onClick: (project: ProjectDto) => void;
+interface ReleaseCardProps {
+  release: ReleaseDto;
+  projectId: string;
+  onEdit: (release: ReleaseDto) => void;
+  onDelete: (release: ReleaseDto) => void;
 }
 
-function ProjectStatusBadge({ status }: { status: "Active" | "Archived" }) {
-  const isActive = status === "Active";
+const STATUS_CONFIG: Record<
+  ReleaseStatus,
+  { label: string; bg: string; color: string; border: string }
+> = {
+  Unreleased: {
+    label: "Unreleased",
+    bg: "var(--tf-accent-dim2)",
+    color: "var(--tf-accent)",
+    border: "var(--tf-accent)",
+  },
+  Overdue: {
+    label: "Overdue",
+    bg: "var(--tf-red-dim)",
+    color: "var(--tf-red)",
+    border: "var(--tf-red-dim)",
+  },
+  Released: {
+    label: "Released",
+    bg: "var(--tf-bg4)",
+    color: "var(--tf-text3)",
+    border: "var(--tf-border)",
+  },
+};
+
+function ReleaseStatusBadge({ status }: { status: ReleaseStatus }) {
+  const config = STATUS_CONFIG[status];
   return (
     <span
       style={{
@@ -24,30 +48,77 @@ function ProjectStatusBadge({ status }: { status: "Active" | "Archived" }) {
         fontSize: 10,
         fontWeight: 600,
         fontFamily: "var(--tf-font-mono)",
-        background: isActive ? "var(--tf-accent-dim2)" : "var(--tf-bg4)",
-        color: isActive ? "var(--tf-accent)" : "var(--tf-text3)",
-        border: `1px solid ${isActive ? "var(--tf-accent)" : "var(--tf-border)"}`,
+        background: config.bg,
+        color: config.color,
+        border: `1px solid ${config.border}`,
         whiteSpace: "nowrap",
       }}
     >
-      {isActive ? "Active" : "Archived"}
+      {config.label}
     </span>
   );
 }
 
-function formatDate(dateStr: string): string {
+function formatReleaseDate(dateStr: string | null): string {
+  if (!dateStr) return "No date set";
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function ProjectCard({
-  project,
-  onEdit,
-  onArchive,
-  onDelete,
-  onClick,
-}: ProjectCardProps) {
+function computeProgress(release: ReleaseDto): { done: number; total: number } {
+  const total = release.totalItems;
+  const done = (release.itemCountsByStatus as Record<string, number>)["Done"] ?? 0;
+  return { done, total };
+}
+
+function StatusBreakdown({
+  counts,
+}: {
+  counts: Partial<Record<WorkItemStatus, number>>;
+}) {
+  const statusOrder: WorkItemStatus[] = ["ToDo", "InProgress", "InReview", "Done", "Rejected"];
+  const entries = statusOrder
+    .map((s) => ({ status: s, count: counts[s] ?? 0 }))
+    .filter((e) => e.count > 0);
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      {entries.map(({ status, count }) => (
+        <span
+          key={status}
+          style={{
+            fontSize: 10,
+            color: "var(--tf-text3)",
+            fontFamily: "var(--tf-font-mono)",
+          }}
+        >
+          {status === "ToDo"
+            ? "To Do"
+            : status === "InProgress"
+              ? "In Progress"
+              : status === "InReview"
+                ? "In Review"
+                : status === "NeedsClarification"
+                  ? "Needs Clarification"
+                  : status}
+          : {count}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function ReleaseCard({ release, projectId, onEdit, onDelete }: ReleaseCardProps) {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { done, total } = computeProgress(release);
+  const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  function handleCardClick() {
+    router.push(`/projects/${projectId}/releases/${release.id}`);
+  }
 
   function handleMenuToggle(e: React.MouseEvent) {
     e.stopPropagation();
@@ -57,24 +128,18 @@ export function ProjectCard({
   function handleEdit(e: React.MouseEvent) {
     e.stopPropagation();
     setMenuOpen(false);
-    onEdit(project);
-  }
-
-  function handleArchive(e: React.MouseEvent) {
-    e.stopPropagation();
-    setMenuOpen(false);
-    onArchive(project);
+    onEdit(release);
   }
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
     setMenuOpen(false);
-    onDelete(project);
+    onDelete(release);
   }
 
   return (
     <div
-      onClick={() => onClick(project)}
+      onClick={handleCardClick}
       style={{
         background: "var(--tf-bg2)",
         border: "1px solid var(--tf-border)",
@@ -85,7 +150,7 @@ export function ProjectCard({
         transition: "border-color var(--tf-tr), background var(--tf-tr)",
         display: "flex",
         flexDirection: "column",
-        gap: 8,
+        gap: 10,
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLDivElement).style.borderColor = "var(--tf-border2)";
@@ -98,17 +163,22 @@ export function ProjectCard({
     >
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-        {/* Color dot */}
+        {/* Icon */}
         <div
           style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: project.status === "Active" ? "var(--tf-accent)" : "var(--tf-text3)",
-            marginTop: 5,
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            background: "var(--tf-violet-dim)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             flexShrink: 0,
+            marginTop: 1,
           }}
-        />
+        >
+          <Package size={13} color="var(--tf-violet)" />
+        </div>
 
         {/* Name + status */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -122,12 +192,12 @@ export function ProjectCard({
                 lineHeight: 1.3,
               }}
             >
-              {project.name}
+              {release.name}
             </span>
-            <ProjectStatusBadge status={project.status} />
+            <ReleaseStatusBadge status={release.status} />
           </div>
 
-          {project.description && (
+          {release.description && (
             <p
               style={{
                 fontSize: 12,
@@ -140,7 +210,7 @@ export function ProjectCard({
                 WebkitBoxOrient: "vertical",
               }}
             >
-              {project.description}
+              {release.description}
             </p>
           )}
         </div>
@@ -176,7 +246,6 @@ export function ProjectCard({
 
           {menuOpen && (
             <>
-              {/* Backdrop */}
               <div
                 style={{ position: "fixed", inset: 0, zIndex: 9 }}
                 onClick={(e) => {
@@ -184,7 +253,6 @@ export function ProjectCard({
                   setMenuOpen(false);
                 }}
               />
-              {/* Dropdown */}
               <div
                 style={{
                   position: "absolute",
@@ -195,22 +263,11 @@ export function ProjectCard({
                   border: "1px solid var(--tf-border)",
                   borderRadius: "var(--tf-radius)",
                   boxShadow: "var(--tf-shadow)",
-                  minWidth: 140,
+                  minWidth: 130,
                   overflow: "hidden",
                 }}
               >
-                <MenuItemButton
-                  icon={<Pencil size={12} />}
-                  label="Edit"
-                  onClick={handleEdit}
-                />
-                {project.status === "Active" && (
-                  <MenuItemButton
-                    icon={<Archive size={12} />}
-                    label="Archive"
-                    onClick={handleArchive}
-                  />
-                )}
+                <MenuItemButton icon={<Pencil size={12} />} label="Edit" onClick={handleEdit} />
                 <MenuItemButton
                   icon={<Trash2 size={12} />}
                   label="Delete"
@@ -223,48 +280,79 @@ export function ProjectCard({
         </div>
       </div>
 
-      {/* Stats row */}
+      {/* Progress bar */}
+      {total > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 10, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
+              Progress
+            </span>
+            <span style={{ fontSize: 10, color: "var(--tf-text2)", fontFamily: "var(--tf-font-mono)" }}>
+              {done}/{total} ({progressPct}%)
+            </span>
+          </div>
+          <div
+            style={{
+              height: 4,
+              borderRadius: 100,
+              background: "var(--tf-bg4)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${progressPct}%`,
+                borderRadius: 100,
+                background:
+                  release.status === "Overdue"
+                    ? "var(--tf-red)"
+                    : release.status === "Released"
+                      ? "var(--tf-text3)"
+                      : "var(--tf-accent)",
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Footer row */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 14,
-          paddingTop: 4,
+          gap: 12,
+          paddingTop: 6,
           borderTop: "1px solid var(--tf-border)",
+          flexWrap: "wrap",
         }}
       >
-        <StatChip icon={<Layers size={11} />} label={`${project.epicCount} epics`} />
-        <StatChip icon={<CheckSquare size={11} />} label={`${project.openItemCount} open`} />
         <span
           style={{
-            marginLeft: "auto",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
             fontSize: 11,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-mono)",
           }}
         >
-          Created {formatDate(project.createdAt)}
+          <Calendar size={11} />
+          {formatReleaseDate(release.releaseDate)}
         </span>
+
+        {total > 0 && (
+          <StatusBreakdown counts={release.itemCountsByStatus} />
+        )}
+
+        {total === 0 && (
+          <span style={{ fontSize: 11, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
+            No items assigned
+          </span>
+        )}
       </div>
     </div>
-  );
-}
-
-function StatChip({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 11,
-        color: "var(--tf-text3)",
-        fontFamily: "var(--tf-font-mono)",
-      }}
-    >
-      {icon}
-      {label}
-    </span>
   );
 }
 

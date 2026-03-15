@@ -74,6 +74,7 @@ export interface WorkItemDto {
   type: WorkItemType;
   title: string;
   description: string | null;
+  acceptanceCriteria: string | null;
   status: WorkItemStatus;
   priority: Priority | null;
   estimationValue: number | null;

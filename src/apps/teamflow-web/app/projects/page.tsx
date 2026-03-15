@@ -145,7 +145,7 @@ export default function ProjectsPage() {
                 borderRadius: 6,
                 border: "1px solid var(--tf-accent)",
                 background: "var(--tf-accent)",
-                color: "#0a0a0b",
+                color: "var(--primary-foreground)",
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: "pointer",
@@ -172,6 +172,7 @@ export default function ProjectsPage() {
           >
             {/* Search */}
             <div
+              className="tf-search-focus"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -182,6 +183,7 @@ export default function ProjectsPage() {
                 background: "var(--tf-bg2)",
                 flex: "1 1 200px",
                 maxWidth: 280,
+                transition: "border-color var(--tf-tr), box-shadow var(--tf-tr)",
               }}
             >
               <Search size={12} color="var(--tf-text3)" />
