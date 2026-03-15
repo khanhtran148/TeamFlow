@@ -3,8 +3,9 @@ using Testcontainers.PostgreSql;
 namespace TeamFlow.Api.Tests.Infrastructure;
 
 /// <summary>
-/// Shared Testcontainer PostgreSQL instance for the entire "Integration" test collection.
-/// Starts once, shared across all test classes decorated with [Collection("Integration")].
+/// Shared Testcontainer PostgreSQL instance and WebApplicationFactory for the entire
+/// "Integration" test collection. Starts once, shared across all test classes
+/// decorated with [Collection("Integration")].
 /// </summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
@@ -16,13 +17,24 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public string ConnectionString => _container.GetConnectionString();
 
+    /// <summary>
+    /// Shared WebApplicationFactory built once per collection.
+    /// Initialized after the container starts.
+    /// </summary>
+    public IntegrationTestWebAppFactory Factory { get; private set; } = null!;
+
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
+
+        Factory = new IntegrationTestWebAppFactory(this);
+        _ = Factory.Server; // Force host build
+        await Factory.EnsureDatabaseAsync();
     }
 
     public async Task DisposeAsync()
     {
+        await Factory.DisposeAsync();
         await _container.DisposeAsync().AsTask();
     }
 }

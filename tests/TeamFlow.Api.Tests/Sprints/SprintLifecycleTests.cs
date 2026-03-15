@@ -5,6 +5,7 @@ using TeamFlow.Api.Tests.Infrastructure;
 using TeamFlow.Application.Features.Sprints;
 using TeamFlow.Application.Features.Sprints.CreateSprint;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Api.Tests.Sprints;
 
@@ -238,14 +239,13 @@ public sealed class SprintLifecycleTests(PostgresFixture postgres) : ApiIntegrat
     {
         return await WithDbContextAsync(async db =>
         {
-            var workItem = new Domain.Entities.WorkItem
-            {
-                ProjectId = projectId,
-                Title = "Test Work Item",
-                Type = WorkItemType.Task,
-                Status = WorkItemStatus.ToDo,
-                Priority = Priority.Medium
-            };
+            var workItem = WorkItemBuilder.New()
+                .WithProject(projectId)
+                .WithTitle("Test Work Item")
+                .AsTask()
+                .WithStatus(WorkItemStatus.ToDo)
+                .WithPriority(Priority.Medium)
+                .Build();
             db.Set<Domain.Entities.WorkItem>().Add(workItem);
             await db.SaveChangesAsync();
             return workItem.Id;

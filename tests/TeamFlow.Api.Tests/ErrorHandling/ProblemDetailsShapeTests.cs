@@ -5,6 +5,7 @@ using FluentAssertions;
 using TeamFlow.Api.Tests.Infrastructure;
 using TeamFlow.Application.Features.Sprints.CreateSprint;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Api.Tests.ErrorHandling;
 
@@ -115,31 +116,35 @@ public sealed class ProblemDetailsShapeTests(PostgresFixture postgres) : ApiInte
         root.TryGetProperty("detail", out var detailProp).Should().BeTrue(
             "ProblemDetails must include 'detail' field");
         detailProp.GetString().Should().NotBeNullOrEmpty();
+
+        // Instance field (RFC 7807 recommends including the request path)
+        root.TryGetProperty("instance", out var instanceProp).Should().BeTrue(
+            "ProblemDetails must include 'instance' field");
+        instanceProp.GetString().Should().NotBeNullOrEmpty();
     }
 
     private async Task<Guid> SeedSprintWithItemAndDatesAsync(Guid projectId, string name = "Sprint")
     {
         return await WithDbContextAsync(async db =>
         {
-            var sprint = new Domain.Entities.Sprint
-            {
-                ProjectId = projectId,
-                Name = name,
-                Status = SprintStatus.Planning,
-                StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)),
-                EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14))
-            };
+            var sprint = SprintBuilder.New()
+                .WithProject(projectId)
+                .WithName(name)
+                .WithStatus(SprintStatus.Planning)
+                .WithDates(
+                    DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)),
+                    DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)))
+                .Build();
             db.Set<Domain.Entities.Sprint>().Add(sprint);
 
-            var workItem = new Domain.Entities.WorkItem
-            {
-                ProjectId = projectId,
-                Title = $"Item for {name}",
-                Type = WorkItemType.Task,
-                Status = WorkItemStatus.ToDo,
-                Priority = Priority.Medium,
-                SprintId = sprint.Id
-            };
+            var workItem = WorkItemBuilder.New()
+                .WithProject(projectId)
+                .WithTitle($"Item for {name}")
+                .AsTask()
+                .WithStatus(WorkItemStatus.ToDo)
+                .WithPriority(Priority.Medium)
+                .WithSprint(sprint.Id)
+                .Build();
             db.Set<Domain.Entities.WorkItem>().Add(workItem);
 
             await db.SaveChangesAsync();

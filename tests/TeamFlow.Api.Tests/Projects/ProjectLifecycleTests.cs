@@ -1,7 +1,6 @@
 using FluentAssertions;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using TeamFlow.Application;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Projects.ArchiveProject;
 using TeamFlow.Application.Features.Projects.CreateProject;
@@ -9,7 +8,6 @@ using TeamFlow.Application.Features.Projects.DeleteProject;
 using TeamFlow.Application.Features.Projects.GetProject;
 using TeamFlow.Application.Features.Projects.ListProjects;
 using TeamFlow.Application.Features.Projects.UpdateProject;
-using TeamFlow.Infrastructure.Repositories;
 using TeamFlow.Tests.Common;
 
 namespace TeamFlow.Api.Tests.Projects;
@@ -21,20 +19,7 @@ public sealed class ProjectLifecycleTests : IntegrationTestBase
 
     protected override Task ConfigureServices(IServiceCollection services)
     {
-        services.AddApplication();
-
-        // Repositories
-        services.AddScoped<IProjectRepository, ProjectRepository>();
-        services.AddScoped<IReleaseRepository, ReleaseRepository>();
-        services.AddScoped<IWorkItemRepository, WorkItemRepository>();
-        services.AddScoped<IWorkItemLinkRepository, WorkItemLinkRepository>();
-
-        // Stubs
-        services.AddScoped<ICurrentUser, TestCurrentUser>();
-        services.AddScoped<IPermissionChecker, AlwaysAllowTestPermissionChecker>();
         services.AddScoped<IHistoryService, TestHistoryService>();
-        services.AddScoped<IBroadcastService, NullBroadcastService>();
-
         return Task.CompletedTask;
     }
 
@@ -75,9 +60,4 @@ public sealed class ProjectLifecycleTests : IntegrationTestBase
         var deleteResult = await Sender.Send(new DeleteProjectCommand(projectId));
         deleteResult.IsSuccess.Should().BeTrue();
     }
-}
-
-internal sealed class TestHistoryService : IHistoryService
-{
-    public Task RecordAsync(WorkItemHistoryEntry entry, CancellationToken ct = default) => Task.CompletedTask;
 }

@@ -5,6 +5,7 @@ using TeamFlow.Api.Tests.Infrastructure;
 using TeamFlow.Application.Features.Sprints;
 using TeamFlow.Application.Features.Sprints.CreateSprint;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Api.Tests.Sprints;
 
@@ -371,12 +372,11 @@ public sealed class SprintPermissionMatrixTests(PostgresFixture postgres) : ApiI
     {
         return await WithDbContextAsync(async db =>
         {
-            var sprint = new Domain.Entities.Sprint
-            {
-                ProjectId = projectId,
-                Name = "Test Sprint",
-                Status = SprintStatus.Planning
-            };
+            var sprint = SprintBuilder.New()
+                .WithProject(projectId)
+                .WithName("Test Sprint")
+                .WithStatus(SprintStatus.Planning)
+                .Build();
             db.Set<Domain.Entities.Sprint>().Add(sprint);
             await db.SaveChangesAsync();
             return sprint.Id;
@@ -387,25 +387,24 @@ public sealed class SprintPermissionMatrixTests(PostgresFixture postgres) : ApiI
     {
         return await WithDbContextAsync(async db =>
         {
-            var sprint = new Domain.Entities.Sprint
-            {
-                ProjectId = projectId,
-                Name = "Sprint To Start",
-                Status = SprintStatus.Planning,
-                StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)),
-                EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14))
-            };
+            var sprint = SprintBuilder.New()
+                .WithProject(projectId)
+                .WithName("Sprint To Start")
+                .WithStatus(SprintStatus.Planning)
+                .WithDates(
+                    DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)),
+                    DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)))
+                .Build();
             db.Set<Domain.Entities.Sprint>().Add(sprint);
 
-            var workItem = new Domain.Entities.WorkItem
-            {
-                ProjectId = projectId,
-                Title = "Seed Item",
-                Type = WorkItemType.Task,
-                Status = WorkItemStatus.ToDo,
-                Priority = Priority.Medium,
-                SprintId = sprint.Id
-            };
+            var workItem = WorkItemBuilder.New()
+                .WithProject(projectId)
+                .WithTitle("Seed Item")
+                .AsTask()
+                .WithStatus(WorkItemStatus.ToDo)
+                .WithPriority(Priority.Medium)
+                .WithSprint(sprint.Id)
+                .Build();
             db.Set<Domain.Entities.WorkItem>().Add(workItem);
 
             await db.SaveChangesAsync();
@@ -417,25 +416,24 @@ public sealed class SprintPermissionMatrixTests(PostgresFixture postgres) : ApiI
     {
         return await WithDbContextAsync(async db =>
         {
-            var sprint = new Domain.Entities.Sprint
-            {
-                ProjectId = projectId,
-                Name = "Active Sprint",
-                Status = SprintStatus.Active,
-                StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)),
-                EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7))
-            };
+            var sprint = SprintBuilder.New()
+                .WithProject(projectId)
+                .WithName("Active Sprint")
+                .Active()
+                .WithDates(
+                    DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)),
+                    DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)))
+                .Build();
             db.Set<Domain.Entities.Sprint>().Add(sprint);
 
-            var workItem = new Domain.Entities.WorkItem
-            {
-                ProjectId = projectId,
-                Title = "Active Item",
-                Type = WorkItemType.Task,
-                Status = WorkItemStatus.InProgress,
-                Priority = Priority.Medium,
-                SprintId = sprint.Id
-            };
+            var workItem = WorkItemBuilder.New()
+                .WithProject(projectId)
+                .WithTitle("Active Item")
+                .AsTask()
+                .WithStatus(WorkItemStatus.InProgress)
+                .WithPriority(Priority.Medium)
+                .WithSprint(sprint.Id)
+                .Build();
             db.Set<Domain.Entities.WorkItem>().Add(workItem);
 
             await db.SaveChangesAsync();
@@ -447,15 +445,17 @@ public sealed class SprintPermissionMatrixTests(PostgresFixture postgres) : ApiI
     {
         return await WithDbContextAsync(async db =>
         {
-            var workItem = new Domain.Entities.WorkItem
-            {
-                ProjectId = projectId,
-                Title = "Test Work Item",
-                Type = WorkItemType.Task,
-                Status = WorkItemStatus.ToDo,
-                Priority = Priority.Medium,
-                SprintId = sprintId
-            };
+            var builder = WorkItemBuilder.New()
+                .WithProject(projectId)
+                .WithTitle("Test Work Item")
+                .AsTask()
+                .WithStatus(WorkItemStatus.ToDo)
+                .WithPriority(Priority.Medium);
+
+            if (sprintId.HasValue)
+                builder = builder.WithSprint(sprintId.Value);
+
+            var workItem = builder.Build();
             db.Set<Domain.Entities.WorkItem>().Add(workItem);
             await db.SaveChangesAsync();
             return workItem.Id;
