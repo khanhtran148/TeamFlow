@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TeamFlow — Backlog & Sprint Planning</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#0a0a0b;--bg2:#111113;--bg3:#18181b;--bg4:#1e1e22;
+  --border:#2a2a30;--border2:#333340;
+  --text:#f0f0f2;--text2:#a0a0b0;--text3:#606070;
+  --accent:#6ee7b7;--accent2:#34d399;
+  --accent-dim:rgba(110,231,183,0.08);--accent-dim2:rgba(110,231,183,0.15);
+  --blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1);
+  --orange:#fb923c;--orange-dim:rgba(251,146,60,0.1);
+  --red:#f87171;--red-dim:rgba(248,113,113,0.1);
+  --violet:#a78bfa;--violet-dim:rgba(167,139,250,0.1);
+  --yellow:#fbbf24;--yellow-dim:rgba(251,191,36,0.1);
+  --shadow:0 4px 24px rgba(0,0,0,0.5);
+  --radius:8px;
+  --font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif;--font-mono:'DM Mono',monospace;
+  --tr:0.2s cubic-bezier(0.4,0,0.2,1);
+}
+[data-theme="light"]{
+  --bg:#f7f7f5;--bg2:#ffffff;--bg3:#f0f0ed;--bg4:#e8e8e4;
+  --border:#e0e0da;--border2:#d0d0c8;
+  --text:#1a1a1f;--text2:#5a5a6a;--text3:#9090a0;
+  --accent:#059669;--accent2:#047857;
+  --accent-dim:rgba(5,150,105,0.07);--accent-dim2:rgba(5,150,105,0.13);
+  --blue:#2563eb;--blue-dim:rgba(37,99,235,0.08);
+  --orange:#ea580c;--orange-dim:rgba(234,88,12,0.08);
+  --red:#dc2626;--red-dim:rgba(220,38,38,0.08);
+  --violet:#7c3aed;--violet-dim:rgba(124,58,237,0.08);
+  --yellow:#d97706;--yellow-dim:rgba(217,119,6,0.08);
+  --shadow:0 4px 24px rgba(0,0,0,0.08);
+}
+
+html,body{height:100%;font-family:var(--font-body);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;transition:background var(--tr),color var(--tr)}
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;gap:10px;padding:0 16px;height:50px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{display:flex;align-items:center;gap:7px;font-family:var(--font-head);font-weight:800;font-size:16px;color:var(--text);text-decoration:none;margin-right:6px}
+.logo-icon{width:24px;height:24px;border-radius:5px;background:linear-gradient(135deg,var(--accent),var(--blue));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0a0a0b}
+.breadcrumb{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)}
+.breadcrumb span{color:var(--text3)}
+.breadcrumb b{color:var(--text);font-weight:500}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:7px}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:var(--radius);font-family:var(--font-body);font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all var(--tr)}
+.btn:hover{border-color:var(--border2);color:var(--text);background:var(--bg4)}
+.btn-primary{background:var(--accent-dim2);border-color:var(--accent);color:var(--accent)}
+.btn-primary:hover{background:var(--accent);color:#0a0a0b}
+.theme-btn{width:32px;height:32px;border-radius:7px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all var(--tr)}
+.theme-btn:hover{border-color:var(--border2);color:var(--text)}
+.avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--blue));display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0}
+
+/* NAV TABS */
+.nav-tabs{display:flex;align-items:center;gap:2px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.nav-tab{padding:10px 14px;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all var(--tr);white-space:nowrap}
+.nav-tab:hover{color:var(--text2)}
+.nav-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* SPRINT HEADER */
+.sprint-header{padding:12px 16px 0;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.sprint-meta{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.sprint-title{font-family:var(--font-head);font-weight:700;font-size:18px}
+.sprint-badge{padding:2px 8px;border-radius:100px;font-size:10px;font-weight:600;background:var(--accent-dim2);color:var(--accent);border:1px solid var(--accent);font-family:var(--font-mono)}
+.sprint-dates{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.sprint-stats{display:flex;gap:20px;padding-bottom:12px;align-items:center}
+.stat{display:flex;flex-direction:column}
+.stat-val{font-family:var(--font-mono);font-size:17px;font-weight:500;color:var(--text)}
+.stat-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:1px}
+.progress-wrap{flex:1;align-self:center}
+.prog-track{height:4px;background:var(--bg4);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width 0.6s}
+.prog-label{font-size:10px;color:var(--text3);margin-top:3px;text-align:right;font-family:var(--font-mono)}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg);flex-shrink:0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.search{display:flex;align-items:center;gap:7px;padding:5px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg2);width:200px;transition:all var(--tr)}
+.search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+.search input{background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:12px;width:100%}
+.search input::placeholder{color:var(--text3)}
+.chip{display:flex;align-items:center;gap:4px;padding:4px 9px;border-radius:100px;border:1px solid var(--border);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;transition:all var(--tr);font-family:var(--font-body)}
+.chip:hover{border-color:var(--border2);color:var(--text)}
+.chip.on{background:var(--accent-dim2);border-color:var(--accent);color:var(--accent)}
+.spacer{flex:1}
+.view-sw{display:flex;gap:2px;background:var(--bg3);border-radius:7px;padding:2px}
+.view-btn{padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer;border:none;background:none;color:var(--text3);font-family:var(--font-body);transition:all var(--tr)}
+.view-btn.on{background:var(--bg2);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.15)}
+
+/* MAIN */
+.main{display:flex;flex:1;overflow:hidden}
+.panel{display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+.panel-left{width:52%;border-right:1px solid var(--border)}
+.panel-right{width:48%;display:flex;flex-direction:column}
+
+.panel-head{display:flex;align-items:center;gap:8px;padding:12px 16px 10px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.panel-title{font-family:var(--font-head);font-weight:700;font-size:13px}
+.cnt-badge{padding:1px 7px;border-radius:100px;background:var(--bg4);color:var(--text3);font-size:10px;font-family:var(--font-mono)}
+.panel-acts{margin-left:auto;display:flex;gap:5px}
+
+.panel-body{flex:1;overflow-y:auto;padding:10px 14px}
+.panel-body::-webkit-scrollbar{width:3px}
+.panel-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+/* EPIC GROUP */
+.epic-grp{margin-bottom:16px}
+.epic-lbl{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:var(--radius);cursor:pointer;margin-bottom:5px;transition:background var(--tr)}
+.epic-lbl:hover{background:var(--bg3)}
+.epic-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.epic-name{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text2)}
+.epic-pts{font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-left:auto}
+.chevron{font-size:9px;color:var(--text3);transition:transform var(--tr)}
+.epic-grp.collapsed .chevron{transform:rotate(-90deg)}
+.epic-grp.collapsed .epic-items{display:none}
+
+/* ITEM CARD */
+.card{display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg2);margin-bottom:5px;cursor:grab;transition:all var(--tr);position:relative;overflow:hidden;animation:fadeUp 0.2s ease backwards}
+.card:hover{border-color:var(--border2);box-shadow:var(--shadow);transform:translateY(-1px)}
+.card.in-sprint{background:var(--accent-dim);border-color:var(--accent)}
+.card.dragging{opacity:0.4}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+.type-ico{width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;margin-top:1px}
+.t-story{background:var(--blue-dim);color:var(--blue)}
+.t-task{background:var(--accent-dim2);color:var(--accent)}
+.t-bug{background:var(--red-dim);color:var(--red)}
+.t-spike{background:var(--violet-dim);color:var(--violet)}
+
+.card-body{flex:1;min-width:0}
+.card-id{font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-bottom:1px}
+.card-title{font-size:12px;font-weight:500;color:var(--text);line-height:1.4}
+.card-title.done{text-decoration:line-through;color:var(--text3)}
+.card-meta{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;align-items:center}
+.tag{padding:1px 6px;border-radius:3px;font-size:9px;font-weight:500;font-family:var(--font-mono)}
+
+/* Link badge */
+.link-badge{display:flex;align-items:center;gap:3px;padding:1px 6px;border-radius:3px;font-size:9px;font-family:var(--font-mono);background:var(--red-dim);color:var(--red)}
+.link-badge.relates{background:var(--blue-dim);color:var(--blue)}
+.link-badge.depends{background:var(--yellow-dim);color:var(--yellow)}
+
+/* Release badge */
+.release-badge{display:flex;align-items:center;gap:3px;padding:1px 6px;border-radius:3px;font-size:9px;font-family:var(--font-mono);background:var(--violet-dim);color:var(--violet)}
+
+.card-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+.pts{width:22px;height:22px;border-radius:5px;background:var(--bg4);color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;font-family:var(--font-mono);cursor:pointer;transition:all var(--tr)}
+.pts:hover{background:var(--accent-dim2);color:var(--accent)}
+.prio{font-size:11px}
+.p-crit{color:var(--red)}.p-high{color:var(--orange)}.p-med{color:var(--yellow)}.p-low{color:var(--text3)}
+.mini-av{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:white}
+.move-btn{opacity:0;padding:2px 7px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);font-size:9px;color:var(--text2);cursor:pointer;transition:all var(--tr);white-space:nowrap;font-family:var(--font-body)}
+.card:hover .move-btn{opacity:1}
+.move-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+
+/* ROLE BADGE */
+.role-badge{padding:1px 6px;border-radius:3px;font-size:9px;font-weight:600;font-family:var(--font-mono)}
+.role-po{background:var(--blue-dim);color:var(--blue)}
+.role-tl{background:var(--violet-dim);color:var(--violet)}
+.role-tm{background:var(--orange-dim);color:var(--orange)}
+.role-dev{background:var(--accent-dim2);color:var(--accent)}
+
+/* SPRINT PANEL */
+.sprint-sect{margin-bottom:14px}
+.sprint-sect-head{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--radius);background:var(--bg3);margin-bottom:6px;border:1px solid var(--border)}
+.sprint-sect-title{font-size:11px;font-weight:600;color:var(--text2)}
+.sprint-sect-pts{font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-left:auto}
+
+.drop-zone{min-height:50px;border-radius:var(--radius);border:2px dashed var(--border);padding:6px;transition:all var(--tr)}
+.drop-zone.hot{border-color:var(--accent);background:var(--accent-dim)}
+.drop-hint{display:flex;align-items:center;justify-content:center;height:38px;color:var(--text3);font-size:11px;gap:5px}
+
+/* CAPACITY */
+.cap-section{padding:10px 14px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.cap-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cap-title{font-size:11px;font-weight:600;color:var(--text2)}
+.cap-pts{font-family:var(--font-mono);font-size:11px}
+.cap-pts.ok{color:var(--accent)}.cap-pts.over{color:var(--red)}
+.cap-members{display:flex;flex-direction:column;gap:5px}
+.mem-row{display:flex;align-items:center;gap:7px}
+.mem-name{font-size:11px;color:var(--text2);width:76px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mem-role{font-size:8px;font-family:var(--font-mono)}
+.mem-track{flex:1;height:5px;background:var(--bg4);border-radius:99px;overflow:hidden}
+.mem-fill{height:100%;border-radius:99px;transition:width 0.5s}
+.mem-lbl{font-family:var(--font-mono);font-size:9px;color:var(--text3);width:38px;text-align:right}
+
+/* RELEASE PANEL */
+.release-panel{flex-shrink:0;border-top:1px solid var(--border);background:var(--bg2);padding:10px 14px}
+.release-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.release-title{font-size:11px;font-weight:600;color:var(--text2)}
+.release-list{display:flex;flex-direction:column;gap:5px}
+.release-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg3)}
+.release-name{font-size:11px;font-weight:500;flex:1}
+.release-date{font-size:9px;color:var(--text3);font-family:var(--font-mono)}
+.release-status{padding:1px 7px;border-radius:100px;font-size:9px;font-weight:600;font-family:var(--font-mono)}
+.rs-unreleased{background:var(--accent-dim2);color:var(--accent)}
+.rs-overdue{background:var(--red-dim);color:var(--red)}
+.rs-released{background:var(--bg4);color:var(--text3)}
+.release-prog{display:flex;align-items:center;gap:6px}
+.release-prog-track{width:60px;height:4px;background:var(--bg4);border-radius:99px;overflow:hidden}
+.release-prog-fill{height:100%;border-radius:99px;background:var(--accent)}
+.release-prog-pct{font-size:9px;color:var(--text3);font-family:var(--font-mono)}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;padding:10px 14px;border-radius:var(--radius);background:var(--bg2);border:1px solid var(--accent);color:var(--text);font-size:12px;box-shadow:var(--shadow);z-index:9999;display:flex;align-items:center;gap:7px;animation:slideUp 0.3s ease;transition:opacity 0.3s}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* CONFIRM DIALOG */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.dialog{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:20px;width:380px;box-shadow:var(--shadow)}
+.dialog-title{font-family:var(--font-head);font-weight:700;font-size:15px;margin-bottom:6px}
+.dialog-body{font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6}
+.dialog-acts{display:flex;gap:8px;justify-content:flex-end}
+.blocker-list{margin:8px 0;padding:8px;border-radius:var(--radius);background:var(--red-dim);border:1px solid var(--red-dim)}
+.blocker-item{font-size:11px;color:var(--red);font-family:var(--font-mono);padding:2px 0}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <a class="logo" href="#">
+      <div class="logo-icon">TF</div>TeamFlow
+    </a>
+    <div class="breadcrumb">
+      <span>SignIt</span> › <span>Planning</span> › <b>Sprint 14</b>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-primary" onclick="startSprint()">▶ Start Sprint</button>
+      <button class="btn" onclick="toast('Work Item created')">+ New Item</button>
+      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+      <div class="avatar">KT</div>
+    </div>
+  </header>
+
+  <!-- NAV TABS -->
+  <div class="nav-tabs">
+    <div class="nav-tab active">Backlog</div>
+    <div class="nav-tab" onclick="toast('Kanban Board — coming soon')">Board</div>
+    <div class="nav-tab" onclick="toast('Releases — coming soon')">Releases</div>
+    <div class="nav-tab" onclick="toast('Retrospective — coming soon')">Retro</div>
+    <div class="nav-tab" onclick="toast('Analytics — coming soon')">Analytics</div>
+  </div>
+
+  <!-- SPRINT HEADER -->
+  <div class="sprint-header">
+    <div class="sprint-meta">
+      <div class="sprint-title">Sprint 14 — eSign Core</div>
+      <div class="sprint-badge">PLANNING</div>
+      <div class="sprint-dates">Mar 17 – Mar 28, 2026 · 12 days</div>
+    </div>
+    <div class="sprint-stats">
+      <div class="stat"><span class="stat-val" id="totalPts">0</span><span class="stat-lbl">Points</span></div>
+      <div class="stat"><span class="stat-val">56</span><span class="stat-lbl">Capacity</span></div>
+      <div class="stat"><span class="stat-val" id="itemCount">0</span><span class="stat-lbl">Items</span></div>
+      <div class="stat" style="flex:1">
+        <div class="progress-wrap">
+          <div class="prog-track"><div class="prog-fill" id="sprintProg" style="width:0%"></div></div>
+          <div class="prog-label" id="progLabel">0 / 56 pts capacity</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="search">
+      <span style="color:var(--text3);font-size:12px">⌕</span>
+      <input type="text" placeholder="Search backlog..." oninput="filterItems(this.value)"/>
+    </div>
+    <button class="chip on" onclick="setFilter(this,'all')">All</button>
+    <button class="chip" onclick="setFilter(this,'story')">📘 Stories</button>
+    <button class="chip" onclick="setFilter(this,'bug')">🐛 Bugs</button>
+    <button class="chip" onclick="setFilter(this,'task')">✅ Tasks</button>
+    <button class="chip" onclick="toast('Filter by release')">🏷 Release</button>
+    <button class="chip" onclick="toast('Filter blocked items')">🔴 Blocked</button>
+    <div class="spacer"></div>
+    <div class="view-sw">
+      <button class="view-btn on">Epics</button>
+      <button class="view-btn" onclick="toast('Flat view')">Flat</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- LEFT: BACKLOG -->
+    <div class="panel panel-left">
+      <div class="panel-head">
+        <span class="panel-title">Product Backlog</span>
+        <span class="cnt-badge" id="backlogCount">—</span>
+        <div class="panel-acts">
+          <button class="btn" style="font-size:10px" onclick="toast('Sort options')">↕ Sort</button>
+          <button class="btn" style="font-size:10px" onclick="toast('Advanced filters')">⚡ Filter</button>
+        </div>
+      </div>
+      <div class="panel-body" id="backlogBody"></div>
+    </div>
+
+    <!-- RIGHT: SPRINT + RELEASES + CAPACITY -->
+    <div class="panel panel-right">
+      <div class="panel-head">
+        <span class="panel-title">Sprint 14 Scope</span>
+        <span class="cnt-badge" id="sprintCount">0 items</span>
+        <div class="panel-acts">
+          <button class="btn" style="font-size:10px" onclick="clearSprint()">Clear</button>
+        </div>
+      </div>
+      <div class="panel-body" id="sprintBody">
+        <div class="drop-zone hot" id="dropZone">
+          <div class="drop-hint">⇦ Drag items here or click → to add</div>
+        </div>
+      </div>
+
+      <!-- RELEASES -->
+      <div class="release-panel">
+        <div class="release-head">
+          <span class="release-title">Active Releases</span>
+          <button class="btn" style="font-size:10px" onclick="toast('Manage releases')">View all</button>
+        </div>
+        <div class="release-list">
+          <div class="release-item">
+            <div>
+              <div class="release-name">v1.0.0 — MVP Launch</div>
+              <div class="release-date">Target: Mar 28, 2026</div>
+            </div>
+            <div class="release-prog">
+              <div class="release-prog-track"><div class="release-prog-fill" style="width:42%"></div></div>
+              <div class="release-prog-pct">42%</div>
+            </div>
+            <span class="release-status rs-unreleased">UNRELEASED</span>
+          </div>
+          <div class="release-item">
+            <div>
+              <div class="release-name">v1.1.0 — Compliance</div>
+              <div class="release-date">Target: Feb 28, 2026</div>
+            </div>
+            <div class="release-prog">
+              <div class="release-prog-track"><div class="release-prog-fill" style="width:100%;background:var(--red)"></div></div>
+              <div class="release-prog-pct" style="color:var(--red)">OD</div>
+            </div>
+            <span class="release-status rs-overdue">OVERDUE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CAPACITY -->
+      <div class="cap-section">
+        <div class="cap-head">
+          <span class="cap-title">Team Capacity</span>
+          <span class="cap-pts ok" id="capLabel">0 / 56 pts</span>
+        </div>
+        <div class="cap-members" id="capMembers"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──
+const members = [
+  {id:'kt',name:'Kay T.',  color:'#7c3aed',cap:16,role:'tl',roleLabel:'Tech Lead'},
+  {id:'hn',name:'Hieu N.', color:'#2563eb',cap:14,role:'dev',roleLabel:'Developer'},
+  {id:'lt',name:'Linh T.', color:'#059669',cap:13,role:'dev',roleLabel:'Developer'},
+  {id:'mb',name:'Minh B.', color:'#ea580c',cap:13,role:'dev',roleLabel:'Developer'},
+];
+
+const epics = [
+  {id:'e1',name:'Document Signing Flow',color:'#60a5fa'},
+  {id:'e2',name:'Template Management',  color:'#34d399'},
+  {id:'e3',name:'Email Notifications',  color:'#fb923c'},
+  {id:'e4',name:'Audit & Compliance',   color:'#a78bfa'},
+];
+
+const items = [
+  // Epic 1
+  {id:'SX-101',epic:'e1',type:'story',title:'As a sender, I can drag-drop signature fields onto document pages',pts:8,prio:'high',  assignee:'kt',release:'v1.0.0',links:[{type:'blocks',target:'SX-104'}],tags:['frontend','pdf']},
+  {id:'SX-102',epic:'e1',type:'story',title:'Multi-signer workflow with sequential signing order',             pts:13,prio:'critical',assignee:'kt',release:'v1.0.0',links:[],                              tags:['api','workflow']},
+  {id:'SX-103',epic:'e1',type:'bug',  title:'PDF rendering breaks on landscape A4 documents',                  pts:3, prio:'critical',assignee:'hn',release:'v1.0.0',links:[{type:'blocks',target:'SX-101'}],tags:['pdf','rendering']},
+  {id:'SX-104',epic:'e1',type:'task', title:'Implement PKCS#7 signature validation endpoint',                  pts:5, prio:'high',  assignee:'hn',release:'v1.0.0',links:[{type:'blocked',target:'SX-101'}],tags:['backend','crypto']},
+  {id:'SX-105',epic:'e1',type:'spike',title:'Research WebAuthn for biometric signing support',                 pts:3, prio:'medium',assignee:'kt',release:null,         links:[{type:'relates',target:'SX-102'}],tags:['research']},
+  // Epic 2
+  {id:'SX-201',epic:'e2',type:'story',title:'Template builder with reusable field positions per document type', pts:8, prio:'high',  assignee:'lt',release:'v1.0.0',links:[],tags:['frontend','ux']},
+  {id:'SX-202',epic:'e2',type:'story',title:'Template versioning and rollback',                                 pts:5, prio:'medium',assignee:'hn',release:'v1.0.0',links:[{type:'depends',target:'SX-201'}],tags:['api','versioning']},
+  {id:'SX-203',epic:'e2',type:'task', title:'Template import from Word/PDF placeholder tags',                   pts:8, prio:'medium',assignee:'lt',release:'v1.0.0',links:[],tags:['parsing','import']},
+  {id:'SX-204',epic:'e2',type:'bug',  title:'Template save fails silently when field coords out of bounds',     pts:2, prio:'high',  assignee:'lt',release:'v1.0.0',links:[],tags:['bug','validation']},
+  // Epic 3
+  {id:'SX-301',epic:'e3',type:'story',title:'Suppressed notification routing via ActiveMQ to SX background worker',pts:5,prio:'high',  assignee:'mb',release:'v1.0.0',links:[],tags:['messaging','amq']},
+  {id:'SX-302',epic:'e3',type:'story',title:'Retry queue for failed email deliveries with exponential backoff',   pts:5,prio:'medium',assignee:'mb',release:'v1.0.0',links:[{type:'depends',target:'SX-301'}],tags:['resilience','queue']},
+  {id:'SX-303',epic:'e3',type:'task', title:'Email template engine with Handlebars + localization (vi/en)',        pts:3,prio:'medium',assignee:'lt',release:'v1.0.0',links:[],tags:['i18n','email']},
+  {id:'SX-304',epic:'e3',type:'bug',  title:'CC recipients missing from completion notification emails',           pts:2,prio:'high',  assignee:'mb',release:'v1.0.0',links:[],tags:['email','bug']},
+  // Epic 4
+  {id:'SX-401',epic:'e4',type:'story',title:'Audit trail export: signer IP, timestamp, geolocation',      pts:5,prio:'high',  assignee:'hn',release:'v1.1.0',links:[],tags:['compliance','export']},
+  {id:'SX-402',epic:'e4',type:'story',title:'eIDAS-compliant long-term validation (LTV) timestamps',      pts:8,prio:'medium',assignee:'kt',release:'v1.1.0',links:[{type:'relates',target:'SX-401'}],tags:['crypto','eidas']},
+  {id:'SX-403',epic:'e4',type:'task', title:'GDPR data retention policy: auto-purge expired documents',   pts:3,prio:'medium',assignee:'mb',release:'v1.1.0',links:[],tags:['gdpr','cleanup']},
+];
+
+let sprintIds = new Set();
+let filterType = 'all';
+let searchQ = '';
+
+// ── HELPERS ──
+const member = id => members.find(m=>m.id===id);
+const epic   = id => epics.find(e=>e.id===id);
+
+const typeIco = t => {
+  const m={story:['📘','t-story'],task:['✅','t-task'],bug:['🐛','t-bug'],spike:['🔬','t-spike']};
+  return `<div class="type-ico ${m[t][1]}">${m[t][0]}</div>`;
+};
+const prioIco = p => {
+  const m={critical:['▲▲','p-crit'],high:['▲','p-high'],medium:['◆','p-med'],low:['▽','p-low']};
+  return `<span class="prio ${m[p][1]}">${m[p][0]}</span>`;
+};
+const tagColor = t => {
+  const map={frontend:'rgba(96,165,250,0.15),#60a5fa',backend:'rgba(52,211,153,0.15),#34d399',api:'rgba(167,139,250,0.15),#a78bfa',bug:'rgba(248,113,113,0.15),#f87171',pdf:'rgba(251,146,60,0.15),#fb923c',crypto:'rgba(251,191,36,0.15),#fbbf24',amq:'rgba(52,211,153,0.15),#34d399',compliance:'rgba(96,165,250,0.15),#60a5fa',email:'rgba(251,146,60,0.15),#fb923c',i18n:'rgba(167,139,250,0.15),#a78bfa',ux:'rgba(96,165,250,0.15),#60a5fa',gdpr:'rgba(248,113,113,0.15),#f87171',research:'rgba(167,139,250,0.15),#a78bfa'};
+  const c = map[t] || 'rgba(136,136,136,0.15),#888';
+  const [bg,fg] = c.split(',');
+  return `background:${bg};color:${fg}`;
+};
+
+const isBlocked = item => item.links && item.links.some(l=>l.type==='blocked');
+
+const linkBadge = item => {
+  if(!item.links || !item.links.length) return '';
+  const blocks  = item.links.filter(l=>l.type==='blocks').length;
+  const blocked = item.links.filter(l=>l.type==='blocked').length;
+  const relates = item.links.filter(l=>l.type==='relates').length;
+  const depends = item.links.filter(l=>l.type==='depends').length;
+  let out = '';
+  if(blocked) out += `<span class="link-badge">🔴 blocked by ${blocked}</span>`;
+  if(blocks)  out += `<span class="link-badge">⛔ blocks ${blocks}</span>`;
+  if(relates) out += `<span class="link-badge relates">↔ ${relates} relation</span>`;
+  if(depends) out += `<span class="link-badge depends">⬆ depends on ${depends}</span>`;
+  return out;
+};
+
+const releaseBadge = item => {
+  if(!item.release) return '';
+  const isOverdue = item.release === 'v1.1.0';
+  const color = isOverdue ? 'background:var(--red-dim);color:var(--red)' : 'background:var(--violet-dim);color:var(--violet)';
+  return `<span class="release-badge" style="${color}">🏷 ${item.release}</span>`;
+};
+
+// ── RENDER CARD ──
+function renderCard(item, inSprint=false) {
+  const m = member(item.assignee);
+  const inSpr = sprintIds.has(item.id);
+  return `
+  <div class="card ${inSpr && !inSprint ? 'in-sprint' : ''}"
+    id="card-${item.id}" data-id="${item.id}" draggable="true"
+    ondragstart="onDragStart(event,'${item.id}')" ondragend="onDragEnd(event)">
+    ${typeIco(item.type)}
+    <div class="card-body">
+      <div class="card-id">${item.id}</div>
+      <div class="card-title ${inSpr && !inSprint ? 'done' : ''}">${item.title}</div>
+      <div class="card-meta">
+        ${item.tags.map(t=>`<span class="tag" style="${tagColor(t)}">${t}</span>`).join('')}
+        ${linkBadge(item)}
+        ${releaseBadge(item)}
+      </div>
+    </div>
+    <div class="card-right">
+      ${prioIco(item.prio)}
+      <div class="pts" title="Story points">${item.pts}</div>
+      ${m?`<div class="mini-av" style="background:${m.color}" title="${m.name} (${m.roleLabel})">${m.name.slice(0,2).toUpperCase()}</div>`:''}
+      ${!inSprint
+        ? `<button class="move-btn" onclick="toggleSprint('${item.id}')">${inSpr?'✓ In Sprint':'→ Add'}</button>`
+        : `<button class="move-btn" onclick="toggleSprint('${item.id}')" style="color:var(--red)">✕ Remove</button>`
+      }
+    </div>
+  </div>`;
+}
+
+// ── RENDER BACKLOG ──
+function renderBacklog() {
+  const body = document.getElementById('backlogBody');
+  const filtered = items.filter(i => {
+    const typeOk = filterType === 'all' || i.type === filterType;
+    const searchOk = !searchQ || i.title.toLowerCase().includes(searchQ) || i.id.toLowerCase().includes(searchQ);
+    return typeOk && searchOk;
+  });
+
+  let html = '';
+  epics.forEach(e => {
+    const eItems = filtered.filter(i => i.epic === e.id);
+    if(!eItems.length) return;
+    const pts = eItems.reduce((s,i)=>s+i.pts,0);
+    html += `<div class="epic-grp" id="eg-${e.id}">
+      <div class="epic-lbl" onclick="toggleEpic('${e.id}')">
+        <div class="epic-dot" style="background:${e.color}"></div>
+        <span class="epic-name">${e.name}</span>
+        <span class="epic-pts">${eItems.length} items · ${pts}pts</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="epic-items">${eItems.map(i=>renderCard(i,false)).join('')}</div>
+    </div>`;
+  });
+
+  body.innerHTML = html || `<div style="color:var(--text3);text-align:center;padding:40px;font-size:12px">No items match filter</div>`;
+  document.getElementById('backlogCount').textContent = `${filtered.length} items`;
+  setupDrop();
+}
+
+// ── RENDER SPRINT ──
+function renderSprint() {
+  const sprintBody = document.getElementById('sprintBody');
+  const spItems = items.filter(i => sprintIds.has(i.id));
+  const pts = spItems.reduce((s,i)=>s+i.pts,0);
+
+  document.getElementById('sprintCount').textContent = `${spItems.length} items`;
+  document.getElementById('totalPts').textContent = pts;
+  document.getElementById('itemCount').textContent = spItems.length;
+
+  const pct = Math.min((pts/56)*100,100);
+  document.getElementById('sprintProg').style.width = pct+'%';
+  document.getElementById('progLabel').textContent = `${pts} / 56 pts capacity`;
+
+  const capLabel = document.getElementById('capLabel');
+  capLabel.textContent = `${pts} / 56 pts`;
+  capLabel.className = 'cap-pts ' + (pts > 56 ? 'over' : 'ok');
+
+  if(!spItems.length) {
+    sprintBody.innerHTML = `<div class="drop-zone hot" id="dropZone" ondragover="onDragOver(event)" ondrop="onDrop(event)"><div class="drop-hint">⇦ Drag items here or click → to add</div></div>`;
+  } else {
+    const byMember = {};
+    members.forEach(m => byMember[m.id] = []);
+    spItems.forEach(i => { if(byMember[i.assignee]) byMember[i.assignee].push(i); });
+
+    let html = `<div class="drop-zone" id="dropZone" ondragover="onDragOver(event)" ondrop="onDrop(event)" style="min-height:16px;padding:4px;margin-bottom:10px"></div>`;
+
+    members.forEach(m => {
+      const mi = byMember[m.id];
+      if(!mi.length) return;
+      const mp = mi.reduce((s,i)=>s+i.pts,0);
+      const over = mp > m.cap;
+      html += `<div class="sprint-sect">
+        <div class="sprint-sect-head">
+          <div class="mini-av" style="background:${m.color}">${m.name.slice(0,2).toUpperCase()}</div>
+          <span class="sprint-sect-title">${m.name}</span>
+          <span class="role-badge role-${m.role}">${m.roleLabel}</span>
+          <span class="sprint-sect-pts" style="color:${over?'var(--red)':''}">${mp} / ${m.cap} pts${over?' ⚠':''}</span>
+        </div>
+        ${mi.map(i=>renderCard(i,true)).join('')}
+      </div>`;
+    });
+    sprintBody.innerHTML = html;
+  }
+
+  renderCapacity(spItems);
+  setupDrop();
+}
+
+function renderCapacity(spItems) {
+  const el = document.getElementById('capMembers');
+  el.innerHTML = members.map(m => {
+    const pts = spItems.filter(i=>i.assignee===m.id).reduce((s,i)=>s+i.pts,0);
+    const pct = Math.min((pts/m.cap)*100,100);
+    const over = pts > m.cap;
+    return `<div class="mem-row">
+      <div class="mem-name">${m.name}</div>
+      <span class="mem-role role-badge role-${m.role}">${m.roleLabel}</span>
+      <div class="mem-track"><div class="mem-fill" style="width:${pct}%;background:${over?'var(--red)':m.color}"></div></div>
+      <div class="mem-lbl" style="color:${over?'var(--red)':''}">${pts}/${m.cap}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── ACTIONS ──
+function toggleSprint(id) {
+  const item = items.find(i=>i.id===id);
+  if(sprintIds.has(id)) {
+    sprintIds.delete(id);
+    renderBacklog(); renderSprint();
+    toast(`✕ ${id} removed from sprint`);
+  } else {
+    if(isBlocked(item)) {
+      showBlockedDialog(item, () => { sprintIds.add(id); renderBacklog(); renderSprint(); toast(`✓ ${id} added (blocked)`); });
+    } else {
+      sprintIds.add(id); renderBacklog(); renderSprint();
+      toast(`✓ ${id} added to Sprint 14`);
+    }
+  }
+}
+
+function showBlockedDialog(item, onConfirm) {
+  const blockers = item.links.filter(l=>l.type==='blocked').map(l=>l.target);
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+    <div class="dialog">
+      <div class="dialog-title">⚠ This item is blocked</div>
+      <div class="dialog-body">
+        The following items must be resolved first:
+        <div class="blocker-list">${blockers.map(b=>`<div class="blocker-item">• ${b}</div>`).join('')}</div>
+        Move to sprint anyway?
+      </div>
+      <div class="dialog-acts">
+        <button class="btn" onclick="this.closest('.overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmMove()">Move anyway</button>
+      </div>
+    </div>`;
+  window._confirmCb = () => { overlay.remove(); onConfirm(); };
+  document.body.appendChild(overlay);
+}
+window.confirmMove = () => window._confirmCb && window._confirmCb();
+
+function clearSprint() { sprintIds.clear(); renderBacklog(); renderSprint(); toast('Sprint cleared'); }
+function toggleEpic(id) { document.getElementById('eg-'+id)?.classList.toggle('collapsed'); }
+function setFilter(btn, type) {
+  document.querySelectorAll('.chip').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on'); filterType = type; renderBacklog();
+}
+function filterItems(q) { searchQ = q.toLowerCase(); renderBacklog(); }
+function startSprint() {
+  if(!sprintIds.size) { toast('⚠ Add items to sprint first'); return; }
+  toast(`🚀 Sprint 14 started with ${sprintIds.size} items!`);
+}
+
+// ── DRAG & DROP ──
+let dragId = null;
+function onDragStart(e,id) { dragId=id; document.getElementById('card-'+id)?.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; }
+function onDragEnd() { document.querySelectorAll('.card').forEach(c=>c.classList.remove('dragging')); }
+function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect='move'; document.getElementById('dropZone')?.classList.add('hot'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone')?.classList.remove('hot');
+  if(dragId && !sprintIds.has(dragId)) {
+    const item = items.find(i=>i.id===dragId);
+    if(isBlocked(item)) {
+      showBlockedDialog(item, () => { sprintIds.add(dragId); renderBacklog(); renderSprint(); toast(`✓ ${dragId} added (blocked)`); dragId=null; });
+    } else {
+      sprintIds.add(dragId); renderBacklog(); renderSprint();
+      toast(`✓ ${dragId} added to Sprint 14`);
+    }
+  }
+  dragId = null;
+}
+function setupDrop() {
+  const dz = document.getElementById('dropZone');
+  if(dz) {
+    dz.addEventListener('dragover', onDragOver);
+    dz.addEventListener('drop', onDrop);
+    dz.addEventListener('dragleave', () => dz.classList.remove('hot'));
+  }
+}
+
+// ── THEME ──
+let dark = true;
+function toggleTheme() {
+  dark = !dark;
+  document.documentElement.setAttribute('data-theme', dark?'':'light');
+  document.getElementById('themeBtn').textContent = dark?'🌙':'☀️';
+}
+
+// ── TOAST ──
+let toastTimer;
+function toast(msg) {
+  document.querySelector('.toast')?.remove();
+  clearTimeout(toastTimer);
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span>${msg}</span>`;
+  document.body.appendChild(t);
+  toastTimer = setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 2500);
+}
+
+// ── INIT ──
+renderBacklog();
+renderSprint();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-TeamFlow.BackgroundServices-0f3cf7f6-df3a-496c-8528-1520cc9e968e</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit" Version="9.0.1" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="9.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
+    <PackageReference Include="Quartz.Extensions.Hosting" Version="3.16.1" />
+    <PackageReference Include="Quartz.Serialization.Json" Version="3.16.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\TeamFlow.Domain\TeamFlow.Domain.csproj" />
+    <ProjectReference Include="..\..\core\TeamFlow.Application\TeamFlow.Application.csproj" />
+    <ProjectReference Include="..\..\core\TeamFlow.Infrastructure\TeamFlow.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

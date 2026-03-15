@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: teamflow-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: teamflow
+      POSTGRES_USER: teamflow
+      POSTGRES_PASSWORD: teamflow_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teamflow -d teamflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: teamflow-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: teamflow
+      RABBITMQ_DEFAULT_PASS: teamflow_dev
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  teamflow-api:
+    build:
+      context: .
+      dockerfile: apps/TeamFlow.Api/Dockerfile
+    container_name: teamflow-api
+    ports:
+      - "5000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=teamflow;Username=teamflow;Password=teamflow_dev"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__Username: teamflow
+      RabbitMQ__Password: teamflow_dev
+      Jwt__Issuer: TeamFlow
+      Jwt__Audience: TeamFlow.Users
+      Jwt__Secret: TeamFlow-Dev-Secret-Key-Change-In-Production-Min32Chars
+
+  teamflow-background:
+    build:
+      context: .
+      dockerfile: apps/TeamFlow.BackgroundServices/Dockerfile
+    container_name: teamflow-background
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=teamflow;Username=teamflow;Password=teamflow_dev"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__Username: teamflow
+      RabbitMQ__Password: teamflow_dev
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
