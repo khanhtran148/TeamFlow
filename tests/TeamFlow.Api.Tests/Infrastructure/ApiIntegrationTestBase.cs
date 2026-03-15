@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -18,12 +19,13 @@ namespace TeamFlow.Api.Tests.Infrastructure;
 /// Base class for HTTP-level integration tests.
 /// Uses Respawn to reset the database between tests, then re-seeds reference data.
 /// Provides helpers to create authenticated and anonymous HttpClients.
+/// The WebApplicationFactory is shared per collection via PostgresFixture.Factory by default;
+/// subclasses can override <see cref="Factory"/> to provide a custom factory.
 /// </summary>
 [Collection("Integration")]
 public abstract class ApiIntegrationTestBase : IAsyncLifetime
 {
     private readonly PostgresFixture _postgres;
-    private IntegrationTestWebAppFactory _factory = null!;
     private Checkpoint? _checkpoint;
 
     /// <summary>Well-known seed Organization ID, matching IntegrationTestBase.</summary>
@@ -35,20 +37,19 @@ public abstract class ApiIntegrationTestBase : IAsyncLifetime
     /// <summary>A second user ID for multi-user test scenarios.</summary>
     protected static readonly Guid SeedUser2Id = new("00000000-0000-0000-0000-000000000002");
 
+    /// <summary>
+    /// The WebApplicationFactory used for creating clients and accessing services.
+    /// Override in subclasses that need a custom factory (e.g., rate limit tests).
+    /// </summary>
+    protected virtual WebApplicationFactory<Program> Factory => _postgres.Factory;
+
     protected ApiIntegrationTestBase(PostgresFixture postgres)
     {
         _postgres = postgres;
     }
 
-    public async Task InitializeAsync()
+    public virtual async Task InitializeAsync()
     {
-        _factory = new IntegrationTestWebAppFactory(_postgres);
-
-        // Force the factory to build the host so EnsureCreated can run
-        _ = _factory.Server;
-
-        await _factory.EnsureDatabaseAsync();
-
         // Initialize Respawn Checkpoint
         _checkpoint = new Checkpoint
         {
@@ -61,7 +62,17 @@ public abstract class ApiIntegrationTestBase : IAsyncLifetime
         await using var conn = new NpgsqlConnection(_postgres.ConnectionString);
         await conn.OpenAsync();
         await _checkpoint.Reset(conn);
-        await _factory.SeedReferenceDataAsync();
+        await SeedReferenceDataAsync();
+    }
+
+    /// <summary>
+    /// Seeds the Organization and User required by all integration tests.
+    /// </summary>
+    private async Task SeedReferenceDataAsync()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
+        await TestDataSeeder.SeedReferenceDataAsync(db, SeedOrgId, SeedUserId);
     }
 
     /// <summary>
@@ -71,7 +82,7 @@ public abstract class ApiIntegrationTestBase : IAsyncLifetime
     protected HttpClient CreateAuthenticatedClient(ProjectRole role = ProjectRole.Developer)
     {
         var token = GenerateTestJwt(SeedUserId, "test@teamflow.dev", "Test User");
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return client;
     }
@@ -81,7 +92,7 @@ public abstract class ApiIntegrationTestBase : IAsyncLifetime
     /// </summary>
     protected HttpClient CreateAnonymousClient()
     {
-        return _factory.CreateClient();
+        return Factory.CreateClient();
     }
 
     /// <summary>
@@ -97,7 +108,7 @@ public abstract class ApiIntegrationTestBase : IAsyncLifetime
     {
         userId ??= SeedUserId;
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
 
         // Ensure User2 exists for OrgAdmin anchor
@@ -153,25 +164,17 @@ public abstract class ApiIntegrationTestBase : IAsyncLifetime
     /// </summary>
     protected async Task<T> WithDbContextAsync<T>(Func<TeamFlowDbContext, Task<T>> action)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
         return await action(db);
     }
 
-    public async Task DisposeAsync()
+    public virtual Task DisposeAsync()
     {
-        // Reset DB for next test (defensive - InitializeAsync also resets)
-        if (_checkpoint is not null)
-        {
-            await using var conn = new NpgsqlConnection(_postgres.ConnectionString);
-            await conn.OpenAsync();
-            await _checkpoint.Reset(conn);
-        }
-
-        await _factory.DisposeAsync();
+        return Task.CompletedTask;
     }
 
-    private static string GenerateTestJwt(Guid userId, string email, string name)
+    protected static string GenerateTestJwt(Guid userId, string email, string name)
     {
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(TestJwtSettings.Secret));

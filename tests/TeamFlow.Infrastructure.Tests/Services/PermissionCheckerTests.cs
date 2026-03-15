@@ -1,12 +1,10 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
-using TeamFlow.Infrastructure.Persistence;
 using TeamFlow.Infrastructure.Services;
 using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Infrastructure.Tests.Services;
 
@@ -26,11 +24,6 @@ public sealed class PermissionCheckerTests : IntegrationTestBase
 
     private bool _seeded;
 
-    protected override async Task ConfigureServices(IServiceCollection services)
-    {
-        await Task.CompletedTask;
-    }
-
     private async Task EnsureSeededAsync()
     {
         if (_seeded) return;
@@ -40,7 +33,7 @@ public sealed class PermissionCheckerTests : IntegrationTestBase
 
     private async Task SeedTestData()
     {
-        // Create users
+        // Create users with well-known IDs
         foreach (var (id, email, name) in new[]
         {
             (OrgAdminUserId, "admin@test.com", "Admin"),
@@ -51,76 +44,49 @@ public sealed class PermissionCheckerTests : IntegrationTestBase
             (NoMemberUserId, "nobody@test.com", "Nobody"),
         })
         {
-            var user = new User { Email = email, Name = name, PasswordHash = "not-real" };
+            var user = UserBuilder.New().WithEmail(email).WithName(name).Build();
             DbContext.Entry(user).Property(nameof(User.Id)).CurrentValue = id;
             DbContext.Users.Add(user);
         }
 
-        // Create project
-        var project = new Project { OrgId = IntegrationTestBase.SeedOrgId, Name = "Test Project", Status = "Active" };
+        // Create project with well-known ID
+        var project = ProjectBuilder.New()
+            .WithOrganization(SeedOrgId)
+            .WithName("Test Project")
+            .Build();
         DbContext.Entry(project).Property(nameof(Project.Id)).CurrentValue = ProjectId;
         DbContext.Projects.Add(project);
 
         // OrgAdmin has Org_Admin role on a project in the same org
-        var orgAdminMembership = new ProjectMembership
-        {
-            ProjectId = ProjectId,
-            MemberId = OrgAdminUserId,
-            MemberType = "User",
-            Role = ProjectRole.OrgAdmin
-        };
-        DbContext.ProjectMemberships.Add(orgAdminMembership);
+        DbContext.ProjectMemberships.Add(ProjectMembershipBuilder.New()
+            .WithProject(ProjectId).WithMember(OrgAdminUserId).WithRole(ProjectRole.OrgAdmin).Build());
 
         // Dev user has individual Developer role
-        var devMembership = new ProjectMembership
-        {
-            ProjectId = ProjectId,
-            MemberId = DevUserId,
-            MemberType = "User",
-            Role = ProjectRole.Developer
-        };
-        DbContext.ProjectMemberships.Add(devMembership);
+        DbContext.ProjectMemberships.Add(ProjectMembershipBuilder.New()
+            .WithProject(ProjectId).WithMember(DevUserId).WithRole(ProjectRole.Developer).Build());
 
         // Viewer user has individual Viewer role
-        var viewerMembership = new ProjectMembership
-        {
-            ProjectId = ProjectId,
-            MemberId = ViewerUserId,
-            MemberType = "User",
-            Role = ProjectRole.Viewer
-        };
-        DbContext.ProjectMemberships.Add(viewerMembership);
+        DbContext.ProjectMemberships.Add(ProjectMembershipBuilder.New()
+            .WithProject(ProjectId).WithMember(ViewerUserId).AsViewer().Build());
 
-        // Team with TeamDevUser as member
-        var team = new Team { OrgId = IntegrationTestBase.SeedOrgId, Name = "Dev Team" };
+        // Team with TeamDevUser and OverrideUser as members
+        var team = TeamBuilder.New()
+            .WithOrg(SeedOrgId)
+            .WithName("Dev Team")
+            .Build();
         DbContext.Entry(team).Property(nameof(Team.Id)).CurrentValue = TeamId;
         DbContext.Teams.Add(team);
 
-        var teamMember = new TeamMember { TeamId = TeamId, UserId = TeamDevUserId, Role = ProjectRole.Developer };
-        DbContext.TeamMembers.Add(teamMember);
+        DbContext.TeamMembers.Add(new TeamMember { TeamId = TeamId, UserId = TeamDevUserId, Role = ProjectRole.Developer });
+        DbContext.TeamMembers.Add(new TeamMember { TeamId = TeamId, UserId = OverrideUserId, Role = ProjectRole.Developer });
 
         // Team has Developer role on project
-        var teamProjectMembership = new ProjectMembership
-        {
-            ProjectId = ProjectId,
-            MemberId = TeamId,
-            MemberType = "Team",
-            Role = ProjectRole.Developer
-        };
-        DbContext.ProjectMemberships.Add(teamProjectMembership);
+        DbContext.ProjectMemberships.Add(ProjectMembershipBuilder.New()
+            .WithProject(ProjectId).WithMember(TeamId).WithMemberType("Team").WithRole(ProjectRole.Developer).Build());
 
         // Override user: Developer via team, but TechnicalLeader via individual override
-        var overrideTeamMember = new TeamMember { TeamId = TeamId, UserId = OverrideUserId, Role = ProjectRole.Developer };
-        DbContext.TeamMembers.Add(overrideTeamMember);
-
-        var overrideMembership = new ProjectMembership
-        {
-            ProjectId = ProjectId,
-            MemberId = OverrideUserId,
-            MemberType = "User",
-            Role = ProjectRole.TechnicalLeader
-        };
-        DbContext.ProjectMemberships.Add(overrideMembership);
+        DbContext.ProjectMemberships.Add(ProjectMembershipBuilder.New()
+            .WithProject(ProjectId).WithMember(OverrideUserId).WithRole(ProjectRole.TechnicalLeader).Build());
 
         await DbContext.SaveChangesAsync();
     }
@@ -139,7 +105,10 @@ public sealed class PermissionCheckerTests : IntegrationTestBase
     public async Task OrgAdmin_HasPermissionOnAnyProject()
     {
         await EnsureSeededAsync();
-        var project2 = new Project { OrgId = IntegrationTestBase.SeedOrgId, Name = "Other Project", Status = "Active" };
+        var project2 = ProjectBuilder.New()
+            .WithOrganization(SeedOrgId)
+            .WithName("Other Project")
+            .Build();
         DbContext.Entry(project2).Property(nameof(Project.Id)).CurrentValue = OtherProjectId;
         DbContext.Projects.Add(project2);
         await DbContext.SaveChangesAsync();

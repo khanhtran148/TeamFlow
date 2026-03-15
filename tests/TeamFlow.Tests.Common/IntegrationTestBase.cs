@@ -2,14 +2,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Testcontainers.PostgreSql;
-using TeamFlow.Domain.Entities;
+using TeamFlow.Application;
+using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Infrastructure.Persistence;
+using TeamFlow.Infrastructure.Repositories;
+using TeamFlow.Infrastructure.Services;
 
 namespace TeamFlow.Tests.Common;
 
 /// <summary>
 /// Base class for integration tests using Testcontainers to spin up a real PostgreSQL instance.
 /// Every test class gets its own container, schema, and seeded Organization.
+/// Registers all common Application + Infrastructure services. Override ConfigureServices for extras.
 /// </summary>
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
@@ -44,39 +48,36 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             });
         });
 
+        RegisterCommonServices(services);
         await ConfigureServices(services);
 
         Services = services.BuildServiceProvider();
         DbContext = Services.GetRequiredService<TeamFlowDbContext>();
 
         await DbContext.Database.EnsureCreatedAsync();
-
-        // Seed required reference data
         await SeedReferenceDataAsync(DbContext);
     }
 
-    private static async Task SeedReferenceDataAsync(TeamFlowDbContext ctx)
+    private static void RegisterCommonServices(IServiceCollection services)
     {
-        // Seed Organization so projects can be created without FK violations
-        if (!await ctx.Set<Organization>().AnyAsync(o => o.Id == SeedOrgId))
-        {
-            var org = new Organization { Name = "Test Org" };
-            ctx.Entry(org).Property(nameof(Organization.Id)).CurrentValue = SeedOrgId;
-            ctx.Set<Organization>().Add(org);
-        }
+        services.AddApplication();
 
-        // Seed User so assignee FK checks pass
-        if (!await ctx.Set<User>().AnyAsync(u => u.Id == SeedUserId))
-        {
-            var user = new User { Email = "test@teamflow.dev", Name = "Test User", PasswordHash = "not-a-real-hash" };
-            ctx.Entry(user).Property(nameof(User.Id)).CurrentValue = SeedUserId;
-            ctx.Set<User>().Add(user);
-        }
+        services.AddScoped<IProjectRepository, ProjectRepository>();
+        services.AddScoped<IReleaseRepository, ReleaseRepository>();
+        services.AddScoped<IWorkItemRepository, WorkItemRepository>();
+        services.AddScoped<IWorkItemLinkRepository, WorkItemLinkRepository>();
+        services.AddScoped<IProjectMembershipRepository, ProjectMembershipRepository>();
 
-        await ctx.SaveChangesAsync();
+        services.AddScoped<ICurrentUser, TestCurrentUser>();
+        services.AddScoped<IPermissionChecker, AlwaysAllowTestPermissionChecker>();
+        services.AddScoped<IHistoryService, HistoryService>();
+        services.AddScoped<IBroadcastService, NullBroadcastService>();
     }
 
-    /// <summary>Override to add additional services for specific test classes.</summary>
+    private static Task SeedReferenceDataAsync(TeamFlowDbContext ctx)
+        => TestDataSeeder.SeedReferenceDataAsync(ctx, SeedOrgId, SeedUserId);
+
+    /// <summary>Override to add or replace services for specific test classes.</summary>
     protected virtual Task ConfigureServices(IServiceCollection services)
         => Task.CompletedTask;
 
