@@ -6,6 +6,7 @@ import {
   createWorkItem,
   addItemToSprint,
   startSprint,
+  completeSprint,
   authenticatePage,
   deleteProject,
 } from "../fixtures/sprint-helpers";
@@ -15,6 +16,7 @@ const API_URL = process.env.API_URL ?? "http://localhost:5210/api/v1";
 test.describe("Burndown Chart", () => {
   let token: string;
   let projectId: string;
+  let activeSprintId: string | null = null;
 
   test.beforeAll(async ({ request }) => {
     const user = await registerUser(request, "burndown");
@@ -54,6 +56,7 @@ test.describe("Burndown Chart", () => {
     });
     await addItemToSprint(request, token, sprint.id, item.id);
     await startSprint(request, token, sprint.id);
+    activeSprintId = sprint.id;
 
     // Navigate to sprint detail
     await authenticatePage(page, { accessToken: token, refreshToken: "" });
@@ -84,6 +87,12 @@ test.describe("Burndown Chart", () => {
     page,
     request,
   }) => {
+    // Complete the previous active sprint to avoid 409 conflict
+    if (activeSprintId) {
+      await completeSprint(request, token, activeSprintId);
+      activeSprintId = null;
+    }
+
     // Create and start a sprint with burndown data
     const sprint = await createSprint(request, token, {
       projectId,
@@ -129,7 +138,7 @@ test.describe("Burndown Chart", () => {
 
       // Verify the Recharts SVG container is present
       // Recharts renders inside a <svg> element within the ResponsiveContainer
-      const svgElement = page.locator(".recharts-responsive-container svg");
+      const svgElement = page.locator(".recharts-responsive-container svg").first();
       await expect(svgElement).toBeVisible();
     } else {
       // If no burndown data yet (sprint just started, BurndownSnapshotJob hasn't run),

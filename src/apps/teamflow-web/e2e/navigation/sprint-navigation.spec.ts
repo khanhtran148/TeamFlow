@@ -87,12 +87,14 @@ test.describe("Sprint Navigation", () => {
       },
     });
     const item = await itemRes.json();
-    await request.post(`${API_URL}/sprints/${sprintId}/items/${item.id}`, {
+    const addItemRes = await request.post(`${API_URL}/sprints/${sprintId}/items/${item.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    await request.post(`${API_URL}/sprints/${sprintId}/start`, {
+    expect(addItemRes.ok()).toBe(true);
+    const startRes = await request.post(`${API_URL}/sprints/${sprintId}/start`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    expect(startRes.ok()).toBe(true);
   });
 
   test.afterAll(async ({ request }) => {
@@ -116,6 +118,13 @@ test.describe("Sprint Navigation", () => {
     // Step 1: Navigate to Projects list
     await page.goto("/projects");
     await expect(page).toHaveURL(/\/projects/);
+
+    // Search for the project to make it visible (list may have many projects)
+    const searchInput = page.getByPlaceholder(/search/i);
+    if (await searchInput.isVisible()) {
+      await searchInput.fill(projectName);
+      await page.waitForTimeout(500);
+    }
 
     // Wait for projects to load, find our project
     await expect(page.getByText(projectName)).toBeVisible({ timeout: 10_000 });
@@ -204,10 +213,14 @@ test.describe("Sprint Navigation", () => {
     ).toBeVisible({ timeout: 10_000 });
 
     // Verify key elements are present
-    await expect(page.getByTestId("sprint-status-active")).toBeVisible();
+    await expect(page.getByTestId("sprint-status-active")).toBeVisible({ timeout: 5_000 });
 
-    // Verify burndown chart is visible (active sprint)
-    await expect(page.getByTestId("burndown-chart")).toBeVisible({ timeout: 10_000 });
+    // Verify burndown section is visible (chart with data or empty state message)
+    const burndownChart = page.getByTestId("burndown-chart");
+    const burndownEmpty = page.getByText(/no burndown data available yet/i);
+    const hasBurndown = await burndownChart.isVisible().catch(() => false);
+    const hasEmpty = await burndownEmpty.isVisible().catch(() => false);
+    expect(hasBurndown || hasEmpty).toBe(true);
   });
 
   test("deep-link to sprints list loads correctly", async ({

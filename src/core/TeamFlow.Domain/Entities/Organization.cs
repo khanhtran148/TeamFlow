@@ -4,6 +4,7 @@ public class Organization
 {
     public Guid Id { get; protected set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
+    public Guid? CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; protected set; } = DateTime.UtcNow;
 
     // Navigation

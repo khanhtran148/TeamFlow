@@ -5,6 +5,7 @@ import { Plus, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useProjectContext } from "@/lib/contexts/project-context";
 import { useSprints, useDeleteSprint } from "@/lib/hooks/use-sprints";
+import { useHasPermission } from "@/lib/hooks/use-permission";
 import { SprintCard } from "@/components/sprints/sprint-card";
 import { SprintFormDialog } from "@/components/sprints/sprint-form-dialog";
 import { ConfirmDialog } from "@/components/projects/confirm-dialog";
@@ -21,6 +22,7 @@ export default function SprintsPage() {
 
   const { data, isLoading, isError } = useSprints({ projectId: project.id });
   const { mutate: deleteSprint, isPending: isDeleting } = useDeleteSprint(project.id);
+  const canCreate = useHasPermission(project.id, "Sprint_Create");
 
   function handleDeleteConfirm() {
     if (!deleteTarget) return;
@@ -61,34 +63,36 @@ export default function SprintsPage() {
           )}
         </div>
 
-        <button
-          onClick={() => setCreateOpen(true)}
-          aria-label="Create new sprint"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "7px 14px",
-            borderRadius: 6,
-            border: "1px solid var(--tf-accent)",
-            background: "var(--tf-accent)",
-            color: "var(--primary-foreground)",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "var(--tf-font-body)",
-            transition: "opacity var(--tf-tr)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.opacity = "0.85";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.opacity = "1";
-          }}
-        >
-          <Plus size={13} />
-          New Sprint
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setCreateOpen(true)}
+            aria-label="Create new sprint"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: 6,
+              border: "1px solid var(--tf-accent)",
+              background: "var(--tf-accent)",
+              color: "var(--primary-foreground)",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "var(--tf-font-body)",
+              transition: "opacity var(--tf-tr)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = "0.85";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+            }}
+          >
+            <Plus size={13} />
+            New Sprint
+          </button>
+        )}
       </div>
 
       {/* Content */}

@@ -180,15 +180,44 @@ async function addItemToSprintViaApi(
   });
 }
 
-/** Start a sprint via API. */
+/** Start a sprint via API. Automatically completes any existing active sprint in the same project. */
 async function startSprintViaApi(
   request: APIRequestContext,
   token: string,
   sprintId: string,
 ): Promise<void> {
-  await request.post(`${API_URL}/sprints/${sprintId}/start`, {
+  const response = await request.post(`${API_URL}/sprints/${sprintId}/start`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  if (response.ok()) return;
+
+  // If 409 conflict (another active sprint), complete it and retry
+  if (response.status() === 409) {
+    const sprintRes = await request.get(`${API_URL}/sprints/${sprintId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const sprint = await sprintRes.json();
+    const listRes = await request.get(`${API_URL}/sprints?projectId=${sprint.projectId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const list = await listRes.json();
+    const items = Array.isArray(list) ? list : list.items ?? [];
+    const activeSprint = items.find((s: { status: string; id: string }) => s.status === "Active" && s.id !== sprintId);
+    if (activeSprint) {
+      await request.post(`${API_URL}/sprints/${activeSprint.id}/complete`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    }
+    const retryRes = await request.post(`${API_URL}/sprints/${sprintId}/start`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!retryRes.ok()) {
+      throw new Error(`Start sprint failed after retry: ${retryRes.status()} ${await retryRes.text()}`);
+    }
+    return;
+  }
+
+  throw new Error(`Start sprint failed: ${response.status()} ${await response.text()}`);
 }
 
 /** Complete a sprint via API. */
@@ -197,9 +226,12 @@ async function completeSprintViaApi(
   token: string,
   sprintId: string,
 ): Promise<void> {
-  await request.post(`${API_URL}/sprints/${sprintId}/complete`, {
+  const response = await request.post(`${API_URL}/sprints/${sprintId}/complete`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  if (!response.ok()) {
+    throw new Error(`Complete sprint failed: ${response.status()} ${await response.text()}`);
+  }
 }
 
 /** Create a release via API. */
