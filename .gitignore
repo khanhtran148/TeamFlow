@@ -123,6 +123,7 @@ coverage/
 ## Secrets
 *.pfx
 *.p12
+appsettings.Development.json
 appsettings.Production.json
 appsettings.Staging.json
 secrets.json

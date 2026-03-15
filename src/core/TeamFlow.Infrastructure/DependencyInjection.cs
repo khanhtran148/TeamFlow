@@ -31,9 +31,17 @@ public static class DependencyInjection
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IReleaseRepository, ReleaseRepository>();
         services.AddScoped<IWorkItemLinkRepository, WorkItemLinkRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<ITeamRepository, TeamRepository>();
+        services.AddScoped<IProjectMembershipRepository, ProjectMembershipRepository>();
+
+        services.AddScoped<IWorkItemHistoryRepository, WorkItemHistoryRepository>();
 
         // Services
         services.AddScoped<IHistoryService, HistoryService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IPermissionChecker, PermissionChecker>();
 
         return services;
     }

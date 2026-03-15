@@ -8,6 +8,7 @@ namespace TeamFlow.Application.Features.Projects.CreateProject;
 
 public sealed class CreateProjectHandler(
     IProjectRepository projectRepository,
+    IProjectMembershipRepository membershipRepository,
     IHistoryService historyService,
     ICurrentUser currentUser,
     IPermissionChecker permissions)
@@ -28,6 +29,15 @@ public sealed class CreateProjectHandler(
         };
 
         await projectRepository.AddAsync(project, ct);
+
+        // Auto-assign creator as OrgAdmin on the new project
+        await membershipRepository.AddAsync(new ProjectMembership
+        {
+            ProjectId = project.Id,
+            MemberId = currentUser.Id,
+            MemberType = "User",
+            Role = Domain.Enums.ProjectRole.OrgAdmin
+        }, ct);
 
         return Result.Success(MapToDto(project, 0, 0));
     }

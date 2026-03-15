@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using TeamFlow.Api.Hubs;
@@ -16,9 +17,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// ─── Phase 1 Stubs (replace in Phase 2) ───────────────────────────────────
-builder.Services.AddScoped<ICurrentUser, FakeCurrentUser>();
-builder.Services.AddScoped<IPermissionChecker, AlwaysAllowPermissionChecker>();
+// ─── Auth & Identity ──────────────────────────────────────────────────────
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, JwtCurrentUser>();
+// IPermissionChecker is registered in Infrastructure DI (PermissionChecker)
+
+// ─── Broadcast (SignalR) ──────────────────────────────────────────────────
+builder.Services.AddScoped<IBroadcastService, SignalRBroadcastService>();
 
 // ─── API Versioning ────────────────────────────────────────────────────────
 builder.Services.AddApiVersioning(options =>
@@ -72,7 +77,43 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // ─── Controllers ──────────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+
+// Override ASP.NET's default model validation response to include field-specific details
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(e => e.Value?.Errors.Count > 0)
+            .SelectMany(e => e.Value!.Errors.Select(err => $"{e.Key}: {err.ErrorMessage}"))
+            .ToList();
+
+        var problemDetails = new Microsoft.AspNetCore.Mvc.ProblemDetails
+        {
+            Status = 400,
+            Title = "Validation Failed",
+            Detail = string.Join("; ", errors),
+            Instance = context.HttpContext.Request.Path,
+            Extensions =
+            {
+                ["correlationId"] = context.HttpContext.Items["X-Correlation-ID"]?.ToString(),
+                ["errors"] = context.ModelState
+                    .Where(e => e.Value?.Errors.Count > 0)
+                    .ToDictionary(
+                        e => e.Key,
+                        e => e.Value!.Errors.Select(err => err.ErrorMessage).ToArray())
+            }
+        };
+
+        return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(problemDetails);
+    };
+});
 
 // ─── SignalR ───────────────────────────────────────────────────────────────
 builder.Services.AddSignalR(options =>
@@ -82,7 +123,7 @@ builder.Services.AddSignalR(options =>
 });
 
 // ─── Rate Limiting ─────────────────────────────────────────────────────────
-builder.Services.AddTeamFlowRateLimiting();
+builder.Services.AddTeamFlowRateLimiting(builder.Configuration);
 
 // ─── CORS ──────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -147,6 +188,20 @@ builder.Services.AddProblemDetails();
 // ─── Build ────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
+// ─── Database Migration & Seed ────────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<TeamFlow.Infrastructure.Persistence.TeamFlowDbContext>();
+    await db.Database.MigrateAsync();
+
+    // Seed default organization if none exists
+    if (!await db.Organizations.AnyAsync())
+    {
+        db.Organizations.Add(new TeamFlow.Domain.Entities.Organization { Name = "Default Organization" });
+        await db.SaveChangesAsync();
+    }
+}
+
 // ─── Middleware Pipeline ───────────────────────────────────────────────────
 app.UseCorrelationId();
 
@@ -201,7 +256,7 @@ app.MapHealthChecks("/health/ready", new()
     Predicate = check => check.Tags.Contains("ready")
 });
 
-app.Run();
+await app.RunAsync();
 
 // Make Program accessible for integration tests
 public partial class Program { }
