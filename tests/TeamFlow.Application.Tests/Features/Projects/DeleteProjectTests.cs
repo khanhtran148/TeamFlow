@@ -1,0 +1,51 @@
+using FluentAssertions;
+using NSubstitute;
+using TeamFlow.Application.Common.Interfaces;
+using TeamFlow.Application.Features.Projects.DeleteProject;
+using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common.Builders;
+
+namespace TeamFlow.Application.Tests.Features.Projects;
+
+public sealed class DeleteProjectTests
+{
+    private readonly IProjectRepository _projectRepo = Substitute.For<IProjectRepository>();
+    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
+    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
+
+    public DeleteProjectTests()
+    {
+        _currentUser.Id.Returns(Guid.NewGuid());
+        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+    }
+
+    private DeleteProjectHandler CreateHandler() => new(_projectRepo, _currentUser, _permissions);
+
+    [Fact]
+    public async Task Handle_ExistingProject_SoftDeletes()
+    {
+        var project = ProjectBuilder.New().Build();
+        _projectRepo.GetByIdAsync(project.Id, Arg.Any<CancellationToken>()).Returns(project);
+        _projectRepo.UpdateAsync(Arg.Any<Project>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<Project>());
+
+        var result = await CreateHandler().Handle(new DeleteProjectCommand(project.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        // Project entity doesn't have DeletedAt since it uses Status-based soft-delete
+        project.Status.Should().Be("Deleted");
+    }
+
+    [Fact]
+    public async Task Handle_NonExistentProject_ReturnsNotFound()
+    {
+        var projectId = Guid.NewGuid();
+        _projectRepo.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns((Project?)null);
+
+        var result = await CreateHandler().Handle(new DeleteProjectCommand(projectId), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be("Project not found");
+    }
+}

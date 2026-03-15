@@ -25,6 +25,9 @@ public class WorkItem : BaseEntity
     public Guid? SprintId { get; set; }
     public Guid? ReleaseId { get; set; }
 
+    // Backlog ordering
+    public int SortOrder { get; set; }
+
     // Retrospective link
     public Guid? RetroActionItemId { get; set; }
 
