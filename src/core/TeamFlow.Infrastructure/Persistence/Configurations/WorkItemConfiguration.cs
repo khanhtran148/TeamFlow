@@ -83,5 +83,14 @@ public class WorkItemConfiguration : IEntityTypeConfiguration<WorkItem>
         builder.HasIndex(w => w.AssigneeId);
         builder.HasIndex(w => w.SprintId);
         builder.HasIndex(w => w.ReleaseId);
+
+        // Composite indexes for performance (Phase 3.4.2)
+        builder.HasIndex(w => new { w.ProjectId, w.Status, w.Priority })
+            .HasDatabaseName("idx_wi_project_status_priority")
+            .HasFilter("deleted_at IS NULL");
+
+        builder.HasIndex(w => new { w.SprintId, w.Status })
+            .HasDatabaseName("idx_wi_sprint_status")
+            .HasFilter("deleted_at IS NULL");
     }
 }

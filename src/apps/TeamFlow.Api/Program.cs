@@ -180,6 +180,10 @@ builder.Services.AddHealthChecks()
     .AddNpgSql(
         builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty,
         name: "database",
+        tags: ["ready"])
+    .AddCheck<TeamFlow.Api.HealthChecks.RabbitMqHealthCheck>(
+        "rabbitmq",
+        failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
         tags: ["ready"]);
 
 // ─── ProblemDetails ────────────────────────────────────────────────────────
@@ -204,6 +208,7 @@ using (var scope = app.Services.CreateScope())
 
 // ─── Middleware Pipeline ───────────────────────────────────────────────────
 app.UseCorrelationId();
+app.UseGlobalExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
@@ -213,11 +218,9 @@ if (app.Environment.IsDevelopment())
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "TeamFlow API v1");
         options.RoutePrefix = "swagger";
     });
-    app.UseDeveloperExceptionPage();
 }
 else
 {
-    app.UseExceptionHandler();
     app.UseHsts();
 }
 

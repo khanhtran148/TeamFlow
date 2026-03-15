@@ -1,16 +1,10 @@
 namespace TeamFlow.Api.Middleware;
 
-public class CorrelationIdMiddleware
+public sealed class CorrelationIdMiddleware(
+    RequestDelegate next,
+    ILogger<CorrelationIdMiddleware> logger)
 {
     private const string CorrelationIdHeader = "X-Correlation-ID";
-    private readonly RequestDelegate _next;
-    private readonly ILogger<CorrelationIdMiddleware> _logger;
-
-    public CorrelationIdMiddleware(RequestDelegate next, ILogger<CorrelationIdMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -20,12 +14,12 @@ public class CorrelationIdMiddleware
         context.Items[CorrelationIdHeader] = correlationId;
         context.Response.Headers[CorrelationIdHeader] = correlationId;
 
-        using (_logger.BeginScope(new Dictionary<string, object>
+        using (logger.BeginScope(new Dictionary<string, object>
         {
             ["CorrelationId"] = correlationId
         }))
         {
-            await _next(context);
+            await next(context);
         }
     }
 }

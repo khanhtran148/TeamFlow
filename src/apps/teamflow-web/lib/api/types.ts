@@ -294,3 +294,83 @@ export interface GetReleasesParams {
   page?: number;
   pageSize?: number;
 }
+
+// ---- Sprint Enums ----
+
+export type SprintStatus = "Planning" | "Active" | "Completed";
+
+// ---- Sprint DTOs ----
+
+export interface SprintDto {
+  id: string;
+  projectId: string;
+  name: string;
+  goal: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  status: SprintStatus;
+  totalPoints: number;
+  completedPoints: number;
+  itemCount: number;
+  capacityUtilization: number | null;
+  createdAt: string;
+}
+
+export interface SprintCapacityMemberDto {
+  memberId: string;
+  memberName: string;
+  capacityPoints: number;
+  assignedPoints: number;
+}
+
+export interface SprintDetailDto extends SprintDto {
+  items: WorkItemDto[];
+  capacity: SprintCapacityMemberDto[];
+}
+
+export interface BurndownDataPointDto {
+  date: string;
+  points: number;
+}
+
+export interface BurndownActualPointDto {
+  date: string;
+  remainingPoints: number;
+  completedPoints: number;
+  addedPoints: number;
+}
+
+export interface BurndownDto {
+  sprintId: string;
+  idealLine: BurndownDataPointDto[];
+  actualLine: BurndownActualPointDto[];
+}
+
+// ---- Sprint Request Bodies ----
+
+export interface CreateSprintBody {
+  projectId: string;
+  name: string;
+  goal?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface UpdateSprintBody {
+  name: string;
+  goal?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface UpdateCapacityBody {
+  capacity: { memberId: string; points: number }[];
+}
+
+// ---- Sprint Query Params ----
+
+export interface GetSprintsParams {
+  projectId: string;
+  page?: number;
+  pageSize?: number;
+}

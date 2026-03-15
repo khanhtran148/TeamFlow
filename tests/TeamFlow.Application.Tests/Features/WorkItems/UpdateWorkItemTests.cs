@@ -70,4 +70,51 @@ public sealed class UpdateWorkItemTests
             Arg.Is<WorkItemHistoryEntry>(e => e.FieldName == "Title"),
             Arg.Any<CancellationToken>());
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    public async Task Validate_EmptyTitle_Fails(string? title)
+    {
+        var validator = new UpdateWorkItemValidator();
+        var cmd = new UpdateWorkItemCommand(Guid.NewGuid(), title!, null, null, null, null);
+        var result = await validator.ValidateAsync(cmd);
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Validate_EmptyWorkItemId_Fails()
+    {
+        var validator = new UpdateWorkItemValidator();
+        var cmd = new UpdateWorkItemCommand(Guid.Empty, "Title", null, null, null, null);
+        var result = await validator.ValidateAsync(cmd);
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Validate_TitleTooLong_Fails()
+    {
+        var validator = new UpdateWorkItemValidator();
+        var cmd = new UpdateWorkItemCommand(Guid.NewGuid(), new string('A', 501), null, null, null, null);
+        var result = await validator.ValidateAsync(cmd);
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Validate_NegativeEstimation_Fails()
+    {
+        var validator = new UpdateWorkItemValidator();
+        var cmd = new UpdateWorkItemCommand(Guid.NewGuid(), "Title", null, null, -1m, null);
+        var result = await validator.ValidateAsync(cmd);
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Validate_ValidCommand_Passes()
+    {
+        var validator = new UpdateWorkItemValidator();
+        var cmd = new UpdateWorkItemCommand(Guid.NewGuid(), "Title", "Desc", Priority.High, 5m, null);
+        var result = await validator.ValidateAsync(cmd);
+        result.IsValid.Should().BeTrue();
+    }
 }

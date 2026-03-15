@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace TeamFlow.Domain.Entities;
 
-public class SprintSnapshot
+public sealed class SprintSnapshot
 {
     public Guid Id { get; protected set; } = Guid.NewGuid();
     public Guid SprintId { get; set; }

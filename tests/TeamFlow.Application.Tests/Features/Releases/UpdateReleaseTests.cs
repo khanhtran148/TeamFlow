@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FluentValidation.TestHelper;
 using NSubstitute;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Releases.UpdateRelease;
@@ -61,5 +62,43 @@ public sealed class UpdateReleaseTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be("Release not found");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    public async Task Validate_EmptyName_Fails(string? name)
+    {
+        var validator = new UpdateReleaseValidator();
+        var cmd = new UpdateReleaseCommand(Guid.NewGuid(), name!, null, null);
+        var result = await validator.ValidateAsync(cmd);
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Validate_EmptyReleaseId_Fails()
+    {
+        var validator = new UpdateReleaseValidator();
+        var cmd = new UpdateReleaseCommand(Guid.Empty, "Valid Name", null, null);
+        var result = await validator.ValidateAsync(cmd);
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Validate_NameTooLong_Fails()
+    {
+        var validator = new UpdateReleaseValidator();
+        var cmd = new UpdateReleaseCommand(Guid.NewGuid(), new string('A', 101), null, null);
+        var result = await validator.ValidateAsync(cmd);
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Validate_ValidCommand_Passes()
+    {
+        var validator = new UpdateReleaseValidator();
+        var cmd = new UpdateReleaseCommand(Guid.NewGuid(), "Valid Name", "Desc", null);
+        var result = await validator.ValidateAsync(cmd);
+        result.IsValid.Should().BeTrue();
     }
 }
