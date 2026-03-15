@@ -41,6 +41,34 @@ public sealed class CreateProjectTests
         result.Value.Status.Should().Be("Active");
     }
 
+    [Fact]
+    public async Task Handle_InsufficientPermission_ReturnsForbidden()
+    {
+        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        var cmd = new CreateProjectCommand(Guid.NewGuid(), "My Project", null);
+
+        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be("Access denied");
+        await _projectRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Handle_PermissionCheckedAgainstOrgId()
+    {
+        var orgId = Guid.NewGuid();
+        var cmd = new CreateProjectCommand(orgId, "My Project", null);
+        _projectRepo.AddAsync(Arg.Any<Project>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<Project>());
+
+        await CreateHandler().Handle(cmd, CancellationToken.None);
+
+        await _permissions.Received(1)
+            .HasPermissionAsync(_currentUser.Id, orgId, Permission.Org_Admin, Arg.Any<CancellationToken>());
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(null)]

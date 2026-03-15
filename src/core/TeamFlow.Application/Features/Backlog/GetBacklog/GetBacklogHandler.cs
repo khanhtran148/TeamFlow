@@ -32,27 +32,13 @@ public sealed class GetBacklogHandler(
             request.PageSize,
             ct);
 
-        // Get blocked status for all items
+        // Get blocked status for all items using a single batch query (no N+1)
         var itemsList = items.ToList();
-        var blockedItemIds = await GetBlockedItemIdsAsync(itemsList.Select(i => i.Id).ToList(), ct);
+        var blockedItemIds = await linkRepository.GetBlockedItemIdsAsync(itemsList.Select(i => i.Id), ct);
 
         var dtos = itemsList.Select(item => MapToDto(item, blockedItemIds));
 
         return Result.Success(new PagedResult<BacklogItemDto>(dtos, totalCount, request.Page, request.PageSize));
-    }
-
-    private async Task<HashSet<Guid>> GetBlockedItemIdsAsync(List<Guid> itemIds, CancellationToken ct)
-    {
-        var blockedIds = new HashSet<Guid>();
-        // Batch check: for each item, check if it has unresolved blockers
-        // For performance, we do a single query per batch
-        foreach (var id in itemIds)
-        {
-            var blockers = await linkRepository.GetBlockersForItemAsync(id, ct);
-            if (blockers.Any(l => l.Source is not null && l.Source.Status != Domain.Enums.WorkItemStatus.Done))
-                blockedIds.Add(id);
-        }
-        return blockedIds;
     }
 
     private static BacklogItemDto MapToDto(WorkItem item, HashSet<Guid> blockedIds) =>

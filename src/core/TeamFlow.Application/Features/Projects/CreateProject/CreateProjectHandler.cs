@@ -15,6 +15,10 @@ public sealed class CreateProjectHandler(
 {
     public async Task<Result<ProjectDto>> Handle(CreateProjectCommand request, CancellationToken ct)
     {
+        // Permission check against OrgId — no ProjectId exists yet
+        if (!await permissions.HasPermissionAsync(currentUser.Id, request.OrgId, Permission.Org_Admin, ct))
+            return Result.Failure<ProjectDto>("Access denied");
+
         var project = new Project
         {
             OrgId = request.OrgId,

@@ -19,6 +19,8 @@ description: Master index of all TeamFlow documentation
 | [architecture/data-model.md](architecture/data-model.md) | Database schema, AI-ready tables, retention strategy |
 | [architecture/events.md](architecture/events.md) | Domain event catalog, SignalR + RabbitMQ architecture |
 | [architecture/background-jobs.md](architecture/background-jobs.md) | Background job design and rollout per phase |
+| [architecture/api-contracts.md](architecture/api-contracts.md) | REST API endpoint reference — routes, request/response types, status codes |
+| [architecture/codebase-architecture.md](architecture/codebase-architecture.md) | Layer responsibilities, HTTP flow, event flow, key interfaces |
 
 ## Process
 | Document | Description |
@@ -31,6 +33,12 @@ description: Master index of all TeamFlow documentation
 |---|---|
 | [prototypes/backlog-sprint-planning.html](prototypes/backlog-sprint-planning.html) | Backlog & sprint planning UI prototype (dark mode) |
 | [prototypes/backlog-sprint-light-mode.html](prototypes/backlog-sprint-light-mode.html) | Backlog & sprint planning UI prototype (light mode) |
+
+## Reference
+| Document | Description |
+|---|---|
+| [codebase-summary.md](codebase-summary.md) | Solution structure, dependency graph, key patterns, Phase 0 + 1 status, what's next |
+| [code-standards.md](code-standards.md) | Naming conventions, sealed classes, TFD, handler/controller patterns, testing |
 
 ## Root
 | Document | Description |

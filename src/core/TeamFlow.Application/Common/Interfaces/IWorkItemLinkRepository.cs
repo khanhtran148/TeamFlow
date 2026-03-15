@@ -18,4 +18,10 @@ public interface IWorkItemLinkRepository
     /// </summary>
     Task<IEnumerable<Guid>> GetReachableTargetsAsync(Guid sourceId, LinkType linkType, CancellationToken ct = default);
     Task<IEnumerable<WorkItemLink>> GetBlockersForItemAsync(Guid workItemId, CancellationToken ct = default);
+    /// <summary>
+    /// Returns the set of item IDs (from the given list) that are currently blocked
+    /// by an active blocker (i.e. a Blocks-link whose source is not Done).
+    /// Issues a single batch query instead of N per-item queries.
+    /// </summary>
+    Task<HashSet<Guid>> GetBlockedItemIdsAsync(IEnumerable<Guid> itemIds, CancellationToken ct = default);
 }

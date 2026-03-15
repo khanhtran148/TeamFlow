@@ -14,6 +14,9 @@ public sealed class UpdateProjectHandler(
 {
     public async Task<Result<ProjectDto>> Handle(UpdateProjectCommand request, CancellationToken ct)
     {
+        if (!await permissions.HasPermissionAsync(currentUser.Id, request.ProjectId, Permission.Project_Edit, ct))
+            return Result.Failure<ProjectDto>("Access denied");
+
         var project = await projectRepository.GetByIdAsync(request.ProjectId, ct);
         if (project is null)
             return Result.Failure<ProjectDto>("Project not found");

@@ -12,6 +12,9 @@ public sealed class DeleteProjectHandler(
 {
     public async Task<Result> Handle(DeleteProjectCommand request, CancellationToken ct)
     {
+        if (!await permissions.HasPermissionAsync(currentUser.Id, request.ProjectId, Permission.Project_Edit, ct))
+            return Result.Failure("Access denied");
+
         var project = await projectRepository.GetByIdAsync(request.ProjectId, ct);
         if (project is null)
             return Result.Failure("Project not found");

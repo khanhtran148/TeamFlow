@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Entities;
@@ -84,38 +85,40 @@ public sealed class WorkItemLinkRepository(TeamFlowDbContext context) : IWorkIte
                 l.TargetId == targetId &&
                 l.LinkType == linkType, ct);
 
+    /// <summary>
+    /// Returns all target IDs reachable from sourceId via the given link type using a single
+    /// recursive CTE query with a depth limit of 100 to prevent infinite loops.
+    /// </summary>
     public async Task<IEnumerable<Guid>> GetReachableTargetsAsync(
         Guid sourceId,
         LinkType linkType,
         CancellationToken ct = default)
     {
-        // BFS to find all reachable nodes from sourceId via linkType
-        var visited = new HashSet<Guid>();
-        var queue = new Queue<Guid>();
-        queue.Enqueue(sourceId);
+        var linkTypeString = linkType.ToString();
 
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (!visited.Add(current))
-                continue;
+        // Recursive CTE: traverse the link graph in a single query.
+        // Depth column guards against cycles (max 100 hops).
+        var sql = """
+            WITH RECURSIVE reachable(target_id, depth) AS (
+                SELECT wil.target_id, 1
+                FROM work_item_links wil
+                WHERE wil.source_id = {0}
+                  AND wil.link_type = {1}
+              UNION
+                SELECT wil.target_id, r.depth + 1
+                FROM work_item_links wil
+                JOIN reachable r ON wil.source_id = r.target_id
+                WHERE wil.link_type = {1}
+                  AND r.depth < 100
+            )
+            SELECT DISTINCT target_id AS "Value" FROM reachable
+            """;
 
-            var targets = await context.WorkItemLinks
-                .AsNoTracking()
-                .Where(l => l.SourceId == current && l.LinkType == linkType)
-                .Select(l => l.TargetId)
-                .ToListAsync(ct);
+        var results = await context.Database
+            .SqlQuery<Guid>(FormattableStringFactory.Create(sql, sourceId, linkTypeString))
+            .ToListAsync(ct);
 
-            foreach (var target in targets)
-            {
-                if (!visited.Contains(target))
-                    queue.Enqueue(target);
-            }
-        }
-
-        // Remove the starting node itself
-        visited.Remove(sourceId);
-        return visited;
+        return results;
     }
 
     public async Task<IEnumerable<WorkItemLink>> GetBlockersForItemAsync(
@@ -129,5 +132,30 @@ public sealed class WorkItemLinkRepository(TeamFlowDbContext context) : IWorkIte
             .Include(l => l.Source)
             .Where(l => l.TargetId == workItemId && l.LinkType == LinkType.Blocks)
             .ToListAsync(ct);
+    }
+
+    public async Task<HashSet<Guid>> GetBlockedItemIdsAsync(
+        IEnumerable<Guid> itemIds,
+        CancellationToken ct = default)
+    {
+        var ids = itemIds.ToList();
+        if (ids.Count == 0)
+            return [];
+
+        // Single batch query: find all target IDs in the provided set
+        // that have at least one active Blocks-link (source not Done).
+        var blockedIds = await context.WorkItemLinks
+            .AsNoTracking()
+            .Include(l => l.Source)
+            .Where(l =>
+                l.LinkType == LinkType.Blocks &&
+                ids.Contains(l.TargetId) &&
+                l.Source != null &&
+                l.Source.Status != WorkItemStatus.Done)
+            .Select(l => l.TargetId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return [.. blockedIds];
     }
 }

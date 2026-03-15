@@ -32,14 +32,8 @@ public sealed class GetKanbanBoardHandler(
 
         var itemsList = items.ToList();
 
-        // Get blocked status
-        var blockedItemIds = new HashSet<Guid>();
-        foreach (var item in itemsList)
-        {
-            var blockers = await linkRepository.GetBlockersForItemAsync(item.Id, ct);
-            if (blockers.Any(l => l.Source is not null && l.Source.Status != WorkItemStatus.Done))
-                blockedItemIds.Add(item.Id);
-        }
+        // Get blocked status using a single batch query (no N+1)
+        var blockedItemIds = await linkRepository.GetBlockedItemIdsAsync(itemsList.Select(i => i.Id), ct);
 
         var columns = KanbanStatuses.Select(status =>
         {

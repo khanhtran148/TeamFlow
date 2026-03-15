@@ -19,8 +19,8 @@ public sealed class GetKanbanBoardTests
     {
         _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
             .Returns(true);
-        _linkRepo.GetBlockersForItemAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(Enumerable.Empty<WorkItemLink>());
+        _linkRepo.GetBlockedItemIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<Guid>());
     }
 
     private GetKanbanBoardHandler CreateHandler() =>
@@ -58,20 +58,12 @@ public sealed class GetKanbanBoardTests
     {
         var projectId = Guid.NewGuid();
         var item = WorkItemBuilder.New().WithProject(projectId).WithStatus(WorkItemStatus.ToDo).Build();
-        var blocker = WorkItemBuilder.New().WithStatus(WorkItemStatus.InProgress).Build();
-        var link = new WorkItemLink
-        {
-            SourceId = blocker.Id,
-            TargetId = item.Id,
-            LinkType = LinkType.Blocks,
-            Scope = LinkScope.SameProject,
-            CreatedById = Guid.NewGuid(),
-            Source = blocker
-        };
+
         _workItemRepo.GetKanbanItemsAsync(
             projectId, null, null, null, null, null, Arg.Any<CancellationToken>())
             .Returns(new[] { item });
-        _linkRepo.GetBlockersForItemAsync(item.Id, Arg.Any<CancellationToken>()).Returns(new[] { link });
+        _linkRepo.GetBlockedItemIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<Guid> { item.Id });
 
         var query = new GetKanbanBoardQuery(projectId, null, null, null, null, null, null);
         var result = await CreateHandler().Handle(query, CancellationToken.None);
@@ -79,5 +71,21 @@ public sealed class GetKanbanBoardTests
         result.IsSuccess.Should().BeTrue();
         var kanbanItem = result.Value.Columns.First(c => c.Status == WorkItemStatus.ToDo).Items.First();
         kanbanItem.IsBlocked.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_NoItems_ReturnsEmptyColumns()
+    {
+        var projectId = Guid.NewGuid();
+        _workItemRepo.GetKanbanItemsAsync(
+            projectId, null, null, null, null, null, Arg.Any<CancellationToken>())
+            .Returns(Enumerable.Empty<WorkItem>());
+
+        var query = new GetKanbanBoardQuery(projectId, null, null, null, null, null, null);
+        var result = await CreateHandler().Handle(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Columns.Should().HaveCount(4);
+        result.Value.Columns.Should().AllSatisfy(c => c.ItemCount.Should().Be(0));
     }
 }

@@ -47,4 +47,31 @@ public sealed class ArchiveProjectTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be("Project not found");
     }
+
+    [Fact]
+    public async Task Handle_InsufficientPermission_ReturnsForbidden()
+    {
+        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        var result = await CreateHandler().Handle(new ArchiveProjectCommand(Guid.NewGuid()), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be("Access denied");
+        await _projectRepo.DidNotReceiveWithAnyArgs().GetByIdAsync(default, default);
+    }
+
+    [Fact]
+    public async Task Handle_PermissionCheckedWithProjectArchivePermission()
+    {
+        var project = ProjectBuilder.New().Build();
+        _projectRepo.GetByIdAsync(project.Id, Arg.Any<CancellationToken>()).Returns(project);
+        _projectRepo.UpdateAsync(Arg.Any<Project>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<Project>());
+
+        await CreateHandler().Handle(new ArchiveProjectCommand(project.Id), CancellationToken.None);
+
+        await _permissions.Received(1)
+            .HasPermissionAsync(_currentUser.Id, project.Id, Permission.Project_Archive, Arg.Any<CancellationToken>());
+    }
 }

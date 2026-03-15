@@ -50,7 +50,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer              = jwtSection["Issuer"],
             ValidAudience            = jwtSection["Audience"],
             IssuerSigningKey         = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtSection["Secret"] ?? "TeamFlow-Dev-Secret-Key-Change-In-Production")),
+                Encoding.UTF8.GetBytes(
+                    jwtSection["Secret"] ?? throw new InvalidOperationException("Jwt:Secret must be configured via user-secrets or environment variable"))),
             ClockSkew = TimeSpan.FromSeconds(30)
         };
 
