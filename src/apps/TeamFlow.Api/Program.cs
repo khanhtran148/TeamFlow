@@ -5,7 +5,9 @@ using System.Text;
 using TeamFlow.Api.Hubs;
 using TeamFlow.Api.Middleware;
 using TeamFlow.Api.RateLimiting;
+using TeamFlow.Api.Services;
 using TeamFlow.Application;
+using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 // ─── Layers ───────────────────────────────────────────────────────────────
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// ─── Phase 1 Stubs (replace in Phase 2) ───────────────────────────────────
+builder.Services.AddScoped<ICurrentUser, FakeCurrentUser>();
+builder.Services.AddScoped<IPermissionChecker, AlwaysAllowPermissionChecker>();
 
 // ─── API Versioning ────────────────────────────────────────────────────────
 builder.Services.AddApiVersioning(options =>
@@ -44,7 +50,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer              = jwtSection["Issuer"],
             ValidAudience            = jwtSection["Audience"],
             IssuerSigningKey         = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtSection["Secret"] ?? "TeamFlow-Dev-Secret-Key-Change-In-Production")),
+                Encoding.UTF8.GetBytes(
+                    jwtSection["Secret"] ?? throw new InvalidOperationException("Jwt:Secret must be configured via user-secrets or environment variable"))),
             ClockSkew = TimeSpan.FromSeconds(30)
         };
 

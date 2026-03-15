@@ -33,6 +33,9 @@ public class WorkItemConfiguration : IEntityTypeConfiguration<WorkItem>
         builder.Property(w => w.EstimationHistory).HasColumnName("estimation_history")
             .HasColumnType("jsonb");
 
+        // Backlog ordering
+        builder.Property(w => w.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
+
         // Assignments
         builder.Property(w => w.AssigneeId).HasColumnName("assignee_id");
         builder.Property(w => w.SprintId).HasColumnName("sprint_id");
