@@ -16,6 +16,10 @@
 /playwright-report/
 /blob-report/
 /playwright/.cache
+*-snapshots/
+
+# playwright auth state
+/.auth/
 
 # next.js
 /.next/

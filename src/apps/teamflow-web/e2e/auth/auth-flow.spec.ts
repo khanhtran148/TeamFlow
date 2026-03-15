@@ -8,6 +8,10 @@ test.describe("AC1: Register → Login → JWT → call protected API → succes
     const password = "Test@1234";
     const name = "E2E User";
 
+    // Clear any stored auth state so AuthGuard doesn't redirect away
+    await page.goto("/login");
+    await page.evaluate(() => localStorage.removeItem("teamflow-auth"));
+
     // Register
     await page.goto("/register");
     await page.getByLabel("Name").fill(name);
@@ -35,13 +39,19 @@ test.describe("AC1: Register → Login → JWT → call protected API → succes
     });
     expect(regResponse.status()).toBe(201);
 
-    // Login via UI
+    // Clear stored auth state so AuthGuard doesn't redirect away from /login
+    await page.goto("about:blank");
     await page.goto("/login");
+    await page.evaluate(() => localStorage.removeItem("teamflow-auth"));
+    await page.goto("/login");
+    await expect(page.getByLabel("Email")).toBeVisible({ timeout: 10_000 });
+
+    // Login via UI
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(password);
     await page.getByRole("button", { name: /sign in/i }).click();
 
-    await expect(page).toHaveURL(/\/projects/);
+    await expect(page).toHaveURL(/\/projects/, { timeout: 10_000 });
   });
 });
 

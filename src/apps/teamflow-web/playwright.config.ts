@@ -1,4 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
+
+const AUTH_STATE_PATH = path.join(__dirname, ".auth", "user.json");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -14,8 +17,16 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "setup",
+      testMatch: /global-setup\.ts/,
+    },
+    {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: AUTH_STATE_PATH,
+      },
+      dependencies: ["setup"],
     },
   ],
   webServer: {

@@ -11,6 +11,7 @@ interface TopBarProps {
 export function TopBar({ breadcrumb, actions }: TopBarProps) {
   return (
     <header
+      data-testid="top-bar"
       style={{
         display: "flex",
         alignItems: "center",
@@ -24,6 +25,7 @@ export function TopBar({ breadcrumb, actions }: TopBarProps) {
     >
       {/* Logo */}
       <Link
+        data-testid="nav-projects"
         href="/projects"
         style={{
           display: "flex",

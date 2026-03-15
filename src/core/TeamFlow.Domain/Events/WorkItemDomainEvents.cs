@@ -79,3 +79,10 @@ public record WorkItemNeedsClarificationFlaggedDomainEvent(
     string? Notes,
     Guid ActorId
 ) : INotification;
+
+public record WorkItemStaleFlaggedDomainEvent(
+    Guid WorkItemId,
+    Guid ProjectId,
+    string Severity,
+    int DaysSinceUpdate
+) : INotification;

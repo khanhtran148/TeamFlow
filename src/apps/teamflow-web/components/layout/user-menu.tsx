@@ -46,6 +46,7 @@ export function UserMenu() {
   return (
     <div ref={menuRef} style={{ position: "relative" }}>
       <button
+        data-testid="user-menu-btn"
         onClick={() => setOpen(!open)}
         style={{
           background: "none",
@@ -60,6 +61,7 @@ export function UserMenu() {
 
       {open && (
         <div
+          data-testid="user-menu"
           style={{
             position: "absolute",
             right: 0,
@@ -101,6 +103,7 @@ export function UserMenu() {
           </div>
 
           <button
+            data-testid="logout-btn"
             onClick={handleLogout}
             style={{
               display: "flex",

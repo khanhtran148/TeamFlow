@@ -2,8 +2,6 @@ using FluentAssertions;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
-using TeamFlow.Application;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Projects.CreateProject;
 using TeamFlow.Application.Features.Releases.AssignItem;
 using TeamFlow.Application.Features.Releases.CreateRelease;
@@ -12,7 +10,6 @@ using TeamFlow.Application.Features.Releases.GetRelease;
 using TeamFlow.Application.Features.WorkItems.CreateWorkItem;
 using TeamFlow.Domain.Enums;
 using TeamFlow.Infrastructure.Persistence;
-using TeamFlow.Infrastructure.Repositories;
 using TeamFlow.Tests.Common;
 
 namespace TeamFlow.Api.Tests.Releases;
@@ -21,20 +18,6 @@ public sealed class ReleaseAssignmentTests : IntegrationTestBase
 {
     private ISender Sender => Services.GetRequiredService<ISender>();
     private TeamFlowDbContext DbCtx => Services.GetRequiredService<TeamFlowDbContext>();
-
-    protected override Task ConfigureServices(IServiceCollection services)
-    {
-        services.AddApplication();
-        services.AddScoped<IProjectRepository, ProjectRepository>();
-        services.AddScoped<IReleaseRepository, ReleaseRepository>();
-        services.AddScoped<IWorkItemRepository, WorkItemRepository>();
-        services.AddScoped<IWorkItemLinkRepository, WorkItemLinkRepository>();
-        services.AddScoped<ICurrentUser, TestCurrentUser>();
-        services.AddScoped<IPermissionChecker, AlwaysAllowTestPermissionChecker>();
-        services.AddScoped<IHistoryService, Infrastructure.Services.HistoryService>();
-        services.AddScoped<IBroadcastService, NullBroadcastService>();
-        return Task.CompletedTask;
-    }
 
     [Fact]
     public async Task ReleaseLifecycle_CreateAssignVerifyDeleteUnlinks()

@@ -59,14 +59,10 @@ public sealed class EntityTests
     [Fact]
     public void WorkItemHistory_ShouldBeReadonly()
     {
-        var history = new WorkItemHistory
-        {
-            WorkItemId = Guid.NewGuid(),
-            ActionType = "StatusChanged",
-            FieldName = "Status",
-            OldValue = "ToDo",
-            NewValue = "InProgress"
-        };
+        var history = WorkItemHistoryBuilder.New()
+            .WithAction("StatusChanged")
+            .WithField("Status", "ToDo", "InProgress")
+            .Build();
 
         Assert.NotEqual(Guid.Empty, history.Id);
         Assert.True(history.CreatedAt > DateTime.UtcNow.AddSeconds(-5));

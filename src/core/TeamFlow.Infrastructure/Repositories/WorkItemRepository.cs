@@ -28,18 +28,21 @@ public sealed class WorkItemRepository(TeamFlowDbContext context) : IWorkItemRep
 
     public async Task<IEnumerable<WorkItem>> GetByProjectAsync(Guid projectId, CancellationToken ct = default)
         => await context.WorkItems
+            .AsNoTracking()
             .Where(w => w.ProjectId == projectId)
             .OrderBy(w => w.CreatedAt)
             .ToListAsync(ct);
 
     public async Task<IEnumerable<WorkItem>> GetBySprintAsync(Guid sprintId, CancellationToken ct = default)
         => await context.WorkItems
+            .AsNoTracking()
             .Where(w => w.SprintId == sprintId)
             .OrderBy(w => w.CreatedAt)
             .ToListAsync(ct);
 
     public async Task<IEnumerable<WorkItem>> GetBacklogAsync(Guid projectId, CancellationToken ct = default)
         => await context.WorkItems
+            .AsNoTracking()
             .Where(w => w.ProjectId == projectId && w.SprintId == null)
             .OrderBy(w => w.CreatedAt)
             .ToListAsync(ct);

@@ -273,6 +273,9 @@ namespace TeamFlow.Infrastructure.Migrations
                         .HasColumnType("timestamptz")
                         .HasColumnName("created_at");
 
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1045,6 +1048,14 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.HasIndex("RetroActionItemId");
 
                     b.HasIndex("SprintId");
+
+                    b.HasIndex("SprintId", "Status")
+                        .HasDatabaseName("idx_wi_sprint_status")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("ProjectId", "Status", "Priority")
+                        .HasDatabaseName("idx_wi_project_status_priority")
+                        .HasFilter("deleted_at IS NULL");
 
                     b.ToTable("work_items", (string)null);
                 });

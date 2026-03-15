@@ -9,7 +9,8 @@ test.describe("AC8: Auth endpoint rate limit → 429 with Retry-After", () => {
     // Send login requests until we get a 429 (some quota may already be used by prior tests)
     let got429 = false;
     let retryAfterHeader: string | null = null;
-    const maxAttempts = 35; // More than the 30-request limit
+    // Dev environment has 10x limits (300), production has 30
+    const maxAttempts = 305;
 
     for (let i = 0; i < maxAttempts; i++) {
       const response = await request.post(`${API_URL}/auth/login`, {

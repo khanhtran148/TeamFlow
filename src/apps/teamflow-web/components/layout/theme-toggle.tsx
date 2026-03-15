@@ -8,6 +8,7 @@ export function ThemeToggle() {
 
   return (
     <button
+      data-testid="theme-toggle"
       onClick={toggleTheme}
       aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
       style={{

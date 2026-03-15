@@ -21,8 +21,8 @@ public sealed class ListTeamsTests
         var orgId = Guid.NewGuid();
         var teams = new[]
         {
-            TeamBuilder.New().WithOrg(orgId).WithName("Alpha").Build(),
-            TeamBuilder.New().WithOrg(orgId).WithName("Beta").Build()
+            TeamBuilder.New().WithOrganization(orgId).WithName("Alpha").Build(),
+            TeamBuilder.New().WithOrganization(orgId).WithName("Beta").Build()
         };
 
         _teamRepo.ListByOrgAsync(orgId, 1, 20, Arg.Any<CancellationToken>())

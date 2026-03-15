@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Bogus" Version="35.6.5" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.11.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -19,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\core\TeamFlow.Application\TeamFlow.Application.csproj" />
     <ProjectReference Include="..\..\src\core\TeamFlow.Domain\TeamFlow.Domain.csproj" />
     <ProjectReference Include="..\..\src\core\TeamFlow.Infrastructure\TeamFlow.Infrastructure.csproj" />
   </ItemGroup>

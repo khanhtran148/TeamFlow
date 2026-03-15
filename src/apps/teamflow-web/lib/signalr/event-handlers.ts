@@ -9,6 +9,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { backlogKeys } from "@/lib/hooks/use-backlog";
 import { releaseKeys } from "@/lib/hooks/use-releases";
 import { workItemKeys } from "@/lib/hooks/use-work-items";
+import { sprintKeys } from "@/lib/hooks/use-sprints";
 
 // ---- Payload types (must match backend event payloads) ----
 
@@ -26,6 +27,22 @@ export interface WorkItemLinkEventPayload {
 export interface ReleaseEventPayload {
   projectId: string;
   releaseId: string;
+}
+
+export interface SprintEventPayload {
+  projectId: string;
+  sprintId: string;
+}
+
+export interface SprintItemEventPayload {
+  projectId: string;
+  sprintId: string;
+  workItemId: string;
+}
+
+export interface BurndownUpdatedPayload {
+  projectId: string;
+  sprintId: string;
 }
 
 // ---- Event name constants (must match backend hub broadcasts) ----
@@ -49,6 +66,12 @@ export const HubEvents = {
   ReleaseDeleted: "Release.Deleted",
   ReleaseItemAssigned: "Release.ItemAssigned",
   ReleaseItemUnassigned: "Release.ItemUnassigned",
+  // Sprint events
+  SprintStarted: "Sprint.Started",
+  SprintCompleted: "Sprint.Completed",
+  SprintItemAdded: "Sprint.ItemAdded",
+  SprintItemRemoved: "Sprint.ItemRemoved",
+  BurndownUpdated: "Burndown.Updated",
 } as const;
 
 export type HubEventName = (typeof HubEvents)[keyof typeof HubEvents];
@@ -107,6 +130,40 @@ function handleReleaseEvent(
 
   // Release item changes also affect backlog (release badge updates)
   queryClient.invalidateQueries({ queryKey: backlogKeys.all(projectId) });
+}
+
+// ---- Handler: Sprint events ----
+
+function handleSprintEvent(
+  queryClient: QueryClient,
+  payload: SprintEventPayload,
+): void {
+  const { projectId, sprintId } = payload;
+
+  queryClient.invalidateQueries({ queryKey: sprintKeys.all(projectId) });
+  queryClient.invalidateQueries({ queryKey: sprintKeys.detail(sprintId) });
+  // Sprint state changes may also affect backlog (items linked/unlinked)
+  queryClient.invalidateQueries({ queryKey: backlogKeys.all(projectId) });
+}
+
+function handleSprintItemEvent(
+  queryClient: QueryClient,
+  payload: SprintItemEventPayload,
+): void {
+  const { projectId, sprintId, workItemId } = payload;
+
+  queryClient.invalidateQueries({ queryKey: sprintKeys.all(projectId) });
+  queryClient.invalidateQueries({ queryKey: sprintKeys.detail(sprintId) });
+  queryClient.invalidateQueries({ queryKey: backlogKeys.all(projectId) });
+  queryClient.invalidateQueries({ queryKey: workItemKeys.detail(workItemId) });
+}
+
+function handleBurndownUpdated(
+  queryClient: QueryClient,
+  payload: BurndownUpdatedPayload,
+): void {
+  const { sprintId } = payload;
+  queryClient.invalidateQueries({ queryKey: sprintKeys.burndown(sprintId) });
 }
 
 // ---- Main registration: wires all event listeners onto a hub connection ----
@@ -171,9 +228,46 @@ export function registerEventHandlers(
     return { event, handler };
   });
 
+  // Sprint lifecycle events
+  const sprintLifecycleEvents: HubEventName[] = [
+    HubEvents.SprintStarted,
+    HubEvents.SprintCompleted,
+  ];
+
+  const sprintLifecycleHandlers = sprintLifecycleEvents.map((event) => {
+    const handler = (payload: SprintEventPayload) => {
+      handleSprintEvent(queryClient, payload);
+    };
+    connection.on(event, handler);
+    return { event, handler };
+  });
+
+  // Sprint item events
+  const sprintItemEvents: HubEventName[] = [
+    HubEvents.SprintItemAdded,
+    HubEvents.SprintItemRemoved,
+  ];
+
+  const sprintItemHandlers = sprintItemEvents.map((event) => {
+    const handler = (payload: SprintItemEventPayload) => {
+      handleSprintItemEvent(queryClient, payload);
+    };
+    connection.on(event, handler);
+    return { event, handler };
+  });
+
+  // Burndown update
+  const burndownHandler = (payload: BurndownUpdatedPayload) => {
+    handleBurndownUpdated(queryClient, payload);
+  };
+  connection.on(HubEvents.BurndownUpdated, burndownHandler);
+
   return () => {
     workItemHandlers.forEach(({ event, handler }) => connection.off(event, handler));
     linkHandlers.forEach(({ event, handler }) => connection.off(event, handler));
     releaseHandlers.forEach(({ event, handler }) => connection.off(event, handler));
+    sprintLifecycleHandlers.forEach(({ event, handler }) => connection.off(event, handler));
+    sprintItemHandlers.forEach(({ event, handler }) => connection.off(event, handler));
+    connection.off(HubEvents.BurndownUpdated, burndownHandler);
   };
 }

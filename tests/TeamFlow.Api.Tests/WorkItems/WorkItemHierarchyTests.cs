@@ -1,15 +1,12 @@
 using FluentAssertions;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using TeamFlow.Application;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.WorkItems.CreateWorkItem;
 using TeamFlow.Application.Features.WorkItems.DeleteWorkItem;
 using TeamFlow.Application.Features.WorkItems.GetWorkItem;
 using TeamFlow.Application.Features.WorkItems.MoveWorkItem;
 using TeamFlow.Application.Features.Projects.CreateProject;
 using TeamFlow.Domain.Enums;
-using TeamFlow.Infrastructure.Repositories;
 using TeamFlow.Tests.Common;
 using TeamFlow.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -20,20 +17,6 @@ public sealed class WorkItemHierarchyTests : IntegrationTestBase
 {
     private ISender Sender => Services.GetRequiredService<ISender>();
     private TeamFlowDbContext DbCtx => Services.GetRequiredService<TeamFlowDbContext>();
-
-    protected override Task ConfigureServices(IServiceCollection services)
-    {
-        services.AddApplication();
-        services.AddScoped<IProjectRepository, ProjectRepository>();
-        services.AddScoped<IReleaseRepository, ReleaseRepository>();
-        services.AddScoped<IWorkItemRepository, WorkItemRepository>();
-        services.AddScoped<IWorkItemLinkRepository, WorkItemLinkRepository>();
-        services.AddScoped<ICurrentUser, TestCurrentUser>();
-        services.AddScoped<IPermissionChecker, AlwaysAllowTestPermissionChecker>();
-        services.AddScoped<IHistoryService, Infrastructure.Services.HistoryService>();
-        services.AddScoped<IBroadcastService, NullBroadcastService>();
-        return Task.CompletedTask;
-    }
 
     [Fact]
     public async Task HierarchyLifecycle_CreateEpicStoryTask_DeleteEpicCascades()

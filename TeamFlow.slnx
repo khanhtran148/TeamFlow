@@ -14,5 +14,6 @@
     <Project Path="tests/TeamFlow.Application.Tests/TeamFlow.Application.Tests.csproj" />
     <Project Path="tests/TeamFlow.Infrastructure.Tests/TeamFlow.Infrastructure.Tests.csproj" />
     <Project Path="tests/TeamFlow.Api.Tests/TeamFlow.Api.Tests.csproj" />
+    <Project Path="tests/TeamFlow.BackgroundServices.Tests/TeamFlow.BackgroundServices.Tests.csproj" />
   </Folder>
 </Solution>

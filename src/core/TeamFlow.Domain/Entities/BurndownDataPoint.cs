@@ -1,6 +1,6 @@
 namespace TeamFlow.Domain.Entities;
 
-public class BurndownDataPoint
+public sealed class BurndownDataPoint
 {
     public Guid Id { get; protected set; } = Guid.NewGuid();
     public Guid SprintId { get; set; }

@@ -10,6 +10,7 @@ interface ProjectNavProps {
 const NAV_TABS = [
   { label: "Backlog", href: (id: string) => `/projects/${id}/backlog` },
   { label: "Board", href: (id: string) => `/projects/${id}/board` },
+  { label: "Sprints", href: (id: string) => `/projects/${id}/sprints` },
   { label: "Releases", href: (id: string) => `/projects/${id}/releases` },
 ];
 

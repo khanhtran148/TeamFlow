@@ -37,6 +37,10 @@ public static class DependencyInjection
         services.AddScoped<IProjectMembershipRepository, ProjectMembershipRepository>();
 
         services.AddScoped<IWorkItemHistoryRepository, WorkItemHistoryRepository>();
+        services.AddScoped<ISprintRepository, SprintRepository>();
+        services.AddScoped<IBurndownDataPointRepository, BurndownDataPointRepository>();
+        services.AddScoped<ISprintSnapshotRepository, SprintSnapshotRepository>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 
         // Services
         services.AddScoped<IHistoryService, HistoryService>();

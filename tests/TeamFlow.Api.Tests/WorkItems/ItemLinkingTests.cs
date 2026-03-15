@@ -1,8 +1,6 @@
 using FluentAssertions;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using TeamFlow.Application;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Projects.CreateProject;
 using TeamFlow.Application.Features.WorkItems.AddLink;
 using TeamFlow.Application.Features.WorkItems.CheckBlockers;
@@ -11,7 +9,6 @@ using TeamFlow.Application.Features.WorkItems.GetLinks;
 using TeamFlow.Application.Features.WorkItems.RemoveLink;
 using TeamFlow.Domain.Enums;
 using TeamFlow.Infrastructure.Persistence;
-using TeamFlow.Infrastructure.Repositories;
 using TeamFlow.Tests.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,20 +18,6 @@ public sealed class ItemLinkingTests : IntegrationTestBase
 {
     private ISender Sender => Services.GetRequiredService<ISender>();
     private TeamFlowDbContext DbCtx => Services.GetRequiredService<TeamFlowDbContext>();
-
-    protected override Task ConfigureServices(IServiceCollection services)
-    {
-        services.AddApplication();
-        services.AddScoped<IProjectRepository, ProjectRepository>();
-        services.AddScoped<IReleaseRepository, ReleaseRepository>();
-        services.AddScoped<IWorkItemRepository, WorkItemRepository>();
-        services.AddScoped<IWorkItemLinkRepository, WorkItemLinkRepository>();
-        services.AddScoped<ICurrentUser, TestCurrentUser>();
-        services.AddScoped<IPermissionChecker, AlwaysAllowTestPermissionChecker>();
-        services.AddScoped<IHistoryService, Infrastructure.Services.HistoryService>();
-        services.AddScoped<IBroadcastService, NullBroadcastService>();
-        return Task.CompletedTask;
-    }
 
     [Fact]
     public async Task AddLink_CreatesForwardAndReverseLink()
