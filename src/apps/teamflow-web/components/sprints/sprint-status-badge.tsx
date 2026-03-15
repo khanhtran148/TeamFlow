@@ -34,6 +34,7 @@ export function SprintStatusBadge({ status }: SprintStatusBadgeProps) {
   const config = STATUS_CONFIG[status];
   return (
     <span
+      data-testid={`sprint-status-${status.toLowerCase()}`}
       role="status"
       style={{
         display: "inline-flex",

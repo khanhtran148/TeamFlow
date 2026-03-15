@@ -146,6 +146,7 @@ function DroppablePanel({
 
   return (
     <div
+      data-testid={id}
       ref={setNodeRef}
       style={{
         flex: 1,
@@ -354,7 +355,7 @@ export function SprintPlanningBoard({ sprintId, projectId }: SprintPlanningBoard
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div data-testid="sprint-planning-board" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Capacity indicator */}
       {totalCapacity > 0 && (
         <CapacityIndicator

@@ -11,6 +11,9 @@ interface ConfirmDialogProps {
   isPending?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  "data-testid"?: string;
+  confirmTestId?: string;
+  cancelTestId?: string;
 }
 
 export function ConfirmDialog({
@@ -22,6 +25,9 @@ export function ConfirmDialog({
   isPending = false,
   onConfirm,
   onCancel,
+  "data-testid": testId,
+  confirmTestId,
+  cancelTestId,
 }: ConfirmDialogProps) {
   if (!open) return null;
 
@@ -40,6 +46,7 @@ export function ConfirmDialog({
       onClick={onCancel}
     >
       <div
+        data-testid={testId}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
@@ -97,6 +104,7 @@ export function ConfirmDialog({
         {/* Actions */}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button
+            data-testid={cancelTestId}
             type="button"
             onClick={onCancel}
             disabled={isPending}
@@ -115,6 +123,7 @@ export function ConfirmDialog({
             Cancel
           </button>
           <button
+            data-testid={confirmTestId}
             type="button"
             onClick={onConfirm}
             disabled={isPending}

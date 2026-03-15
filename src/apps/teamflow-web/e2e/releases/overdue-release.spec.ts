@@ -4,6 +4,7 @@ import {
   createProject,
   createRelease,
   authenticatePage,
+  deleteProject,
 } from "../fixtures/sprint-helpers";
 
 const API_URL = process.env.API_URL ?? "http://localhost:5210/api/v1";
@@ -21,6 +22,12 @@ test.describe("Overdue Release Badge", () => {
       "Overdue Release E2E",
     );
     projectId = project.id;
+  });
+
+  test.afterAll(async ({ request }) => {
+    if (token && projectId) {
+      await deleteProject(request, token, projectId);
+    }
   });
 
   test("release with past due date shows Overdue badge on releases page", async ({

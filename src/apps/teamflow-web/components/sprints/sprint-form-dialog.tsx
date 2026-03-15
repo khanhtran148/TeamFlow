@@ -54,7 +54,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
     onClose();
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmedName = name.trim();
 
@@ -130,6 +130,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
       onClick={handleClose}
     >
       <div
+        data-testid="sprint-form-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="sprint-form-title"
@@ -194,6 +195,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
               Name <span style={{ color: "var(--tf-red)" }}>*</span>
             </label>
             <input
+              data-testid="sprint-name-input"
               id="sprint-name"
               type="text"
               value={name}
@@ -239,6 +241,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
               Goal
             </label>
             <textarea
+              data-testid="sprint-goal-input"
               id="sprint-goal"
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
@@ -275,6 +278,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
                 Start Date
               </label>
               <input
+                data-testid="sprint-start-date"
                 id="sprint-start-date"
                 type="date"
                 value={startDate}
@@ -312,6 +316,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
                 End Date
               </label>
               <input
+                data-testid="sprint-end-date"
                 id="sprint-end-date"
                 type="date"
                 value={endDate}
@@ -367,6 +372,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
               Cancel
             </button>
             <button
+              data-testid="sprint-submit-btn"
               type="submit"
               disabled={isPending}
               style={{

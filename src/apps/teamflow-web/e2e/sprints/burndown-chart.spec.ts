@@ -7,6 +7,7 @@ import {
   addItemToSprint,
   startSprint,
   authenticatePage,
+  deleteProject,
 } from "../fixtures/sprint-helpers";
 
 const API_URL = process.env.API_URL ?? "http://localhost:5210/api/v1";
@@ -24,6 +25,12 @@ test.describe("Burndown Chart", () => {
       "Burndown Chart E2E",
     );
     projectId = project.id;
+  });
+
+  test.afterAll(async ({ request }) => {
+    if (token && projectId) {
+      await deleteProject(request, token, projectId);
+    }
   });
 
   test("burndown chart section is visible on active sprint detail page", async ({

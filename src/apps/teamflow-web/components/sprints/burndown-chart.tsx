@@ -107,6 +107,7 @@ export function BurndownChart({ sprintId }: BurndownChartProps) {
 
   return (
     <div
+      data-testid="burndown-chart"
       style={{
         display: "flex",
         flexDirection: "column",

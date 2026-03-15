@@ -26,6 +26,9 @@ export function AddItemConfirmation({
       isPending={isPending}
       onConfirm={onConfirm}
       onCancel={onCancel}
+      data-testid="add-item-confirm-dialog"
+      confirmTestId="add-item-confirm-btn"
+      cancelTestId="add-item-cancel-btn"
     />
   );
 }

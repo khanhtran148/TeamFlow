@@ -30,7 +30,7 @@ public sealed class WorkItemHierarchyTests : IntegrationTestBase
         services.AddScoped<IWorkItemLinkRepository, WorkItemLinkRepository>();
         services.AddScoped<ICurrentUser, TestCurrentUser>();
         services.AddScoped<IPermissionChecker, AlwaysAllowTestPermissionChecker>();
-        services.AddScoped<IHistoryService, Infrastructure.Services.HistoryService>();
+        services.AddScoped<IHistoryService, TeamFlow.Infrastructure.Services.HistoryService>();
         services.AddScoped<IBroadcastService, NullBroadcastService>();
         return Task.CompletedTask;
     }

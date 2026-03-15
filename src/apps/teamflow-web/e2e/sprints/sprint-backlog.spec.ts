@@ -6,6 +6,7 @@ import {
   createWorkItem,
   addItemToSprint,
   authenticatePage,
+  deleteProject,
 } from "../fixtures/sprint-helpers";
 
 const API_URL = process.env.API_URL ?? "http://localhost:5210/api/v1";
@@ -21,6 +22,12 @@ test.describe("Sprint Backlog Interaction", () => {
     token = user.accessToken;
     const project = await createProject(request, token, "Sprint Backlog E2E");
     projectId = project.id;
+  });
+
+  test.afterAll(async ({ request }) => {
+    if (token && projectId) {
+      await deleteProject(request, token, projectId);
+    }
   });
 
   test("sprint planning board shows backlog and sprint panels", async ({

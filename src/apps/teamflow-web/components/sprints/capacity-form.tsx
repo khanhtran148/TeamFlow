@@ -96,6 +96,7 @@ export function CapacityForm({
       onClick={onClose}
     >
       <div
+        data-testid="capacity-form"
         role="dialog"
         aria-modal="true"
         aria-labelledby="capacity-form-title"
@@ -160,6 +161,7 @@ export function CapacityForm({
               {entries.map((entry) => (
                 <div
                   key={entry.memberId}
+                  data-testid={`capacity-member-${entry.memberId}`}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -273,6 +275,7 @@ export function CapacityForm({
               Cancel
             </button>
             <button
+              data-testid="capacity-save-btn"
               type="submit"
               disabled={isPending}
               style={{

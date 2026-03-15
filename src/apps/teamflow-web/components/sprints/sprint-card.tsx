@@ -51,6 +51,7 @@ export function SprintCard({ sprint, projectId, onEdit, onDelete }: SprintCardPr
 
   return (
     <div
+      data-testid={`sprint-card-${sprint.id}`}
       onClick={handleCardClick}
       role="article"
       tabIndex={0}

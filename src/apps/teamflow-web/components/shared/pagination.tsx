@@ -21,6 +21,7 @@ export function Pagination({ page, pageSize, totalCount, onPageChange }: Paginat
 
   return (
     <div
+      data-testid="pagination"
       style={{
         display: "flex",
         alignItems: "center",
@@ -42,6 +43,7 @@ export function Pagination({ page, pageSize, totalCount, onPageChange }: Paginat
 
       <div style={{ display: "flex", gap: 4 }}>
         <NavButton
+          data-testid="page-prev"
           onClick={() => onPageChange(page - 1)}
           disabled={!canPrev}
           aria-label="Previous page"
@@ -74,6 +76,7 @@ export function Pagination({ page, pageSize, totalCount, onPageChange }: Paginat
         )}
 
         <NavButton
+          data-testid="page-next"
           onClick={() => onPageChange(page + 1)}
           disabled={!canNext}
           aria-label="Next page"
@@ -91,15 +94,18 @@ function NavButton({
   disabled,
   active,
   "aria-label": ariaLabel,
+  "data-testid": testId,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
   active?: boolean;
   "aria-label"?: string;
+  "data-testid"?: string;
 }) {
   return (
     <button
+      data-testid={testId}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
