@@ -22,10 +22,13 @@ public class WorkItemHistoryConfiguration : IEntityTypeConfiguration<WorkItemHis
         builder.Property(h => h.Metadata).HasColumnName("metadata").HasColumnType("jsonb");
         builder.Property(h => h.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
 
-        // Append-only: no cascade delete, no EF delete behavior
+        // Append-only: no cascade delete, no EF delete behavior.
+        // Navigation is optional because WorkItem has a soft-delete query filter;
+        // history rows must remain visible even when the parent WorkItem is soft-deleted.
         builder.HasOne(h => h.WorkItem)
             .WithMany(w => w.Histories)
             .HasForeignKey(h => h.WorkItemId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(h => h.Actor)

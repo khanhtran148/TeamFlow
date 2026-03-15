@@ -22,5 +22,7 @@ public class WorkItemEmbeddingConfiguration : IEntityTypeConfiguration<WorkItemE
         builder.HasOne(e => e.WorkItem)
             .WithOne(w => w.Embedding)
             .HasForeignKey<WorkItemEmbedding>(e => e.WorkItemId);
+
+        builder.HasQueryFilter(e => e.WorkItem!.DeletedAt == null);
     }
 }

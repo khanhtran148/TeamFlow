@@ -39,5 +39,7 @@ public class WorkItemLinkConfiguration : IEntityTypeConfiguration<WorkItemLink>
             .WithMany()
             .HasForeignKey(l => l.CreatedById)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasQueryFilter(l => l.Source!.DeletedAt == null && l.Target!.DeletedAt == null);
     }
 }
