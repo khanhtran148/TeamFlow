@@ -1,12 +1,14 @@
 using Asp.Versioning;
 using CSharpFunctionalExtensions;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TeamFlow.Application.Common.Errors;
 
 namespace TeamFlow.Api.Controllers.Base;
 
 [ApiController]
+[Authorize]
 [Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("1.0")]
 public abstract class ApiControllerBase : ControllerBase

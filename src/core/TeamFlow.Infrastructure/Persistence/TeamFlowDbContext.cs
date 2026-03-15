@@ -17,6 +17,9 @@ public class TeamFlowDbContext : DbContext
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectMembership> ProjectMemberships => Set<ProjectMembership>();
 
+    // Auth
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     // Work Items
     public DbSet<WorkItem> WorkItems => Set<WorkItem>();
     public DbSet<WorkItemHistory> WorkItemHistories => Set<WorkItemHistory>();

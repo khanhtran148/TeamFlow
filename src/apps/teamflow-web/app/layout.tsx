@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Syne, DM_Sans, DM_Mono } from "next/font/google";
 import { Providers } from "@/lib/providers";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import "./globals.css";
 
 const syne = Syne({
@@ -62,7 +63,9 @@ export default function RootLayout({
           fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
         }}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <AuthGuard>{children}</AuthGuard>
+        </Providers>
       </body>
     </html>
   );

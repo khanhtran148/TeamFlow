@@ -12,6 +12,7 @@ using TeamFlow.Application.Features.WorkItems.GetLinks;
 using TeamFlow.Application.Features.WorkItems.GetWorkItem;
 using TeamFlow.Application.Features.WorkItems.MoveWorkItem;
 using TeamFlow.Application.Features.WorkItems.RemoveLink;
+using TeamFlow.Application.Features.WorkItems.GetHistory;
 using TeamFlow.Application.Features.WorkItems.UnassignWorkItem;
 using TeamFlow.Application.Features.WorkItems.UpdateWorkItem;
 using TeamFlow.Domain.Enums;
@@ -113,6 +114,18 @@ public sealed class WorkItemsController : ApiControllerBase
     public async Task<IActionResult> GetLinks(Guid id, CancellationToken ct)
     {
         var result = await Sender.Send(new GetWorkItemLinksQuery(id), ct);
+        return HandleResult(result);
+    }
+
+    [HttpGet("{id:guid}/history")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistory(
+        Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var result = await Sender.Send(new GetWorkItemHistoryQuery(id, page, pageSize), ct);
         return HandleResult(result);
     }
 

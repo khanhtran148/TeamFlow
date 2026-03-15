@@ -1,0 +1,71 @@
+import { test, expect } from "../../e2e/fixtures/auth";
+
+const API_URL = process.env.API_URL ?? "http://localhost:5210/api/v1";
+
+test.describe("AC1: Register → Login → JWT → call protected API → success", () => {
+  test("full auth flow works end-to-end", async ({ page }) => {
+    const email = `e2e-${Date.now()}@teamflow.dev`;
+    const password = "Test@1234";
+    const name = "E2E User";
+
+    // Register
+    await page.goto("/register");
+    await page.getByLabel("Name").fill(name);
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByLabel("Confirm").fill(password);
+    await page.getByRole("button", { name: /register/i }).click();
+
+    // Should redirect to /projects after successful registration
+    await expect(page).toHaveURL(/\/projects/);
+
+    // Verify user can call protected API (projects page loads)
+    await expect(
+      page.getByText(/projects/i).first(),
+    ).toBeVisible();
+  });
+
+  test("register then login with same credentials", async ({ page }) => {
+    const email = `e2e-${Date.now()}@teamflow.dev`;
+    const password = "Test@1234";
+
+    // Register via API
+    const regResponse = await page.request.post(`${API_URL}/auth/register`, {
+      data: { email, password, name: "E2E Login Test" },
+    });
+    expect(regResponse.status()).toBe(201);
+
+    // Login via UI
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill(password);
+    await page.getByRole("button", { name: /sign in/i }).click();
+
+    await expect(page).toHaveURL(/\/projects/);
+  });
+});
+
+test.describe("AC2: Token expires + valid refresh → new token, no logout", () => {
+  test("silent refresh keeps user logged in", async ({ page }) => {
+    const email = `e2e-refresh-${Date.now()}@teamflow.dev`;
+    const password = "Test@1234";
+
+    // Register
+    const regResponse = await page.request.post(`${API_URL}/auth/register`, {
+      data: { email, password, name: "Refresh Test" },
+    });
+    expect(regResponse.status()).toBe(201);
+    const tokens = await regResponse.json();
+
+    // Use refresh endpoint directly
+    const refreshResponse = await page.request.post(`${API_URL}/auth/refresh`, {
+      data: { token: tokens.refreshToken },
+    });
+    expect(refreshResponse.status()).toBe(200);
+
+    const newTokens = await refreshResponse.json();
+    expect(newTokens.accessToken).toBeTruthy();
+    expect(newTokens.refreshToken).toBeTruthy();
+    expect(newTokens.accessToken).not.toBe(tokens.accessToken);
+  });
+});

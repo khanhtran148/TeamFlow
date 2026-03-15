@@ -5,13 +5,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: teamflow
-      POSTGRES_USER: teamflow
-      POSTGRES_PASSWORD: teamflow_dev
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U teamflow -d teamflow"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,8 +23,8 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: teamflow
-      RABBITMQ_DEFAULT_PASS: teamflow_dev
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -47,14 +47,14 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=postgres;Database=teamflow;Username=teamflow;Password=teamflow_dev"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       RabbitMQ__Host: rabbitmq
       RabbitMQ__Port: "5672"
-      RabbitMQ__Username: teamflow
-      RabbitMQ__Password: teamflow_dev
-      Jwt__Issuer: TeamFlow
-      Jwt__Audience: TeamFlow.Users
-      Jwt__Secret: TeamFlow-Dev-Secret-Key-Change-In-Production-Min32Chars
+      RabbitMQ__Username: ${RABBITMQ_DEFAULT_USER}
+      RabbitMQ__Password: ${RABBITMQ_DEFAULT_PASS}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+      Jwt__Secret: ${JWT_SECRET}
 
   teamflow-background:
     build:
@@ -68,11 +68,11 @@ services:
         condition: service_healthy
     environment:
       DOTNET_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=postgres;Database=teamflow;Username=teamflow;Password=teamflow_dev"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       RabbitMQ__Host: rabbitmq
       RabbitMQ__Port: "5672"
-      RabbitMQ__Username: teamflow
-      RabbitMQ__Password: teamflow_dev
+      RabbitMQ__Username: ${RABBITMQ_DEFAULT_USER}
+      RabbitMQ__Password: ${RABBITMQ_DEFAULT_PASS}
 
 volumes:
   postgres_data:

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "./theme-toggle";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserMenu } from "./user-menu";
 
 interface TopBarProps {
   breadcrumb?: ReactNode;
@@ -60,7 +60,7 @@ export function TopBar({ breadcrumb, actions }: TopBarProps) {
       >
         {actions}
         <ThemeToggle />
-        <UserAvatar initials="KT" size="sm" />
+        <UserMenu />
       </div>
     </header>
   );

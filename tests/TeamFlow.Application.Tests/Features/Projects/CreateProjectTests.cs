@@ -11,6 +11,7 @@ namespace TeamFlow.Application.Tests.Features.Projects;
 public sealed class CreateProjectTests
 {
     private readonly IProjectRepository _projectRepo = Substitute.For<IProjectRepository>();
+    private readonly IProjectMembershipRepository _membershipRepo = Substitute.For<IProjectMembershipRepository>();
     private readonly IHistoryService _historyService = Substitute.For<IHistoryService>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
@@ -23,7 +24,7 @@ public sealed class CreateProjectTests
     }
 
     private CreateProjectHandler CreateHandler() =>
-        new(_projectRepo, _historyService, _currentUser, _permissions);
+        new(_projectRepo, _membershipRepo, _historyService, _currentUser, _permissions);
 
     [Fact]
     public async Task Handle_ValidCommand_ReturnsSuccessWithProjectDto()
