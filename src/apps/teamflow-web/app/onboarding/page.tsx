@@ -3,13 +3,20 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMyOrganizations } from "@/lib/hooks/use-organizations";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const { data: orgs, isLoading, isError } = useMyOrganizations();
 
   useEffect(() => {
+    if (user?.systemRole === "SystemAdmin") {
+      router.replace("/admin");
+      return;
+    }
+
     if (isLoading) return;
 
     if (isError || !orgs) {
@@ -24,7 +31,7 @@ export default function OnboardingPage() {
     } else {
       router.replace("/onboarding/pick-org");
     }
-  }, [orgs, isLoading, isError, router]);
+  }, [user, orgs, isLoading, isError, router]);
 
   return (
     <div

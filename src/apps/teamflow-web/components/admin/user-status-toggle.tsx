@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ApiError } from "@/lib/api/client";
+import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 
 interface UserStatusToggleProps {
   userId: string;
@@ -18,12 +19,14 @@ export function UserStatusToggle({
 }: UserStatusToggleProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  async function handleToggle() {
+  async function handleConfirm() {
     setError(null);
     setLoading(true);
     try {
       await onToggle(userId, !isActive);
+      setShowConfirm(false);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.problem.detail ?? err.problem.title);
@@ -32,6 +35,7 @@ export function UserStatusToggle({
       } else {
         setError("Failed to update status.");
       }
+      setShowConfirm(false);
     } finally {
       setLoading(false);
     }
@@ -41,7 +45,7 @@ export function UserStatusToggle({
     <div style={{ position: "relative", display: "inline-flex" }}>
       <button
         type="button"
-        onClick={handleToggle}
+        onClick={() => setShowConfirm(true)}
         disabled={loading}
         aria-label={`${isActive ? "Deactivate" : "Activate"} ${userName}`}
         title={`${isActive ? "Deactivate" : "Activate"} ${userName}`}
@@ -88,6 +92,21 @@ export function UserStatusToggle({
         >
           {error}
         </div>
+      )}
+      {showConfirm && (
+        <ConfirmDialog
+          title={isActive ? "Deactivate User" : "Activate User"}
+          message={
+            isActive
+              ? `Are you sure you want to deactivate ${userName}? They will lose access until reactivated.`
+              : `Are you sure you want to activate ${userName}?`
+          }
+          confirmLabel={isActive ? "Deactivate" : "Activate"}
+          confirmVariant={isActive ? "danger" : "default"}
+          onConfirm={handleConfirm}
+          onCancel={() => setShowConfirm(false)}
+          loading={loading}
+        />
       )}
     </div>
   );

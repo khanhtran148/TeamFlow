@@ -11,6 +11,7 @@ import {
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { SearchInput } from "@/components/admin/search-input";
 import { PaginationControls } from "@/components/admin/pagination-controls";
+import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { EditOrgDialog } from "@/components/admin/edit-org-dialog";
 import { TransferOwnershipDialog } from "@/components/admin/transfer-ownership-dialog";
 import type {
@@ -141,7 +142,7 @@ export default function AdminOrganizationsPage() {
           >
             Failed to load organizations.
           </div>
-        ) : !data?.items.length ? (
+        ) : !data?.items?.length ? (
           <div
             style={{
               padding: 24,
@@ -229,16 +230,19 @@ function OrgRow({
 }) {
   const [statusLoading, setStatusLoading] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  async function handleToggle() {
+  async function handleConfirmedToggle() {
     setStatusError(null);
     setStatusLoading(true);
     try {
       await onToggleStatus(org.id, !org.isActive);
+      setShowConfirm(false);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to update status.";
       setStatusError(message);
+      setShowConfirm(false);
     } finally {
       setStatusLoading(false);
     }
@@ -293,7 +297,7 @@ function OrgRow({
         <div style={{ position: "relative", display: "inline-flex" }}>
           <button
             type="button"
-            onClick={handleToggle}
+            onClick={() => setShowConfirm(true)}
             disabled={statusLoading}
             aria-label={`${org.isActive ? "Deactivate" : "Activate"} ${org.name}`}
             title={`${org.isActive ? "Deactivate" : "Activate"} ${org.name}`}
@@ -340,6 +344,21 @@ function OrgRow({
             >
               {statusError}
             </div>
+          )}
+          {showConfirm && (
+            <ConfirmDialog
+              title={org.isActive ? "Deactivate Organization" : "Activate Organization"}
+              message={
+                org.isActive
+                  ? `Are you sure you want to deactivate "${org.name}"? All members will lose access until reactivated.`
+                  : `Are you sure you want to activate "${org.name}"?`
+              }
+              confirmLabel={org.isActive ? "Deactivate" : "Activate"}
+              confirmVariant={org.isActive ? "danger" : "default"}
+              onConfirm={handleConfirmedToggle}
+              onCancel={() => setShowConfirm(false)}
+              loading={statusLoading}
+            />
           )}
         </div>
       </Td>

@@ -118,7 +118,7 @@ export default function AdminUsersPage() {
           >
             Failed to load users.
           </div>
-        ) : !data?.items.length ? (
+        ) : !data?.items?.length ? (
           <div
             style={{
               padding: 24,

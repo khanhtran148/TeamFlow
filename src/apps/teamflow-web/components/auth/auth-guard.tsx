@@ -14,6 +14,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -40,9 +41,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
 
     if (isAuthenticated && isPublic) {
-      router.replace("/onboarding");
+      router.replace(user?.systemRole === "SystemAdmin" ? "/admin" : "/onboarding");
     }
-  }, [checked, isAuthenticated, pathname, router]);
+  }, [checked, isAuthenticated, user, pathname, router]);
 
   // Don't render protected content until we've checked auth state
   if (!checked) {

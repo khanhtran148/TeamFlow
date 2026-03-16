@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AdminGuard } from "@/components/admin/admin-guard";
-import { Shield, LogOut } from "lucide-react";
+import { Shield, LogOut, KeyRound } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { logout } from "@/lib/api/auth";
 
@@ -126,12 +126,32 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
           }}
         >
           <Link
+            href="/admin/change-password"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              color: "var(--tf-text3)",
+              textDecoration: "none",
+              fontFamily: "var(--tf-font-body)",
+              padding: "6px 8px",
+              borderRadius: 6,
+              transition: "color 0.15s",
+            }}
+          >
+            <KeyRound size={12} />
+            Change Password
+          </Link>
+
+          <Link
             href="/onboarding"
             style={{
               fontSize: 12,
               color: "var(--tf-text3)",
               textDecoration: "none",
               fontFamily: "var(--tf-font-mono)",
+              padding: "6px 8px",
             }}
           >
             Back to App

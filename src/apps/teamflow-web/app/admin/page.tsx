@@ -23,7 +23,7 @@ export default function AdminDashboardPage() {
   });
 
   const adminCount =
-    adminData?.items.filter((u) => u.systemRole === "SystemAdmin").length ?? 0;
+    adminData?.items?.filter((u) => u.systemRole === "SystemAdmin").length ?? 0;
 
   return (
     <div style={{ maxWidth: 900 }}>
