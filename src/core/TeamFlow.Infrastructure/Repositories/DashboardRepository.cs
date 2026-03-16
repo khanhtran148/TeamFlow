@@ -151,31 +151,32 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
     {
         var staleThreshold = DateTime.UtcNow.AddDays(-14);
 
+        // Single query for all work item aggregates to avoid multiple round-trips
+        var itemAggregates = await context.WorkItems
+            .AsNoTracking()
+            .Where(w => w.ProjectId == projectId)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Open = g.Count(w => w.Status != WorkItemStatus.Done && w.Status != WorkItemStatus.Rejected),
+                Stale = g.Count(w => w.Status == WorkItemStatus.InProgress && w.UpdatedAt < staleThreshold)
+            })
+            .FirstOrDefaultAsync(ct);
+
+        var totalItems = itemAggregates?.Total ?? 0;
+        var openItems = itemAggregates?.Open ?? 0;
+        var staleItems = itemAggregates?.Stale ?? 0;
+
         var activeSprint = await context.Sprints
             .AsNoTracking()
             .Where(s => s.ProjectId == projectId && s.Status == SprintStatus.Active)
             .Select(s => new { s.Id, s.Name })
             .FirstOrDefaultAsync(ct);
 
-        var totalItems = await context.WorkItems
-            .AsNoTracking()
-            .CountAsync(w => w.ProjectId == projectId, ct);
-
-        var openItems = await context.WorkItems
-            .AsNoTracking()
-            .CountAsync(w => w.ProjectId == projectId
-                && w.Status != WorkItemStatus.Done
-                && w.Status != WorkItemStatus.Rejected, ct);
-
         var overdueReleases = await context.Releases
             .AsNoTracking()
             .CountAsync(r => r.ProjectId == projectId && r.Status == ReleaseStatus.Overdue, ct);
-
-        var staleItems = await context.WorkItems
-            .AsNoTracking()
-            .CountAsync(w => w.ProjectId == projectId
-                && w.Status == WorkItemStatus.InProgress
-                && w.UpdatedAt < staleThreshold, ct);
 
         var velocity3Avg = await context.TeamVelocityHistories
             .AsNoTracking()

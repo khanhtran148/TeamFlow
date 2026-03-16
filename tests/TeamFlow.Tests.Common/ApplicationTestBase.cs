@@ -16,15 +16,15 @@ namespace TeamFlow.Tests.Common;
 public abstract class ApplicationTestBase : IAsyncLifetime
 {
     private readonly PostgresCollectionFixture _fixture;
-    private ServiceProvider _provider = null!;
-    private IServiceScope _scope = null!;
-    private IDbContextTransaction _transaction = null!;
+    private ServiceProvider? _provider;
+    private IServiceScope? _scope;
+    private IDbContextTransaction? _transaction;
 
     public static readonly Guid SeedOrgId = PostgresCollectionFixture.SeedOrgId;
     public static readonly Guid SeedUserId = PostgresCollectionFixture.SeedUserId;
 
-    protected ISender Sender => _scope.ServiceProvider.GetRequiredService<ISender>();
-    protected TeamFlowDbContext DbContext => _scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
+    protected ISender Sender => _scope!.ServiceProvider.GetRequiredService<ISender>();
+    protected TeamFlowDbContext DbContext => _scope!.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
 
     protected ApplicationTestBase(PostgresCollectionFixture fixture)
     {
@@ -113,8 +113,8 @@ public abstract class ApplicationTestBase : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _transaction.RollbackAsync();
-        _scope.Dispose();
-        await _provider.DisposeAsync();
+        if (_transaction is not null) await _transaction.RollbackAsync();
+        _scope?.Dispose();
+        if (_provider is not null) await _provider.DisposeAsync();
     }
 }

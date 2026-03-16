@@ -56,19 +56,19 @@ public sealed class TestAdminCurrentUser(Guid userId) : ICurrentUser
 
 public sealed class CapturingPublisher : IPublisher
 {
-    private readonly List<object> _published = [];
-    public IReadOnlyList<object> Published => _published;
+    private readonly System.Collections.Concurrent.ConcurrentQueue<object> _published = new();
+    public IReadOnlyList<object> Published => [.. _published];
 
     public Task Publish(object notification, CancellationToken ct = default)
     {
-        _published.Add(notification);
+        _published.Enqueue(notification);
         return Task.CompletedTask;
     }
 
     public Task Publish<TNotification>(TNotification notification, CancellationToken ct = default)
         where TNotification : INotification
     {
-        _published.Add(notification!);
+        _published.Enqueue(notification!);
         return Task.CompletedTask;
     }
 
