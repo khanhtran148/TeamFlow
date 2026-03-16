@@ -89,7 +89,10 @@ export interface OrganizationMemberDto {
 export interface AdminOrganizationDto {
   id: string;
   name: string;
+  slug: string;
+  memberCount: number;
   createdAt: string;
+  isActive: boolean;
 }
 
 export interface AdminUserDto {
@@ -98,6 +101,45 @@ export interface AdminUserDto {
   name: string;
   systemRole: SystemRole;
   createdAt: string;
+  isActive: boolean;
+  mustChangePassword: boolean;
+}
+
+// ---- Admin Request Types ----
+
+export interface AdminListParams {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminResetPasswordRequest {
+  newPassword: string;
+}
+
+export interface ChangeStatusRequest {
+  isActive: boolean;
+}
+
+export interface AdminUpdateOrgRequest {
+  name: string;
+  slug: string;
+}
+
+export interface TransferOwnershipRequest {
+  newOwnerUserId: string;
+}
+
+// ---- PagedResult (contract shape from admin improvements) ----
+
+export interface PagedResult<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
 }
 
 export type ReleaseStatus = "Unreleased" | "Overdue" | "Released";

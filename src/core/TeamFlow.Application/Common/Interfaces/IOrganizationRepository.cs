@@ -11,4 +11,6 @@ public interface IOrganizationRepository
     Task<Organization> UpdateAsync(Organization organization, CancellationToken ct = default);
     Task<IEnumerable<Organization>> ListByUserAsync(Guid userId, CancellationToken ct = default);
     Task<IEnumerable<Organization>> ListAllAsync(CancellationToken ct = default);
+    Task<(IEnumerable<Organization> Items, int TotalCount)> ListAllPagedAsync(
+        string? search, int page, int pageSize, CancellationToken ct = default);
 }

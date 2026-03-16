@@ -7,5 +7,7 @@ public sealed record AdminUserDto(
     string Email,
     string Name,
     SystemRole SystemRole,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    bool IsActive,
+    bool MustChangePassword
 );

@@ -67,6 +67,59 @@ public sealed class LoginTests
         result.Error.Should().Contain("Invalid");
     }
 
+    [Fact]
+    public async Task Handle_UserWithMustChangePassword_ReturnsFlag()
+    {
+        var user = new User
+        {
+            Email = "admin@test.com",
+            Name = "Admin",
+            PasswordHash = "hashed-password",
+            MustChangePassword = true
+        };
+        _userRepo.GetByEmailAsync("admin@test.com", Arg.Any<CancellationToken>()).Returns(user);
+        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
+        var cmd = new LoginCommand("admin@test.com", "Password1");
+
+        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.MustChangePassword.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_UserWithoutMustChangePassword_ReturnsFlagFalse()
+    {
+        _userRepo.GetByEmailAsync("user@test.com", Arg.Any<CancellationToken>()).Returns(TestUser);
+        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
+        var cmd = new LoginCommand("user@test.com", "Password1");
+
+        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.MustChangePassword.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_DeactivatedUser_ReturnsForbidden()
+    {
+        var deactivatedUser = new User
+        {
+            Email = "deactivated@test.com",
+            Name = "Deactivated User",
+            PasswordHash = "hashed-password",
+            IsActive = false
+        };
+        _userRepo.GetByEmailAsync("deactivated@test.com", Arg.Any<CancellationToken>()).Returns(deactivatedUser);
+        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
+        var cmd = new LoginCommand("deactivated@test.com", "Password1");
+
+        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.ToLowerInvariant().Should().Contain("deactivated");
+    }
+
     [Theory]
     [InlineData("", "password")]
     [InlineData("user@test.com", "")]

@@ -10,4 +10,5 @@ public interface IInvitationRepository
     Task<IEnumerable<Invitation>> ListByOrgAsync(Guid organizationId, CancellationToken ct = default);
     Task<IEnumerable<Invitation>> ListPendingByEmailAsync(string email, CancellationToken ct = default);
     Task<Invitation> UpdateAsync(Invitation invitation, CancellationToken ct = default);
+    Task RevokePendingByOrgAsync(Guid organizationId, CancellationToken ct = default);
 }

@@ -39,7 +39,8 @@ public sealed class AdminSeedService(
                 Email = email,
                 Name = "System Admin",
                 PasswordHash = passwordHash,
-                SystemRole = SystemRole.SystemAdmin
+                SystemRole = SystemRole.SystemAdmin,
+                MustChangePassword = true
             };
             dbContext.Users.Add(admin);
             await dbContext.SaveChangesAsync(cancellationToken);

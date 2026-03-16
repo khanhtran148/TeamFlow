@@ -25,12 +25,13 @@ public sealed class ListAdminUsersTests
             UserBuilder.New().WithEmail("a@example.com").Build(),
             UserBuilder.New().WithEmail("b@example.com").Build(),
         };
-        _userRepo.ListAllAsync(Arg.Any<CancellationToken>()).Returns(users);
+        _userRepo.ListPagedAsync(null, 1, 20, Arg.Any<CancellationToken>())
+            .Returns((users as IEnumerable<User>, 2));
 
         var result = await CreateHandler().Handle(new AdminListUsersQuery(), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().HaveCount(2);
+        result.Value.Items.Should().HaveCount(2);
     }
 
     [Theory]
@@ -53,11 +54,12 @@ public sealed class ListAdminUsersTests
             .WithEmail("admin@example.com")
             .WithSystemRole(SystemRole.SystemAdmin)
             .Build();
-        _userRepo.ListAllAsync(Arg.Any<CancellationToken>()).Returns(new List<User> { adminUser });
+        _userRepo.ListPagedAsync(null, 1, 20, Arg.Any<CancellationToken>())
+            .Returns((new List<User> { adminUser } as IEnumerable<User>, 1));
 
         var result = await CreateHandler().Handle(new AdminListUsersQuery(), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Single().SystemRole.Should().Be(SystemRole.SystemAdmin);
+        result.Value.Items.Single().SystemRole.Should().Be(SystemRole.SystemAdmin);
     }
 }

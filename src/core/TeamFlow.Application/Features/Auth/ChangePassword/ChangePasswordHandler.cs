@@ -21,6 +21,7 @@ public sealed class ChangePasswordHandler(
             return Result.Failure("Current password is incorrect");
 
         user.PasswordHash = authService.HashPassword(request.NewPassword);
+        user.MustChangePassword = false;
         await userRepository.UpdateAsync(user, ct);
 
         // Revoke all existing sessions after password change

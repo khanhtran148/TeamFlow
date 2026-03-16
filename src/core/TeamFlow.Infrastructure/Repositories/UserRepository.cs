@@ -51,4 +51,28 @@ public sealed class UserRepository(TeamFlowDbContext context) : IUserRepository
             .AsNoTracking()
             .OrderBy(u => u.Email)
             .ToListAsync(ct);
+
+    public async Task<(IEnumerable<User> Items, int TotalCount)> ListPagedAsync(
+        string? search, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = context.Users.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.ToLower();
+            query = query.Where(u =>
+                u.Name.ToLower().Contains(term) ||
+                u.Email.ToLower().Contains(term));
+        }
+
+        var totalCount = await query.CountAsync(ct);
+
+        var items = await query
+            .OrderBy(u => u.Email)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, totalCount);
+    }
 }

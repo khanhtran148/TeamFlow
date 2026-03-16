@@ -25,12 +25,13 @@ public sealed class ListAdminOrganizationsTests
             OrganizationBuilder.New().WithName("Org A").Build(),
             OrganizationBuilder.New().WithName("Org B").Build(),
         };
-        _orgRepo.ListAllAsync(Arg.Any<CancellationToken>()).Returns(orgs);
+        _orgRepo.ListAllPagedAsync(null, 1, 20, Arg.Any<CancellationToken>())
+            .Returns((orgs as IEnumerable<Organization>, 2));
 
         var result = await CreateHandler().Handle(new AdminListOrganizationsQuery(), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().HaveCount(2);
+        result.Value.Items.Should().HaveCount(2);
     }
 
     [Theory]
@@ -49,11 +50,12 @@ public sealed class ListAdminOrganizationsTests
     public async Task Handle_SystemAdmin_EmptyOrgs_ReturnsEmptyList()
     {
         _currentUser.SystemRole.Returns(SystemRole.SystemAdmin);
-        _orgRepo.ListAllAsync(Arg.Any<CancellationToken>()).Returns(new List<Organization>());
+        _orgRepo.ListAllPagedAsync(null, 1, 20, Arg.Any<CancellationToken>())
+            .Returns((Enumerable.Empty<Organization>(), 0));
 
         var result = await CreateHandler().Handle(new AdminListOrganizationsQuery(), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeEmpty();
+        result.Value.Items.Should().BeEmpty();
     }
 }

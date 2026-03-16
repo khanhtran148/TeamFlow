@@ -1,24 +1,56 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { Users, Shield } from "lucide-react";
-import { getAdminUsers } from "@/lib/api/admin";
+import { useState } from "react";
+import { Users, Shield, AlertCircle, Key } from "lucide-react";
+import { useAdminUsers, useResetUserPassword, useChangeUserStatus } from "@/lib/hooks/use-admin";
+import { useDebounce } from "@/lib/hooks/use-debounce";
+import { SearchInput } from "@/components/admin/search-input";
+import { PaginationControls } from "@/components/admin/pagination-controls";
+import { ResetPasswordDialog } from "@/components/admin/reset-password-dialog";
+import { UserStatusToggle } from "@/components/admin/user-status-toggle";
 import type { AdminUserDto } from "@/lib/api/types";
 
+const PAGE_SIZE = 20;
+
 export default function AdminUsersPage() {
-  const { data: users, isLoading, isError } = useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: getAdminUsers,
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [resetTarget, setResetTarget] = useState<AdminUserDto | null>(null);
+
+  const debouncedSearch = useDebounce(search, 300);
+
+  const { data, isLoading, isError } = useAdminUsers({
+    search: debouncedSearch || undefined,
+    page,
+    pageSize: PAGE_SIZE,
   });
 
+  const resetPassword = useResetUserPassword();
+  const changeStatus = useChangeUserStatus();
+
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    setPage(1);
+  }
+
+  async function handleResetPassword(userId: string, newPassword: string) {
+    await resetPassword.mutateAsync({ userId, body: { newPassword } });
+  }
+
+  async function handleToggleStatus(userId: string, isActive: boolean) {
+    await changeStatus.mutateAsync({ userId, body: { isActive } });
+  }
+
   return (
-    <div style={{ maxWidth: 900 }}>
+    <div style={{ maxWidth: 1000 }}>
+      {/* Header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 10,
-          marginBottom: 24,
+          marginBottom: 20,
+          flexWrap: "wrap",
         }}
       >
         <Users size={18} color="var(--tf-accent)" />
@@ -28,24 +60,34 @@ export default function AdminUsersPage() {
             fontWeight: 700,
             fontSize: 22,
             color: "var(--tf-text)",
+            flex: 1,
           }}
         >
           Users
         </h1>
-        {!isLoading && users && (
+        {!isLoading && data && (
           <span
             style={{
               fontSize: 12,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-mono)",
-              marginLeft: "auto",
             }}
           >
-            {users.length} total
+            {data.totalCount} total
           </span>
         )}
       </div>
 
+      {/* Toolbar */}
+      <div style={{ marginBottom: 16 }}>
+        <SearchInput
+          value={search}
+          onChange={handleSearchChange}
+          placeholder="Search by name or email..."
+        />
+      </div>
+
+      {/* Table */}
       <div
         style={{
           background: "var(--tf-bg2)",
@@ -55,55 +97,127 @@ export default function AdminUsersPage() {
         }}
       >
         {isLoading ? (
-          <div style={{ padding: 24, color: "var(--tf-text3)", fontSize: 13, fontFamily: "var(--tf-font-body)" }}>
+          <div
+            style={{
+              padding: 24,
+              color: "var(--tf-text3)",
+              fontSize: 13,
+              fontFamily: "var(--tf-font-body)",
+            }}
+          >
             Loading users...
           </div>
         ) : isError ? (
-          <div style={{ padding: 24, color: "var(--tf-danger)", fontSize: 13, fontFamily: "var(--tf-font-body)" }}>
+          <div
+            style={{
+              padding: 24,
+              color: "var(--tf-red)",
+              fontSize: 13,
+              fontFamily: "var(--tf-font-body)",
+            }}
+          >
             Failed to load users.
           </div>
-        ) : !users?.length ? (
-          <div style={{ padding: 24, color: "var(--tf-text3)", fontSize: 13, fontFamily: "var(--tf-font-body)" }}>
-            No users found.
+        ) : !data?.items.length ? (
+          <div
+            style={{
+              padding: 24,
+              color: "var(--tf-text3)",
+              fontSize: 13,
+              fontFamily: "var(--tf-font-body)",
+            }}
+          >
+            {debouncedSearch ? `No users found matching "${debouncedSearch}".` : "No users found."}
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--tf-border)" }}>
-                <Th>Name</Th>
-                <Th>Email</Th>
-                <Th>Role</Th>
-                <Th>Created</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <UserRow key={user.id} user={user} />
-              ))}
-            </tbody>
-          </table>
+          <>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--tf-border)" }}>
+                    <Th>Name</Th>
+                    <Th>Email</Th>
+                    <Th>Role</Th>
+                    <Th>Status</Th>
+                    <Th>Flags</Th>
+                    <Th>Created</Th>
+                    <Th>Actions</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((user) => (
+                    <UserRow
+                      key={user.id}
+                      user={user}
+                      onResetPassword={() => setResetTarget(user)}
+                      onToggleStatus={handleToggleStatus}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              page={data.page}
+              totalPages={data.totalPages}
+              hasNextPage={data.hasNextPage}
+              hasPreviousPage={data.hasPreviousPage}
+              totalCount={data.totalCount}
+              pageSize={data.pageSize}
+              onPageChange={setPage}
+            />
+          </>
         )}
       </div>
+
+      {/* Reset Password Dialog */}
+      {resetTarget && (
+        <ResetPasswordDialog
+          userId={resetTarget.id}
+          userName={resetTarget.name}
+          onConfirm={handleResetPassword}
+          onClose={() => setResetTarget(null)}
+        />
+      )}
     </div>
   );
 }
 
-function UserRow({ user }: { user: AdminUserDto }) {
+function UserRow({
+  user,
+  onResetPassword,
+  onToggleStatus,
+}: {
+  user: AdminUserDto;
+  onResetPassword: () => void;
+  onToggleStatus: (userId: string, isActive: boolean) => Promise<void>;
+}) {
   const isAdmin = user.systemRole === "SystemAdmin";
+
   return (
     <tr
       style={{
         borderBottom: "1px solid var(--tf-border)",
         transition: "background var(--tf-tr)",
       }}
-      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = "var(--tf-bg3)")}
-      onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = "transparent")}
+      onMouseEnter={(e) =>
+        ((e.currentTarget as HTMLTableRowElement).style.background =
+          "var(--tf-bg3)")
+      }
+      onMouseLeave={(e) =>
+        ((e.currentTarget as HTMLTableRowElement).style.background =
+          "transparent")
+      }
     >
       <Td>
-        <span style={{ fontWeight: 500, color: "var(--tf-text)" }}>{user.name}</span>
+        <span style={{ fontWeight: 500, color: "var(--tf-text)" }}>
+          {user.name}
+        </span>
       </Td>
       <Td>
-        <span style={{ color: "var(--tf-text2)", fontSize: 12 }}>{user.email}</span>
+        <span style={{ color: "var(--tf-text2)", fontSize: 12 }}>
+          {user.email}
+        </span>
       </Td>
       <Td>
         {isAdmin ? (
@@ -140,9 +254,82 @@ function UserRow({ user }: { user: AdminUserDto }) {
         )}
       </Td>
       <Td>
-        <span style={{ fontSize: 12, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
+        <UserStatusToggle
+          userId={user.id}
+          userName={user.name}
+          isActive={user.isActive}
+          onToggle={onToggleStatus}
+        />
+      </Td>
+      <Td>
+        {user.mustChangePassword && (
+          <span
+            title="Must change password on next login"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 100,
+              background: "var(--tf-orange-dim)",
+              color: "var(--tf-orange)",
+              fontSize: 11,
+              fontFamily: "var(--tf-font-mono)",
+            }}
+          >
+            <AlertCircle size={10} />
+            Pwd Change
+          </span>
+        )}
+      </Td>
+      <Td>
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--tf-text3)",
+            fontFamily: "var(--tf-font-mono)",
+          }}
+        >
           {new Date(user.createdAt).toLocaleDateString()}
         </span>
+      </Td>
+      <Td>
+        <button
+          type="button"
+          onClick={onResetPassword}
+          aria-label={`Reset password for ${user.name}`}
+          title="Reset password"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "4px 8px",
+            borderRadius: 6,
+            border: "1px solid var(--tf-border)",
+            background: "transparent",
+            color: "var(--tf-text3)",
+            fontSize: 11,
+            fontFamily: "var(--tf-font-body)",
+            cursor: "pointer",
+            transition: "color 0.15s, border-color 0.15s",
+            minHeight: 28,
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.color =
+              "var(--tf-orange)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor =
+              "var(--tf-orange)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.color =
+              "var(--tf-text3)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor =
+              "var(--tf-border)";
+          }}
+        >
+          <Key size={11} />
+          Reset Pwd
+        </button>
       </Td>
     </tr>
   );
@@ -160,6 +347,7 @@ function Th({ children }: { children: React.ReactNode }) {
         fontWeight: 600,
         textTransform: "uppercase",
         letterSpacing: "0.05em",
+        whiteSpace: "nowrap",
       }}
     >
       {children}
@@ -169,7 +357,14 @@ function Th({ children }: { children: React.ReactNode }) {
 
 function Td({ children }: { children: React.ReactNode }) {
   return (
-    <td style={{ padding: "10px 16px", fontSize: 13, fontFamily: "var(--tf-font-body)" }}>
+    <td
+      style={{
+        padding: "10px 16px",
+        fontSize: 13,
+        fontFamily: "var(--tf-font-body)",
+        verticalAlign: "middle",
+      }}
+    >
       {children}
     </td>
   );

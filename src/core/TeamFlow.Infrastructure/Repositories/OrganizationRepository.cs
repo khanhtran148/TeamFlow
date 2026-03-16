@@ -55,4 +55,32 @@ public sealed class OrganizationRepository(TeamFlowDbContext context) : IOrganiz
             .AsNoTracking()
             .OrderBy(o => o.Name)
             .ToListAsync(ct);
+
+    public async Task<(IEnumerable<Organization> Items, int TotalCount)> ListAllPagedAsync(
+        string? search, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = context.Organizations
+            .AsNoTracking()
+            .Include(o => o.Members);
+
+        IQueryable<Organization> filtered = query;
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.ToLower();
+            filtered = query.Where(o =>
+                o.Name.ToLower().Contains(term) ||
+                o.Slug.ToLower().Contains(term));
+        }
+
+        var totalCount = await filtered.CountAsync(ct);
+
+        var items = await filtered
+            .OrderBy(o => o.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, totalCount);
+    }
 }

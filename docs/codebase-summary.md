@@ -71,10 +71,11 @@ All handlers return `CSharpFunctionalExtensions.Result<T>`. Errors are returned 
 
 ### MediatR Pipeline Behaviors
 
-Two registered pipeline behaviors apply to every request in order:
+Three registered pipeline behaviors apply to every request in order:
 
-1. `ValidationBehavior` — runs FluentValidation; short-circuits with a 400 error if invalid
-2. `LoggingBehavior` — logs request type and duration using structured logging
+1. `ActiveUserBehavior` — checks `user.IsActive`; short-circuits with 403 if user is deactivated (skips for anonymous endpoints)
+2. `ValidationBehavior` — runs FluentValidation; short-circuits with a 400 error if invalid
+3. `LoggingBehavior` — logs request type and duration using structured logging
 
 ### Event-Driven Architecture
 
@@ -124,7 +125,7 @@ All permission checks go through `IPermissionChecker.HasPermissionAsync()`. Reso
 
 ### Phase 2 — Auth & Authorization (complete)
 
-**Authentication** — register (POST `/api/v1/auth/register`), login (POST `/api/v1/auth/login`), refresh token (POST `/api/v1/auth/refresh`), change password (POST `/api/v1/auth/change-password`), logout (POST `/api/v1/auth/logout`)
+**Authentication** — register (POST `/api/v1/auth/register`), login (POST `/api/v1/auth/login`), refresh token (POST `/api/v1/auth/refresh`), change password (POST `/api/v1/auth/change-password`), logout (POST `/api/v1/auth/logout`). Login response includes `mustChangePassword` flag.
 
 **JWT** — 30-minute access tokens (HMAC-SHA256), 64-byte cryptographically random refresh tokens stored as SHA-256 hashes, BCrypt password hashing (work factor 12)
 
@@ -156,14 +157,24 @@ All permission checks go through `IPermissionChecker.HasPermissionAsync()`. Reso
 
 **Frontend** — Next.js 16 (App Router) with pages for: login, register, projects list, project detail (backlog, board, sprints, releases, work items), teams list, team detail
 
+### Org Management & Admin Improvements (complete)
+
+**Org Management** — Organization creation with slug; member invitations (email invite, accept, reject, revoke); member management (role change, remove); `GET /api/v1/organizations/{slug}` by slug with IsActive guard
+
+**Admin Panel** — SystemAdmin bootstrap via seed (`MustChangePassword = true`); force password change flow on first login; admin-initiated password reset (`POST /admin/users/{userId}/reset-password`, sets `MustChangePassword = true`); paginated + searchable admin grids for users and organizations; user/org deactivation and activation with token revocation and pending invitation cleanup; org name + slug update; org ownership transfer
+
+**Admin Frontend** — `/admin/users` (search, pagination, reset password dialog, status toggle), `/admin/organizations` (search, pagination, edit dialog, transfer ownership dialog, status toggle), `/admin/change-password` (force-change page on first login), `/deactivated` (static error page), logout button in admin layout, 403 deactivation interceptor redirects to `/deactivated`
+
+**Test count:** 1015 (73 domain + 745 application + 25 background services + 141 API + 31 infrastructure)
+
 ---
 
 ## Domain Entities
 
 | Entity | Phase | Description |
 |---|---|---|
-| `User` | 0 | Authenticated user with BCrypt password hash |
-| `Organization` | 0 | Top-level tenant |
+| `User` | 0 | Authenticated user with BCrypt password hash; `IsActive` (default true), `MustChangePassword` (default false) |
+| `Organization` | 0 | Top-level tenant; `IsActive` (default true) |
 | `Project` | 0 | Work container within an org |
 | `ProjectMembership` | 0 | Links user or team to a project with a role |
 | `Team` | 0 | Group of users within an org |
@@ -215,10 +226,12 @@ All permission checks go through `IPermissionChecker.HasPermissionAsync()`. Reso
 
 ## What Is Next
 
-**Phase 4 — Retrospectives** (planned)
+**Phase 6 — Retrospectives** (planned)
 
 - Retro sessions: create, start, add cards, reveal, vote, close
 - Action items linked to backlog
 - Retro domain events published and consumed
+
+**Frontend testing infrastructure** — Vitest + Testing Library not yet configured; recommended before next frontend phase with logic-bearing hooks.
 
 See `docs/process/phases.md` for full scope and acceptance criteria.

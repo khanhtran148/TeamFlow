@@ -86,7 +86,7 @@ Issues a new token pair using a valid refresh token.
 
 ### POST /api/v1/auth/change-password
 
-Changes the authenticated user's password.
+Changes the authenticated user's password. Clears the `MustChangePassword` flag if set.
 
 **Rate limit:** `Write` policy
 
@@ -126,9 +126,12 @@ Revokes the current user's refresh token.
 {
   "accessToken": "eyJ...",
   "refreshToken": "base64string",
-  "expiresIn": 1800
+  "expiresIn": 1800,
+  "mustChangePassword": false
 }
 ```
+
+`mustChangePassword` is `true` when a SystemAdmin account has had its password reset by another admin and must change it on next login. Frontend should redirect to `/admin/change-password` if `true`.
 
 ---
 
@@ -1172,3 +1175,188 @@ All error responses follow RFC 7807 `ProblemDetails`:
 | 409 Conflict | Duplicate or conflicting state |
 | 429 Too Many Requests | Rate limit exceeded |
 | 500 Internal Server Error | Unhandled exception |
+
+---
+
+## Admin — `/api/v1/admin`
+
+All admin endpoints require a `SystemAdmin` role JWT. Non-SystemAdmin requests return 403.
+
+Deactivated users who hold valid JWTs receive 403 with `detail` containing "deactivated" — the frontend 403 interceptor redirects them to `/deactivated`.
+
+---
+
+### GET /api/v1/admin/users
+
+Returns a paginated list of all users. SystemAdmin only.
+
+**Query parameters**
+
+| Parameter | Type | Default |
+|---|---|---|
+| search | string | — |
+| page | int | 1 |
+| pageSize | int | 20 |
+
+`search` filters by name or email (case-insensitive).
+
+**Responses**
+
+| Status | Body |
+|---|---|
+| 200 OK | `PagedResult<AdminUserDto>` |
+
+**AdminUserDto**
+
+```json
+{
+  "id": "uuid",
+  "name": "string",
+  "email": "string",
+  "role": "SystemAdmin | User",
+  "isActive": true,
+  "mustChangePassword": false,
+  "createdAt": "2026-03-16T12:00:00Z"
+}
+```
+
+---
+
+### POST /api/v1/admin/users/{userId}/reset-password
+
+Resets a user's password and sets `MustChangePassword = true`. All user refresh tokens are revoked. SystemAdmin only.
+
+**Request body:**
+
+| Field | Type | Required |
+|---|---|---|
+| newPassword | string (min 8 chars) | yes |
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 204 No Content | — | Reset |
+| 403 Forbidden | `ProblemDetails` | Non-SystemAdmin caller |
+| 404 Not Found | `ProblemDetails` | User not found |
+
+---
+
+### PUT /api/v1/admin/users/{userId}/status
+
+Activates or deactivates a user. Deactivation revokes all refresh tokens. Cannot deactivate self or last SystemAdmin. SystemAdmin only.
+
+**Request body:**
+
+| Field | Type | Required |
+|---|---|---|
+| isActive | bool | yes |
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 204 No Content | — | Updated |
+| 400 Bad Request | `ProblemDetails` | Self-deactivation or last SystemAdmin |
+| 403 Forbidden | `ProblemDetails` | Non-SystemAdmin caller |
+| 404 Not Found | `ProblemDetails` | User not found |
+
+---
+
+### GET /api/v1/admin/organizations
+
+Returns a paginated list of all organizations. SystemAdmin only.
+
+**Query parameters**
+
+| Parameter | Type | Default |
+|---|---|---|
+| search | string | — |
+| page | int | 1 |
+| pageSize | int | 20 |
+
+`search` filters by name or slug (case-insensitive).
+
+**Responses**
+
+| Status | Body |
+|---|---|
+| 200 OK | `PagedResult<AdminOrganizationDto>` |
+
+**AdminOrganizationDto**
+
+```json
+{
+  "id": "uuid",
+  "name": "string",
+  "slug": "string",
+  "ownerName": "string",
+  "memberCount": 5,
+  "isActive": true,
+  "createdAt": "2026-03-16T12:00:00Z"
+}
+```
+
+---
+
+### PUT /api/v1/admin/organizations/{orgId}
+
+Updates an organization's name and slug. Slug must be unique. SystemAdmin only.
+
+**Request body:**
+
+| Field | Type | Required |
+|---|---|---|
+| name | string (max 100) | yes |
+| slug | string (max 50, `^[a-z0-9-]+$`) | yes |
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 204 No Content | — | Updated |
+| 400 Bad Request | `ProblemDetails` | Validation failure |
+| 403 Forbidden | `ProblemDetails` | Non-SystemAdmin caller |
+| 404 Not Found | `ProblemDetails` | Org not found |
+| 409 Conflict | `ProblemDetails` | Slug already taken |
+
+---
+
+### PUT /api/v1/admin/organizations/{orgId}/owner
+
+Transfers organization ownership to a new user. New owner must already be an org member. SystemAdmin only.
+
+**Request body:**
+
+| Field | Type | Required |
+|---|---|---|
+| newOwnerUserId | uuid | yes |
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 204 No Content | — | Transferred |
+| 400 Bad Request | `ProblemDetails` | New owner not a member or already owner |
+| 403 Forbidden | `ProblemDetails` | Non-SystemAdmin caller |
+| 404 Not Found | `ProblemDetails` | Org or user not found |
+
+---
+
+### PUT /api/v1/admin/organizations/{orgId}/status
+
+Activates or deactivates an organization. Deactivation revokes all pending invitations. SystemAdmin only.
+
+**Request body:**
+
+| Field | Type | Required |
+|---|---|---|
+| isActive | bool | yes |
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 204 No Content | — | Updated |
+| 403 Forbidden | `ProblemDetails` | Non-SystemAdmin caller |
+| 404 Not Found | `ProblemDetails` | Org not found |

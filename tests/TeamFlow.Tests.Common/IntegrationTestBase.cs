@@ -70,6 +70,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepository>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
 
         services.AddScoped<ICurrentUser, TestCurrentUser>();
         services.AddScoped<IPermissionChecker, AlwaysAllowTestPermissionChecker>();

@@ -17,6 +17,7 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
         builder.Property(o => o.CreatedByUserId).HasColumnName("created_by_user_id");
         builder.Property(o => o.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
         builder.Property(o => o.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz");
+        builder.Property(o => o.IsActive).HasColumnName("is_active").HasDefaultValue(true);
 
         builder.HasIndex(o => o.Slug).IsUnique();
 

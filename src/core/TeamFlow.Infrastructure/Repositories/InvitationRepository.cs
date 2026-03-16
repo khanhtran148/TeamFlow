@@ -45,4 +45,16 @@ public sealed class InvitationRepository(TeamFlowDbContext context) : IInvitatio
         await context.SaveChangesAsync(ct);
         return invitation;
     }
+
+    public async Task RevokePendingByOrgAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var pendingInvitations = await context.Invitations
+            .Where(i => i.OrganizationId == organizationId && i.Status == InviteStatus.Pending)
+            .ToListAsync(ct);
+
+        foreach (var invitation in pendingInvitations)
+            invitation.Status = InviteStatus.Revoked;
+
+        await context.SaveChangesAsync(ct);
+    }
 }

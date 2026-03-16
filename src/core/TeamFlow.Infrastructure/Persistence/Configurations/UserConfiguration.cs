@@ -18,6 +18,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
         builder.Property(u => u.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz");
         builder.Property(u => u.SystemRole).HasColumnName("system_role").HasDefaultValue(TeamFlow.Domain.Enums.SystemRole.User);
+        builder.Property(u => u.MustChangePassword).HasColumnName("must_change_password").HasDefaultValue(false);
+        builder.Property(u => u.IsActive).HasColumnName("is_active").HasDefaultValue(true);
 
         builder.HasIndex(u => u.Email).IsUnique();
     }

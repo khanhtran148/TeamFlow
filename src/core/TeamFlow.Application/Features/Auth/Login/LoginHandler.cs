@@ -20,6 +20,9 @@ public sealed class LoginHandler(
         if (!authService.VerifyPassword(request.Password, user.PasswordHash))
             return Result.Failure<AuthResponse>(InvalidCredentials);
 
+        if (!user.IsActive)
+            return Result.Failure<AuthResponse>("Your account has been deactivated.");
+
         var accessToken = authService.GenerateJwt(user);
         var rawRefreshToken = authService.GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddDays(7);
@@ -33,6 +36,6 @@ public sealed class LoginHandler(
 
         await refreshTokenRepository.AddAsync(refreshToken, ct);
 
-        return Result.Success(new AuthResponse(accessToken, rawRefreshToken, expiresAt));
+        return Result.Success(new AuthResponse(accessToken, rawRefreshToken, expiresAt, user.MustChangePassword));
     }
 }

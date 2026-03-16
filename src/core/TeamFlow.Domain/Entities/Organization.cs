@@ -7,6 +7,7 @@ public sealed class Organization : BaseEntity
     public string Name { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public Guid? CreatedByUserId { get; set; }
+    public bool IsActive { get; set; } = true;
 
     // Navigation
     public ICollection<Team> Teams { get; set; } = [];

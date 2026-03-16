@@ -18,18 +18,21 @@ interface AuthState {
   refreshToken: string | null;
   expiresAt: string | null;
   isAuthenticated: boolean;
+  mustChangePassword: boolean;
 
   setAuth: (params: {
     user: AuthUser;
     accessToken: string;
     refreshToken: string;
     expiresAt: string;
+    mustChangePassword?: boolean;
   }) => void;
   updateTokens: (params: {
     accessToken: string;
     refreshToken: string;
     expiresAt: string;
   }) => void;
+  clearMustChangePassword: () => void;
   clearAuth: () => void;
 }
 
@@ -41,18 +44,23 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       expiresAt: null,
       isAuthenticated: false,
+      mustChangePassword: false,
 
-      setAuth: ({ user, accessToken, refreshToken, expiresAt }) =>
+      setAuth: ({ user, accessToken, refreshToken, expiresAt, mustChangePassword }) =>
         set({
           user,
           accessToken,
           refreshToken,
           expiresAt,
           isAuthenticated: true,
+          mustChangePassword: mustChangePassword ?? false,
         }),
 
       updateTokens: ({ accessToken, refreshToken, expiresAt }) =>
         set({ accessToken, refreshToken, expiresAt }),
+
+      clearMustChangePassword: () =>
+        set({ mustChangePassword: false }),
 
       clearAuth: () =>
         set({
@@ -61,6 +69,7 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: null,
           expiresAt: null,
           isAuthenticated: false,
+          mustChangePassword: false,
         }),
     }),
     {
@@ -71,6 +80,7 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         expiresAt: state.expiresAt,
         isAuthenticated: state.isAuthenticated,
+        mustChangePassword: state.mustChangePassword,
       }),
     },
   ),

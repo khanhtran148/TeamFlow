@@ -2,9 +2,11 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminGuard } from "@/components/admin/admin-guard";
-import { Shield } from "lucide-react";
+import { Shield, LogOut } from "lucide-react";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { logout } from "@/lib/api/auth";
 
 const NAV_LINKS = [
   { href: "/admin", label: "Dashboard" },
@@ -22,6 +24,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
 function AdminLayoutInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } catch {
+      // Ignore errors — clear auth regardless
+    } finally {
+      clearAuth();
+      router.push("/login");
+    }
+  }
 
   return (
     <div
@@ -67,7 +82,14 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
           </span>
         </div>
 
-        <nav style={{ display: "flex", flexDirection: "column", gap: 2, padding: "0 12px" }}>
+        <nav
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            padding: "0 12px",
+          }}
+        >
           {NAV_LINKS.map((link) => {
             const isActive = pathname === link.href;
             return (
@@ -81,7 +103,9 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
                   fontFamily: "var(--tf-font-body)",
                   fontWeight: isActive ? 600 : 400,
                   color: isActive ? "var(--tf-accent)" : "var(--tf-text2)",
-                  background: isActive ? "var(--tf-accent-dim)" : "transparent",
+                  background: isActive
+                    ? "var(--tf-accent-dim)"
+                    : "transparent",
                   textDecoration: "none",
                   transition: "all var(--tf-tr)",
                 }}
@@ -92,7 +116,15 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div style={{ marginTop: "auto", padding: "12px 20px" }}>
+        <div
+          style={{
+            marginTop: "auto",
+            padding: "12px 20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
           <Link
             href="/onboarding"
             style={{
@@ -104,6 +136,39 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
           >
             Back to App
           </Link>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Log out of admin panel"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 8px",
+              borderRadius: 6,
+              border: "none",
+              background: "transparent",
+              color: "var(--tf-text3)",
+              fontSize: 12,
+              fontFamily: "var(--tf-font-body)",
+              cursor: "pointer",
+              transition: "color 0.15s",
+              textAlign: "left",
+              width: "100%",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color =
+                "var(--tf-red)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color =
+                "var(--tf-text3)";
+            }}
+          >
+            <LogOut size={12} />
+            Log out
+          </button>
         </div>
       </aside>
 

@@ -1,22 +1,29 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Building2, Users, Shield } from "lucide-react";
-import { getAdminOrganizations, getAdminUsers } from "@/lib/api/admin";
+import { useAdminOrganizations, useAdminUsers } from "@/lib/hooks/use-admin";
 
 export default function AdminDashboardPage() {
-  const { data: orgs, isLoading: orgsLoading } = useQuery({
-    queryKey: ["admin", "organizations"],
-    queryFn: getAdminOrganizations,
+  const { data: orgsData, isLoading: orgsLoading } = useAdminOrganizations({
+    page: 1,
+    pageSize: 1,
   });
 
-  const { data: users, isLoading: usersLoading } = useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: getAdminUsers,
+  const { data: usersData, isLoading: usersLoading } = useAdminUsers({
+    page: 1,
+    pageSize: 1,
   });
 
-  const adminCount = users?.filter((u) => u.systemRole === "SystemAdmin").length ?? 0;
+  // Fetch a small page just to get total count of admins
+  const { data: adminData, isLoading: adminLoading } = useAdminUsers({
+    search: undefined,
+    page: 1,
+    pageSize: 100,
+  });
+
+  const adminCount =
+    adminData?.items.filter((u) => u.systemRole === "SystemAdmin").length ?? 0;
 
   return (
     <div style={{ maxWidth: 900 }}>
@@ -44,19 +51,23 @@ export default function AdminDashboardPage() {
         <StatCard
           icon={<Building2 size={18} color="var(--tf-accent)" />}
           label="Total Organizations"
-          value={orgsLoading ? "..." : (orgs?.length ?? 0).toString()}
+          value={
+            orgsLoading ? "..." : (orgsData?.totalCount ?? 0).toString()
+          }
           href="/admin/organizations"
         />
         <StatCard
           icon={<Users size={18} color="var(--tf-accent)" />}
           label="Total Users"
-          value={usersLoading ? "..." : (users?.length ?? 0).toString()}
+          value={
+            usersLoading ? "..." : (usersData?.totalCount ?? 0).toString()
+          }
           href="/admin/users"
         />
         <StatCard
           icon={<Shield size={18} color="var(--tf-accent)" />}
           label="System Admins"
-          value={usersLoading ? "..." : adminCount.toString()}
+          value={adminLoading ? "..." : adminCount.toString()}
           href="/admin/users"
         />
       </div>

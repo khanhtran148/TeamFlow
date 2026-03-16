@@ -18,6 +18,9 @@ public sealed class GetOrganizationBySlugHandler(
         if (org is null)
             return DomainError.NotFound<OrganizationDto>("Organization not found.");
 
+        if (!org.IsActive)
+            return DomainError.Forbidden<OrganizationDto>("Organization has been deactivated.");
+
         // Only members can view the org
         var isMember = await memberRepository.IsMemberAsync(org.Id, currentUser.Id, ct);
         if (!isMember)

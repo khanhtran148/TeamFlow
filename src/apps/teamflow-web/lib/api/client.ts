@@ -103,6 +103,23 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
+    // Handle deactivated account: 403 with "deactivated" in detail
+    if (error.response?.status === 403) {
+      const data = error.response.data as Partial<{
+        detail: string;
+        title: string;
+      }>;
+      const detail = data?.detail ?? "";
+      if (
+        detail.toLowerCase().includes("deactivated") &&
+        typeof window !== "undefined"
+      ) {
+        clearStoredAuth();
+        window.location.href = "/deactivated";
+        return Promise.reject(error);
+      }
+    }
+
     // Silent refresh on 401 (skip for auth endpoints)
     if (
       error.response?.status === 401 &&
