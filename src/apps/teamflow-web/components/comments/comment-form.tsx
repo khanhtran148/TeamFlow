@@ -52,7 +52,7 @@ export function CommentForm({
         mentionMatch.index! + 1,
       );
       const afterCursor = content.slice(cursorPos);
-      setContent(`${beforeMention}${userName} ${afterCursor}`);
+      setContent(`${beforeMention}[${userName}] ${afterCursor}`);
     }
     setShowMentions(false);
     textareaRef.current?.focus();
@@ -112,7 +112,7 @@ export function CommentForm({
               gap: 5,
               padding: "5px 14px",
               borderRadius: 6,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               border: "none",
               background:

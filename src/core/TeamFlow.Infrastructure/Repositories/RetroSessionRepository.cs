@@ -38,6 +38,12 @@ public sealed class RetroSessionRepository(TeamFlowDbContext context) : IRetroSe
         return session;
     }
 
+    public async Task DeleteAsync(RetroSession session, CancellationToken ct = default)
+    {
+        context.RetroSessions.Remove(session);
+        await context.SaveChangesAsync(ct);
+    }
+
     public async Task<(IEnumerable<RetroSession> Items, int TotalCount)> ListByProjectAsync(
         Guid projectId,
         int page,

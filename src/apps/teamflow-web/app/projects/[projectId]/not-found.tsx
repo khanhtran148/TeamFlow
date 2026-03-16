@@ -72,7 +72,7 @@ export default function ProjectNotFound() {
             border: "1px solid var(--tf-accent)",
             background: "var(--tf-accent-dim2)",
             color: "var(--tf-accent)",
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             textDecoration: "none",
             fontFamily: "var(--tf-font-body)",

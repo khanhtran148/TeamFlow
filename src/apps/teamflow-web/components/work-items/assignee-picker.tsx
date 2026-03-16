@@ -101,7 +101,7 @@ export function AssigneePicker({
           padding: "5px 10px",
           cursor: "pointer",
           color: "var(--tf-text)",
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: "var(--tf-font-body)",
           minWidth: 140,
         }}
@@ -120,7 +120,7 @@ export function AssigneePicker({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 10,
+              fontSize: 13,
               color: "var(--tf-text3)",
               flexShrink: 0,
             }}
@@ -183,7 +183,7 @@ export function AssigneePicker({
                   border: "none",
                   cursor: "pointer",
                   color: "var(--tf-red)",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontFamily: "var(--tf-font-body)",
                   borderBottom: "1px solid var(--tf-border)",
                   marginBottom: 4,
@@ -223,14 +223,14 @@ export function AssigneePicker({
                       border: "none",
                       cursor: "pointer",
                       color: "var(--tf-text)",
-                      fontSize: 12,
+                      fontSize: 13,
                       fontFamily: "var(--tf-font-body)",
                     }}
                   >
                     <UserAvatar initials={userInitials} name={user.name} size="xs" />
                     <span style={{ flex: 1, textAlign: "left" }}>{user.name}</span>
                     {isSelected && (
-                      <span style={{ fontSize: 10, color: "var(--tf-accent)" }}>✓</span>
+                      <span style={{ fontSize: 13, color: "var(--tf-accent)" }}>✓</span>
                     )}
                   </button>
                 );

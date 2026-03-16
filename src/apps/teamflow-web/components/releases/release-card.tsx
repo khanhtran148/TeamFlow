@@ -45,7 +45,7 @@ function ReleaseStatusBadge({ status }: { status: ReleaseStatus }) {
         alignItems: "center",
         padding: "2px 8px",
         borderRadius: 100,
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: 600,
         fontFamily: "var(--tf-font-mono)",
         background: config.bg,
@@ -89,7 +89,7 @@ function StatusBreakdown({
         <span
           key={status}
           style={{
-            fontSize: 10,
+            fontSize: 13,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-mono)",
           }}
@@ -200,7 +200,7 @@ export function ReleaseCard({ release, projectId, onEdit, onDelete }: ReleaseCar
           {release.description && (
             <p
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--tf-text3)",
                 marginTop: 3,
                 lineHeight: 1.5,
@@ -284,10 +284,10 @@ export function ReleaseCard({ release, projectId, onEdit, onDelete }: ReleaseCar
       {total > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 10, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
+            <span style={{ fontSize: 13, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
               Progress
             </span>
-            <span style={{ fontSize: 10, color: "var(--tf-text2)", fontFamily: "var(--tf-font-mono)" }}>
+            <span style={{ fontSize: 13, color: "var(--tf-text2)", fontFamily: "var(--tf-font-mono)" }}>
               {done}/{total} ({progressPct}%)
             </span>
           </div>
@@ -333,7 +333,7 @@ export function ReleaseCard({ release, projectId, onEdit, onDelete }: ReleaseCar
             display: "inline-flex",
             alignItems: "center",
             gap: 4,
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-mono)",
           }}
@@ -347,7 +347,7 @@ export function ReleaseCard({ release, projectId, onEdit, onDelete }: ReleaseCar
         )}
 
         {total === 0 && (
-          <span style={{ fontSize: 11, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
+          <span style={{ fontSize: 13, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
             No items assigned
           </span>
         )}
@@ -379,7 +379,7 @@ function MenuItemButton({
         background: "transparent",
         border: "none",
         cursor: "pointer",
-        fontSize: 12,
+        fontSize: 13,
         color: destructive ? "var(--tf-red)" : "var(--tf-text2)",
         textAlign: "left",
         transition: "background var(--tf-tr)",

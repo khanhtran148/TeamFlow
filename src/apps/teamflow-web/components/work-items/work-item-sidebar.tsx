@@ -28,7 +28,7 @@ function SidebarSection({
     >
       <div
         style={{
-          fontSize: 10,
+          fontSize: 13,
           fontWeight: 600,
           color: "var(--tf-text3)",
           fontFamily: "var(--tf-font-body)",
@@ -57,7 +57,7 @@ function DateRow({ label, value }: { label: string; value: string }) {
       style={{
         display: "flex",
         justifyContent: "space-between",
-        fontSize: 11,
+        fontSize: 13,
         color: "var(--tf-text2)",
         fontFamily: "var(--tf-font-body)",
         marginBottom: 4,
@@ -109,7 +109,7 @@ export function WorkItemSidebar({ workItem, projectId }: WorkItemSidebarProps) {
               alignItems: "center",
               padding: "2px 10px",
               borderRadius: 100,
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 600,
               fontFamily: "var(--tf-font-mono)",
               background: "var(--tf-violet-dim)",
@@ -131,7 +131,7 @@ export function WorkItemSidebar({ workItem, projectId }: WorkItemSidebarProps) {
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-blue)",
               textDecoration: "none",
               fontFamily: "var(--tf-font-body)",
@@ -147,7 +147,7 @@ export function WorkItemSidebar({ workItem, projectId }: WorkItemSidebarProps) {
       <div>
         <div
           style={{
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: 600,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-body)",
@@ -165,7 +165,7 @@ export function WorkItemSidebar({ workItem, projectId }: WorkItemSidebarProps) {
             style={{
               display: "flex",
               justifyContent: "space-between",
-              fontSize: 11,
+              fontSize: 13,
               color: "var(--tf-text2)",
               fontFamily: "var(--tf-font-body)",
               marginTop: 4,
@@ -180,7 +180,7 @@ export function WorkItemSidebar({ workItem, projectId }: WorkItemSidebarProps) {
             style={{
               display: "flex",
               justifyContent: "space-between",
-              fontSize: 11,
+              fontSize: 13,
               color: "var(--tf-text2)",
               fontFamily: "var(--tf-font-body)",
               marginTop: 4,

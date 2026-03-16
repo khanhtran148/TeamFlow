@@ -24,6 +24,7 @@ public sealed class PlanningPokerSessionConfiguration : IEntityTypeConfiguration
         builder.HasOne(s => s.WorkItem)
             .WithMany()
             .HasForeignKey(s => s.WorkItemId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(s => s.Project)

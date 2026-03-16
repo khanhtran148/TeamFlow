@@ -146,7 +146,7 @@ export default function ProjectsPage() {
                 border: "1px solid var(--tf-accent)",
                 background: "var(--tf-accent)",
                 color: "var(--primary-foreground)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: "var(--tf-font-body)",
@@ -196,7 +196,7 @@ export default function ProjectsPage() {
                   border: "none",
                   background: "transparent",
                   color: "var(--tf-text)",
-                  fontSize: 12,
+                  fontSize: 13,
                   outline: "none",
                   width: "100%",
                   fontFamily: "var(--tf-font-body)",
@@ -221,7 +221,7 @@ export default function ProjectsPage() {
               <span
                 style={{
                   marginLeft: "auto",
-                  fontSize: 11,
+                  fontSize: 13,
                   color: "var(--tf-text3)",
                   fontFamily: "var(--tf-font-mono)",
                 }}
@@ -275,7 +275,7 @@ export default function ProjectsPage() {
                         border: "1px solid var(--tf-accent)",
                         background: "var(--tf-accent-dim)",
                         color: "var(--tf-accent)",
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: 500,
                         cursor: "pointer",
                         fontFamily: "var(--tf-font-body)",
@@ -288,25 +288,17 @@ export default function ProjectsPage() {
                 }
               />
             ) : (
-              <div style={{ padding: 12 }}>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                    gap: 10,
-                  }}
-                >
-                  {projects.map((project) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      onClick={handleProjectClick}
-                      onEdit={setEditProject}
-                      onArchive={setArchiveTarget}
-                      onDelete={setDeleteTarget}
-                    />
-                  ))}
-                </div>
+              <div>
+                {projects.map((project, i) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    onClick={handleProjectClick}
+                    onEdit={setEditProject}
+                    onArchive={setArchiveTarget}
+                    onDelete={setDeleteTarget}
+                  />
+                ))}
               </div>
             )}
 
@@ -367,7 +359,7 @@ function FilterChip({
         border: `1px solid ${active ? "var(--tf-accent)" : "var(--tf-border)"}`,
         background: active ? "var(--tf-accent-dim2)" : "transparent",
         color: active ? "var(--tf-accent)" : "var(--tf-text3)",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: active ? 600 : 400,
         cursor: "pointer",
         fontFamily: "var(--tf-font-mono)",

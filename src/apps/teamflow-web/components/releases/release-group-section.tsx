@@ -46,7 +46,7 @@ export function ReleaseGroupSection({ group }: ReleaseGroupSectionProps) {
         <span
           style={{
             flex: 1,
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             color: "var(--tf-text)",
           }}
@@ -55,7 +55,7 @@ export function ReleaseGroupSection({ group }: ReleaseGroupSectionProps) {
         </span>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-mono)",
           }}

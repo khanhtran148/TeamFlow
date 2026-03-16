@@ -33,7 +33,7 @@ public sealed class CreateRetroSessionTests
     {
         _projectRepo.ExistsAsync(ProjectId, Arg.Any<CancellationToken>()).Returns(true);
 
-        var cmd = new CreateRetroSessionCommand(ProjectId, null, "Public");
+        var cmd = new CreateRetroSessionCommand(ProjectId, null, null, "Public");
         var result = await CreateHandler().Handle(cmd, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -47,7 +47,7 @@ public sealed class CreateRetroSessionTests
     {
         _projectRepo.ExistsAsync(ProjectId, Arg.Any<CancellationToken>()).Returns(false);
 
-        var cmd = new CreateRetroSessionCommand(ProjectId, null);
+        var cmd = new CreateRetroSessionCommand(ProjectId, null, null);
         var result = await CreateHandler().Handle(cmd, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -60,7 +60,7 @@ public sealed class CreateRetroSessionTests
         _permissions.HasPermissionAsync(UserId, ProjectId, Permission.Retro_Facilitate, Arg.Any<CancellationToken>())
             .Returns(false);
 
-        var cmd = new CreateRetroSessionCommand(ProjectId, null);
+        var cmd = new CreateRetroSessionCommand(ProjectId, null, null);
         var result = await CreateHandler().Handle(cmd, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -73,7 +73,7 @@ public sealed class CreateRetroSessionTests
     public async Task Validate_InvalidAnonymityMode_Fails(string mode)
     {
         var validator = new CreateRetroSessionValidator();
-        var cmd = new CreateRetroSessionCommand(ProjectId, null, mode);
+        var cmd = new CreateRetroSessionCommand(ProjectId, null, null, mode);
         var result = await validator.ValidateAsync(cmd);
         result.IsValid.Should().BeFalse();
     }
@@ -84,7 +84,7 @@ public sealed class CreateRetroSessionTests
     public async Task Validate_ValidAnonymityMode_Passes(string mode)
     {
         var validator = new CreateRetroSessionValidator();
-        var cmd = new CreateRetroSessionCommand(ProjectId, null, mode);
+        var cmd = new CreateRetroSessionCommand(ProjectId, null, null, mode);
         var result = await validator.ValidateAsync(cmd);
         result.IsValid.Should().BeTrue();
     }

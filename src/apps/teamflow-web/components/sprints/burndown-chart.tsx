@@ -116,7 +116,7 @@ export function BurndownChart({ sprintId }: BurndownChartProps) {
     >
       <span
         style={{
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 600,
           color: "var(--tf-text2)",
           fontFamily: "var(--tf-font-mono)",
@@ -151,13 +151,13 @@ export function BurndownChart({ sprintId }: BurndownChartProps) {
                 background: "var(--tf-bg3)",
                 border: "1px solid var(--tf-border)",
                 borderRadius: 6,
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--tf-text)",
               }}
               labelFormatter={(label: unknown) => formatDateLabel(String(label))}
             />
             <Legend
-              wrapperStyle={{ fontSize: 11, color: "var(--tf-text3)" }}
+              wrapperStyle={{ fontSize: 13, color: "var(--tf-text3)" }}
             />
             <Line
               type="monotone"

@@ -132,7 +132,7 @@ export function NotificationBell() {
                   padding: "24px 14px",
                   textAlign: "center",
                   color: "var(--tf-text3)",
-                  fontSize: 12,
+                  fontSize: 13,
                 }}
               >
                 No new notifications.
@@ -144,7 +144,7 @@ export function NotificationBell() {
                   style={{
                     padding: "10px 14px",
                     borderBottom: "1px solid var(--tf-border)",
-                    fontSize: 12,
+                    fontSize: 13,
                     transition: "background var(--tf-tr)",
                   }}
                   onMouseEnter={(e) => {
@@ -173,7 +173,7 @@ export function NotificationBell() {
                   <div
                     style={{
                       color: "var(--tf-text3)",
-                      fontSize: 10,
+                      fontSize: 13,
                       marginTop: 4,
                       fontFamily: "var(--tf-font-mono)",
                     }}

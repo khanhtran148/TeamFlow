@@ -28,7 +28,7 @@ export function RetroPreviousActions({ projectId }: RetroPreviousActionsProps) {
           alignItems: "center",
           gap: 6,
           marginBottom: 8,
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: 600,
           color: "var(--tf-orange)",
         }}
@@ -41,7 +41,7 @@ export function RetroPreviousActions({ projectId }: RetroPreviousActionsProps) {
           <div
             key={item.id}
             style={{
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-text)",
               display: "flex",
               alignItems: "center",

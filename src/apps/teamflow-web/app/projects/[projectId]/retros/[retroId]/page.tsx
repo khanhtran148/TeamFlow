@@ -43,7 +43,7 @@ export default function RetroDetailPage({ params }: RetroDetailPageProps) {
             <button
               onClick={() => router.push(`/projects/${projectId}/retros`)}
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--tf-accent)",
                 textDecoration: "none",
                 background: "none",
@@ -73,7 +73,7 @@ export default function RetroDetailPage({ params }: RetroDetailPageProps) {
           border: "none",
           cursor: "pointer",
           color: "var(--tf-text3)",
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: "var(--tf-font-body)",
           padding: 0,
           transition: "color var(--tf-tr)",

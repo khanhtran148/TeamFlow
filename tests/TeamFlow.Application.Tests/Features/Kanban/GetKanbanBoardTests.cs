@@ -88,4 +88,86 @@ public sealed class GetKanbanBoardTests
         result.Value.Columns.Should().HaveCount(4);
         result.Value.Columns.Should().AllSatisfy(c => c.ItemCount.Should().Be(0));
     }
+
+    [Fact]
+    public async Task Handle_SwimlaneAssignee_GroupsByAssignee()
+    {
+        var projectId = Guid.NewGuid();
+        var assignee1Id = Guid.NewGuid();
+        var assignee2Id = Guid.NewGuid();
+
+        var item1 = WorkItemBuilder.New().WithProject(projectId).WithAssignee(assignee1Id).WithStatus(WorkItemStatus.ToDo).Build();
+        item1.Assignee = new User { Name = "Alice" };
+
+        var item2 = WorkItemBuilder.New().WithProject(projectId).WithAssignee(assignee2Id).WithStatus(WorkItemStatus.InProgress).Build();
+        item2.Assignee = new User { Name = "Bob" };
+
+        var item3 = WorkItemBuilder.New().WithProject(projectId).WithAssignee(assignee1Id).WithStatus(WorkItemStatus.InProgress).Build();
+        item3.Assignee = new User { Name = "Alice" };
+
+        var items = new List<WorkItem> { item1, item2, item3 };
+        _workItemRepo.GetKanbanItemsAsync(
+            projectId, null, null, null, null, null, Arg.Any<CancellationToken>())
+            .Returns(items);
+
+        var query = new GetKanbanBoardQuery(projectId, null, null, null, null, null, "assignee");
+        var result = await CreateHandler().Handle(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Swimlanes.Should().NotBeNull();
+        var swimlanes = result.Value.Swimlanes!.ToList();
+        swimlanes.Should().HaveCount(2);
+        swimlanes.Should().Contain(s => s.Label == "Alice");
+        swimlanes.Should().Contain(s => s.Label == "Bob");
+
+        var aliceLane = swimlanes.First(s => s.Label == "Alice");
+        aliceLane.Columns.Sum(c => c.ItemCount).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Handle_SwimlaneEpic_GroupsByParent()
+    {
+        var projectId = Guid.NewGuid();
+        var epicId = Guid.NewGuid();
+
+        var item1 = WorkItemBuilder.New().WithProject(projectId).WithParent(epicId).WithStatus(WorkItemStatus.ToDo).Build();
+        item1.Parent = new WorkItem { Title = "Epic One" };
+
+        var item2 = WorkItemBuilder.New().WithProject(projectId).WithStatus(WorkItemStatus.InProgress).Build();
+
+        var items = new List<WorkItem> { item1, item2 };
+        _workItemRepo.GetKanbanItemsAsync(
+            projectId, null, null, null, null, null, Arg.Any<CancellationToken>())
+            .Returns(items);
+
+        var query = new GetKanbanBoardQuery(projectId, null, null, null, null, null, "epic");
+        var result = await CreateHandler().Handle(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Swimlanes.Should().NotBeNull();
+        var swimlanes = result.Value.Swimlanes!.ToList();
+        swimlanes.Should().HaveCount(2);
+        swimlanes.Should().Contain(s => s.Label == "Epic One");
+        swimlanes.Should().Contain(s => s.Label == "No Epic");
+    }
+
+    [Fact]
+    public async Task Handle_NoSwimlane_ReturnsNullSwimlanes()
+    {
+        var projectId = Guid.NewGuid();
+        var items = new List<WorkItem>
+        {
+            WorkItemBuilder.New().WithProject(projectId).WithStatus(WorkItemStatus.ToDo).Build()
+        };
+        _workItemRepo.GetKanbanItemsAsync(
+            projectId, null, null, null, null, null, Arg.Any<CancellationToken>())
+            .Returns(items);
+
+        var query = new GetKanbanBoardQuery(projectId, null, null, null, null, null, null);
+        var result = await CreateHandler().Handle(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Swimlanes.Should().BeNull();
+        result.Value.Columns.Should().HaveCount(4);
+    }
 }

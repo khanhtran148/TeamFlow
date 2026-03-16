@@ -53,7 +53,7 @@ export function ReleaseGroupedView({
                   : "2px solid transparent",
                 cursor: "pointer",
                 fontFamily: "var(--tf-font-body)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: isActive ? 600 : 400,
                 color: isActive ? "var(--tf-accent)" : "var(--tf-text2)",
                 marginBottom: -1,
@@ -69,7 +69,7 @@ export function ReleaseGroupedView({
                     borderRadius: 100,
                     background: "var(--tf-bg4)",
                     color: "var(--tf-text3)",
-                    fontSize: 10,
+                    fontSize: 13,
                     fontFamily: "var(--tf-font-mono)",
                   }}
                 >
@@ -88,7 +88,7 @@ export function ReleaseGroupedView({
             padding: "20px",
             textAlign: "center",
             color: "var(--tf-text3)",
-            fontSize: 12,
+            fontSize: 13,
           }}
         >
           No data for this view.

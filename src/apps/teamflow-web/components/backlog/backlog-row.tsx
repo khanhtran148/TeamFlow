@@ -50,7 +50,7 @@ function PointsBadge({ value }: { value: number }) {
         alignItems: "center",
         padding: "1px 6px",
         borderRadius: 4,
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: 600,
         fontFamily: "var(--tf-font-mono)",
         background: "var(--tf-bg4)",
@@ -128,7 +128,7 @@ export const BacklogRow = memo(function BacklogRow({
       <span
         style={{
           fontFamily: "var(--tf-font-mono)",
-          fontSize: 10,
+          fontSize: 13,
           color: "var(--tf-text3)",
           minWidth: 60,
           flexShrink: 0,
@@ -173,7 +173,7 @@ export const BacklogRow = memo(function BacklogRow({
           <TooltipContent>
             <div
               style={{
-                fontSize: 11,
+                fontSize: 13,
                 fontFamily: "var(--tf-font-body)",
                 maxWidth: 240,
               }}

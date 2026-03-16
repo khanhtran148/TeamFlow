@@ -85,7 +85,7 @@ export function ConfirmBlockedDialog({
         {/* Description */}
         <p
           style={{
-            fontSize: 12,
+            fontSize: 13,
             color: "var(--tf-text2)",
             fontFamily: "var(--tf-font-body)",
             marginBottom: 16,
@@ -120,7 +120,7 @@ export function ConfirmBlockedDialog({
                 background: "var(--tf-bg4)",
                 border: "1px solid var(--tf-border)",
                 borderRadius: 6,
-                fontSize: 12,
+                fontSize: 13,
                 fontFamily: "var(--tf-font-body)",
               }}
             >
@@ -136,7 +136,7 @@ export function ConfirmBlockedDialog({
               <span style={{ color: "var(--tf-text)", flex: 1 }}>{b.title}</span>
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: 13,
                   color: "var(--tf-text3)",
                   fontFamily: "var(--tf-font-mono)",
                 }}
@@ -160,7 +160,7 @@ export function ConfirmBlockedDialog({
             style={{
               padding: "6px 16px",
               borderRadius: 6,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 500,
               fontFamily: "var(--tf-font-body)",
               background: "transparent",
@@ -177,7 +177,7 @@ export function ConfirmBlockedDialog({
             style={{
               padding: "6px 16px",
               borderRadius: 6,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               fontFamily: "var(--tf-font-body)",
               background: "var(--tf-red)",

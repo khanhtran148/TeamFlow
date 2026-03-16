@@ -78,7 +78,7 @@ export function RetroCard({
           {card.authorName && (
             <span
               style={{
-                fontSize: 11,
+                fontSize: 13,
                 color: "var(--tf-text3)",
               }}
             >
@@ -93,7 +93,7 @@ export function RetroCard({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 3,
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: 600,
                 color: "var(--tf-text2)",
                 fontFamily: "var(--tf-font-mono)",
@@ -121,7 +121,7 @@ export function RetroCard({
                   border: "1px solid var(--tf-border)",
                   background: "transparent",
                   color: "var(--tf-text2)",
-                  fontSize: 11,
+                  fontSize: 13,
                   cursor: "pointer",
                   fontFamily: "var(--tf-font-body)",
                   transition: "all var(--tf-tr)",
@@ -154,7 +154,7 @@ export function RetroCard({
                   border: "1px solid var(--tf-border)",
                   background: "transparent",
                   color: "var(--tf-text2)",
-                  fontSize: 11,
+                  fontSize: 13,
                   cursor: "pointer",
                   fontFamily: "var(--tf-font-body)",
                   transition: "all var(--tf-tr)",
@@ -192,7 +192,7 @@ export function RetroCard({
                 border: "1px solid var(--tf-accent)",
                 background: "transparent",
                 color: "var(--tf-accent)",
-                fontSize: 11,
+                fontSize: 13,
                 cursor: "pointer",
                 fontFamily: "var(--tf-font-body)",
                 transition: "all var(--tf-tr)",
@@ -209,7 +209,7 @@ export function RetroCard({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 3,
-                fontSize: 10,
+                fontSize: 13,
                 color: "var(--tf-text3)",
                 fontStyle: "italic",
               }}

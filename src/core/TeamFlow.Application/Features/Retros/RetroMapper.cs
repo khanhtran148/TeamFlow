@@ -14,6 +14,7 @@ internal static class RetroMapper
 
         return new RetroSessionDto(
             session.Id,
+            session.Name,
             session.ProjectId,
             session.SprintId,
             session.FacilitatorId,
@@ -21,6 +22,7 @@ internal static class RetroMapper
             session.AnonymityMode,
             session.Status,
             session.AiSummary,
+            session.ColumnsConfig,
             cards,
             actionItems,
             session.CreatedAt
@@ -55,6 +57,7 @@ internal static class RetroMapper
     public static RetroSessionSummaryDto ToSummaryDto(RetroSession session) =>
         new(
             session.Id,
+            session.Name,
             session.ProjectId,
             session.SprintId,
             session.Facilitator?.Name ?? "Unknown",

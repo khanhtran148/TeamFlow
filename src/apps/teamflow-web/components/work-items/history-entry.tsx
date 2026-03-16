@@ -77,7 +77,7 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
           </span>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 13,
               padding: "1px 6px",
               borderRadius: 4,
               background: `${actionColor}20`,
@@ -87,11 +87,11 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
           >
             {entry.actionType}
           </span>
-          <span style={{ fontSize: 11, color: "var(--tf-text3)", marginLeft: "auto" }}>
+          <span style={{ fontSize: 13, color: "var(--tf-text3)", marginLeft: "auto" }}>
             {formatRelativeTime(entry.createdAt)}
           </span>
         </div>
-        <div style={{ fontSize: 12, color: "var(--tf-text2)", marginTop: 3 }}>
+        <div style={{ fontSize: 13, color: "var(--tf-text2)", marginTop: 3 }}>
           {formatAction(entry)}
         </div>
         {entry.actionType === "Rejected" && entry.newValue && (
@@ -103,7 +103,7 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
               background: "rgba(239, 68, 68, 0.08)",
               border: "1px solid rgba(239, 68, 68, 0.2)",
               color: "#ef4444",
-              fontSize: 12,
+              fontSize: 13,
             }}
           >
             Reason: {entry.newValue}

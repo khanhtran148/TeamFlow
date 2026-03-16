@@ -263,7 +263,7 @@ export function AssignItemDialog({
                         border: "1px solid var(--tf-accent)",
                         background: "transparent",
                         color: "var(--tf-accent)",
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: 600,
                         cursor: isAssigning ? "not-allowed" : "pointer",
                         opacity: isAssigning ? 0.6 : 1,
@@ -308,7 +308,7 @@ export function AssignItemDialog({
               border: "1px solid var(--tf-border)",
               background: "transparent",
               color: "var(--tf-text2)",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
             }}

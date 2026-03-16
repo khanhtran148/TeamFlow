@@ -39,7 +39,7 @@ export function CapacityIndicator({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-mono)",
           }}
@@ -48,7 +48,7 @@ export function CapacityIndicator({
         </span>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 13,
             color: textColor,
             fontFamily: "var(--tf-font-mono)",
             fontWeight: isOver ? 600 : 400,
@@ -80,7 +80,7 @@ export function CapacityIndicator({
         <p
           role="alert"
           style={{
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-red)",
             fontWeight: 500,
             margin: 0,

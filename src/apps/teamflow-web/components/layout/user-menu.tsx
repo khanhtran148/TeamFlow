@@ -93,7 +93,7 @@ export function UserMenu() {
             </div>
             <div
               style={{
-                fontSize: 11,
+                fontSize: 13,
                 color: "var(--tf-text3)",
                 marginTop: 2,
               }}

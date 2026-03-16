@@ -86,7 +86,7 @@ export function LinksTab({ workItemId, projectId }: LinksTabProps) {
         >
           <div
             style={{
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-text2)",
               fontFamily: "var(--tf-font-body)",
             }}
@@ -105,7 +105,7 @@ export function LinksTab({ workItemId, projectId }: LinksTabProps) {
               borderRadius: 6,
               cursor: "pointer",
               color: "var(--tf-text2)",
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: "var(--tf-font-body)",
             }}
           >
@@ -131,7 +131,7 @@ export function LinksTab({ workItemId, projectId }: LinksTabProps) {
             <div style={{ fontSize: 13, fontFamily: "var(--tf-font-body)" }}>
               No links yet
             </div>
-            <div style={{ fontSize: 11, marginTop: 4 }}>
+            <div style={{ fontSize: 13, marginTop: 4 }}>
               Link work items to show relationships like blocks, depends on, and more.
             </div>
           </div>
@@ -160,7 +160,7 @@ export function LinksTab({ workItemId, projectId }: LinksTabProps) {
               />
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: 600,
                   color: LINK_TYPE_COLORS[group.linkType],
                   fontFamily: "var(--tf-font-body)",
@@ -172,7 +172,7 @@ export function LinksTab({ workItemId, projectId }: LinksTabProps) {
               </span>
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: 13,
                   color: "var(--tf-text3)",
                   fontFamily: "var(--tf-font-mono)",
                 }}
@@ -208,7 +208,7 @@ export function LinksTab({ workItemId, projectId }: LinksTabProps) {
                   <span
                     style={{
                       fontFamily: "var(--tf-font-mono)",
-                      fontSize: 10,
+                      fontSize: 13,
                       color: "var(--tf-text3)",
                       minWidth: 60,
                       flexShrink: 0,
@@ -219,7 +219,7 @@ export function LinksTab({ workItemId, projectId }: LinksTabProps) {
                   <span
                     style={{
                       flex: 1,
-                      fontSize: 12,
+                      fontSize: 13,
                       color: "var(--tf-text)",
                       fontFamily: "var(--tf-font-body)",
                       overflow: "hidden",

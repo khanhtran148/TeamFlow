@@ -164,9 +164,16 @@ export interface KanbanColumnDto {
   items: KanbanItemDto[];
 }
 
+export interface KanbanSwimlaneDto {
+  key: string;
+  label: string;
+  columns: KanbanColumnDto[];
+}
+
 export interface KanbanBoardDto {
   projectId: string;
   columns: KanbanColumnDto[];
+  swimlanes: KanbanSwimlaneDto[] | null;
 }
 
 // ---- Release DTOs ----
@@ -413,8 +420,16 @@ export type RetroCardCategory = "WentWell" | "NeedsImprovement" | "ActionItem";
 
 // ---- Retro DTOs ----
 
+export interface RetroColumnConfig {
+  key: RetroCardCategory;
+  label: string;
+  headerColor: string;
+  visible: boolean;
+}
+
 export interface RetroSessionDto {
   id: string;
+  name: string;
   projectId: string;
   sprintId: string | null;
   facilitatorId: string;
@@ -422,6 +437,7 @@ export interface RetroSessionDto {
   anonymityMode: string;
   status: RetroSessionStatus;
   aiSummary: Record<string, unknown> | null;
+  columnsConfig: RetroColumnConfig[] | null;
   cards: RetroCardDto[];
   actionItems: RetroActionItemDto[];
   createdAt: string;
@@ -452,6 +468,7 @@ export interface RetroActionItemDto {
 
 export interface RetroSessionSummaryDto {
   id: string;
+  name: string;
   projectId: string;
   sprintId: string | null;
   facilitatorName: string;
@@ -471,6 +488,7 @@ export interface ListRetroSessionsResponse {
 
 export interface CreateRetroSessionBody {
   projectId: string;
+  name?: string;
   sprintId?: string;
   anonymityMode: string;
 }

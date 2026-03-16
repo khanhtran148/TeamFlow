@@ -145,7 +145,7 @@ export function BulkPriorityDialog({
               border: "1px solid var(--tf-border)",
               background: "transparent",
               color: "var(--tf-text2)",
-              fontSize: 12,
+              fontSize: 13,
               cursor: "pointer",
               fontFamily: "var(--tf-font-body)",
             }}
@@ -161,7 +161,7 @@ export function BulkPriorityDialog({
               border: "none",
               background: "var(--tf-accent)",
               color: "var(--tf-bg)",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               cursor: mutation.isPending ? "not-allowed" : "pointer",
               fontFamily: "var(--tf-font-body)",

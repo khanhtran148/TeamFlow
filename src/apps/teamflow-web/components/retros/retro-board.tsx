@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { Pencil, X, Plus, Check } from "lucide-react";
 import { toast } from "sonner";
 import { RetroCard } from "./retro-card";
 import { RetroCardForm } from "./retro-card-form";
@@ -16,9 +18,15 @@ import {
   useCastRetroVote,
   useMarkCardDiscussed,
   useCreateRetroActionItem,
+  useUpdateColumnsConfig,
 } from "@/lib/hooks/use-retros";
 import { useHasPermission } from "@/lib/hooks/use-permission";
-import type { RetroSessionDto, RetroCardCategory, RetroSessionStatus } from "@/lib/api/types";
+import type {
+  RetroSessionDto,
+  RetroCardCategory,
+  RetroSessionStatus,
+  RetroColumnConfig,
+} from "@/lib/api/types";
 import type { ApiError } from "@/lib/api/client";
 
 interface RetroBoardProps {
@@ -26,14 +34,10 @@ interface RetroBoardProps {
   projectId: string;
 }
 
-const COLUMNS: { key: RetroCardCategory; label: string; headerColor: string }[] = [
-  { key: "WentWell", label: "Went Well", headerColor: "var(--tf-accent)" },
-  {
-    key: "NeedsImprovement",
-    label: "Needs Improvement",
-    headerColor: "var(--tf-orange)",
-  },
-  { key: "ActionItem", label: "Action Items", headerColor: "var(--tf-blue)" },
+const DEFAULT_COLUMNS: RetroColumnConfig[] = [
+  { key: "WentWell", label: "Went Well", headerColor: "var(--tf-accent)", visible: true },
+  { key: "NeedsImprovement", label: "Needs Improvement", headerColor: "var(--tf-orange)", visible: true },
+  { key: "ActionItem", label: "Action Items", headerColor: "var(--tf-blue)", visible: true },
 ];
 
 export function RetroBoard({ session, projectId }: RetroBoardProps) {
@@ -48,6 +52,15 @@ export function RetroBoard({ session, projectId }: RetroBoardProps) {
   const castVoteMutation = useCastRetroVote(projectId);
   const markDiscussedMutation = useMarkCardDiscussed(projectId);
   const createActionMutation = useCreateRetroActionItem(projectId);
+  const updateColumnsMutation = useUpdateColumnsConfig();
+
+  // Inline rename state per column key
+  const [renamingKey, setRenamingKey] = useState<RetroCardCategory | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const columns: RetroColumnConfig[] = session.columnsConfig ?? DEFAULT_COLUMNS;
+  const visibleColumns = columns.filter((c) => c.visible);
+  const hiddenColumns = columns.filter((c) => !c.visible);
 
   const isOpen = session.status === "Open";
   const isVoting = session.status === "Voting";
@@ -140,6 +153,46 @@ export function RetroBoard({ session, projectId }: RetroBoardProps) {
     }
   }
 
+  function saveColumns(updated: RetroColumnConfig[]) {
+    updateColumnsMutation.mutate({ sessionId: session.id, columnsConfig: updated });
+  }
+
+  function startRename(col: RetroColumnConfig) {
+    setRenamingKey(col.key);
+    setRenameValue(col.label);
+  }
+
+  function commitRename(key: RetroCardCategory) {
+    const trimmed = renameValue.trim();
+    if (!trimmed) {
+      setRenamingKey(null);
+      return;
+    }
+    const updated = columns.map((c) =>
+      c.key === key ? { ...c, label: trimmed } : c,
+    );
+    saveColumns(updated);
+    setRenamingKey(null);
+  }
+
+  function cancelRename() {
+    setRenamingKey(null);
+  }
+
+  function removeColumn(key: RetroCardCategory) {
+    const updated = columns.map((c) =>
+      c.key === key ? { ...c, visible: false } : c,
+    );
+    saveColumns(updated);
+  }
+
+  function restoreColumn(key: RetroCardCategory) {
+    const updated = columns.map((c) =>
+      c.key === key ? { ...c, visible: true } : c,
+    );
+    saveColumns(updated);
+  }
+
   // Show summary for closed sessions
   if (isClosed) {
     return (
@@ -175,7 +228,7 @@ export function RetroBoard({ session, projectId }: RetroBoardProps) {
       {/* Status info */}
       <div
         style={{
-          fontSize: 12,
+          fontSize: 13,
           color: "var(--tf-text3)",
           display: "flex",
           alignItems: "center",
@@ -202,19 +255,67 @@ export function RetroBoard({ session, projectId }: RetroBoardProps) {
         </span>
       </div>
 
-      {/* Three-column board */}
+      {/* Hidden column restore pills - only for facilitators */}
+      {canFacilitate && hiddenColumns.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: 13, color: "var(--tf-text3)" }}>
+            Hidden:
+          </span>
+          {hiddenColumns.map((col) => (
+            <button
+              key={col.key}
+              onClick={() => restoreColumn(col.key)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                borderRadius: 100,
+                fontSize: 13,
+                border: "1px dashed var(--tf-border)",
+                background: "var(--tf-bg3)",
+                color: "var(--tf-text3)",
+                cursor: "pointer",
+                fontFamily: "var(--tf-font-body)",
+                transition: "all var(--tf-tr)",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tf-accent)";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-accent)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tf-border)";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text3)";
+              }}
+            >
+              <Plus size={10} />
+              {col.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Board columns */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateColumns: `repeat(${visibleColumns.length}, 1fr)`,
           gap: 16,
           minHeight: 300,
         }}
       >
-        {COLUMNS.map((col) => {
+        {visibleColumns.map((col) => {
           const columnCards = session.cards
             .filter((c) => c.category === col.key)
             .sort((a, b) => b.totalVotes - a.totalVotes);
+          const isRenaming = renamingKey === col.key;
 
           return (
             <div
@@ -235,30 +336,151 @@ export function RetroBoard({ session, projectId }: RetroBoardProps) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  gap: 8,
                 }}
               >
-                <span
-                  style={{
-                    fontFamily: "var(--tf-font-head)",
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: col.headerColor,
-                  }}
-                >
-                  {col.label}
-                </span>
-                <span
-                  style={{
-                    padding: "1px 7px",
-                    borderRadius: 100,
-                    background: "var(--tf-bg4)",
-                    color: "var(--tf-text3)",
-                    fontSize: 10,
-                    fontFamily: "var(--tf-font-mono)",
-                  }}
-                >
-                  {columnCards.length}
-                </span>
+                {isRenaming ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRename(col.key);
+                        if (e.key === "Escape") cancelRename();
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: "2px 6px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        background: "var(--tf-bg4)",
+                        border: "1px solid var(--tf-accent)",
+                        borderRadius: 4,
+                        color: col.headerColor,
+                        fontFamily: "var(--tf-font-head)",
+                        outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={() => commitRename(col.key)}
+                      aria-label="Confirm rename"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 20,
+                        height: 20,
+                        borderRadius: 4,
+                        border: "none",
+                        background: "var(--tf-accent)",
+                        color: "var(--tf-bg)",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Check size={11} />
+                    </button>
+                    <button
+                      onClick={cancelRename}
+                      aria-label="Cancel rename"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 20,
+                        height: 20,
+                        borderRadius: 4,
+                        border: "1px solid var(--tf-border)",
+                        background: "transparent",
+                        color: "var(--tf-text3)",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span
+                      style={{
+                        fontFamily: "var(--tf-font-head)",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        color: col.headerColor,
+                        flex: 1,
+                      }}
+                    >
+                      {col.label}
+                    </span>
+                    {canFacilitate && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <button
+                          onClick={() => startRename(col)}
+                          aria-label={`Rename ${col.label}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 20,
+                            height: 20,
+                            borderRadius: 4,
+                            border: "none",
+                            background: "transparent",
+                            color: "var(--tf-text3)",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text3)";
+                          }}
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          onClick={() => removeColumn(col.key)}
+                          aria-label={`Remove ${col.label} column`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 20,
+                            height: 20,
+                            borderRadius: 4,
+                            border: "none",
+                            background: "transparent",
+                            color: "var(--tf-text3)",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-red)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text3)";
+                          }}
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    )}
+                    <span
+                      style={{
+                        padding: "1px 7px",
+                        borderRadius: 100,
+                        background: "var(--tf-bg4)",
+                        color: "var(--tf-text3)",
+                        fontSize: 13,
+                        fontFamily: "var(--tf-font-mono)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {columnCards.length}
+                    </span>
+                  </>
+                )}
               </div>
 
               {/* Cards */}

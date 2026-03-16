@@ -65,12 +65,12 @@ export function HistoryTab({ workItemId }: HistoryTabProps) {
               background: "transparent",
               color: page === 1 ? "var(--tf-text3)" : "var(--tf-text2)",
               cursor: page === 1 ? "default" : "pointer",
-              fontSize: 12,
+              fontSize: 13,
             }}
           >
             Previous
           </button>
-          <span style={{ fontSize: 12, color: "var(--tf-text3)", lineHeight: "28px" }}>
+          <span style={{ fontSize: 13, color: "var(--tf-text3)", lineHeight: "28px" }}>
             Page {page} of {Math.ceil(data.totalCount / pageSize)}
           </span>
           <button
@@ -89,7 +89,7 @@ export function HistoryTab({ workItemId }: HistoryTabProps) {
                 page >= Math.ceil(data.totalCount / pageSize)
                   ? "default"
                   : "pointer",
-              fontSize: 12,
+              fontSize: 13,
             }}
           >
             Next

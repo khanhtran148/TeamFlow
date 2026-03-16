@@ -65,7 +65,7 @@ export function ReleaseNotesEditor({
               style={{
                 padding: "1px 6px",
                 borderRadius: 100,
-                fontSize: 10,
+                fontSize: 13,
                 background: "var(--tf-bg4)",
                 color: "var(--tf-text3)",
               }}
@@ -85,7 +85,7 @@ export function ReleaseNotesEditor({
               gap: 4,
               padding: "4px 12px",
               borderRadius: 5,
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 600,
               border: "none",
               background: "var(--tf-accent)",

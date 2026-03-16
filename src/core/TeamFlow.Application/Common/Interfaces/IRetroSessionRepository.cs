@@ -8,6 +8,7 @@ public interface IRetroSessionRepository
     Task<RetroSession?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct = default);
     Task<RetroSession> AddAsync(RetroSession session, CancellationToken ct = default);
     Task<RetroSession> UpdateAsync(RetroSession session, CancellationToken ct = default);
+    Task DeleteAsync(RetroSession session, CancellationToken ct = default);
     Task<(IEnumerable<RetroSession> Items, int TotalCount)> ListByProjectAsync(
         Guid projectId,
         int page,

@@ -13,6 +13,9 @@ using TeamFlow.Application.Features.Retros.MarkCardDiscussed;
 using TeamFlow.Application.Features.Retros.StartRetroSession;
 using TeamFlow.Application.Features.Retros.SubmitRetroCard;
 using TeamFlow.Application.Features.Retros.TransitionRetroSession;
+using TeamFlow.Application.Features.Retros.RenameRetroSession;
+using TeamFlow.Application.Features.Retros.DeleteRetroSession;
+using TeamFlow.Application.Features.Retros.UpdateColumnsConfig;
 
 namespace TeamFlow.Api.Controllers;
 
@@ -111,6 +114,38 @@ public sealed class RetrosController : ApiControllerBase
             : HandleResult(result);
     }
 
+    [HttpPut("{id:guid}/name")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Rename(
+        Guid id, [FromBody] RenameRetroBody body, CancellationToken ct)
+    {
+        var result = await Sender.Send(new RenameRetroSessionCommand(id, body.Name), ct);
+        return HandleResult(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var result = await Sender.Send(new DeleteRetroSessionCommand(id), ct);
+        return result.IsSuccess ? NoContent() : HandleResult(result);
+    }
+
+    [HttpPut("{id:guid}/columns-config")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateColumnsConfig(
+        Guid id, [FromBody] UpdateColumnsConfigBody body, CancellationToken ct)
+    {
+        var result = await Sender.Send(new UpdateColumnsConfigCommand(id, body.ColumnsConfig), ct);
+        return HandleResult(result);
+    }
+
     [HttpGet("previous-actions")]
     [ProducesResponseType(typeof(IReadOnlyList<RetroActionItemDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPreviousActions(
@@ -124,3 +159,5 @@ public sealed class RetrosController : ApiControllerBase
 public sealed record TransitionBody(Domain.Enums.RetroSessionStatus TargetStatus);
 public sealed record SubmitCardBody(Domain.Enums.RetroCardCategory Category, string Content);
 public sealed record VoteBody(short VoteCount = 1);
+public sealed record RenameRetroBody(string Name);
+public sealed record UpdateColumnsConfigBody(System.Text.Json.JsonDocument ColumnsConfig);

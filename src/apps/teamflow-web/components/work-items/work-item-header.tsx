@@ -72,7 +72,7 @@ export function WorkItemHeader({
         <span
           style={{
             fontFamily: "var(--tf-font-mono)",
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-text3)",
           }}
         >
@@ -80,7 +80,7 @@ export function WorkItemHeader({
         </span>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-body)",
           }}

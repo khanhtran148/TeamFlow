@@ -110,6 +110,8 @@ export function BacklogList({
     };
   }, [items]);
 
+  const flatItemIds = useMemo(() => items.map((i) => i.id), [items]);
+
   function handleFlatDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -140,8 +142,6 @@ export function BacklogList({
       </div>
     );
   }
-
-  const flatItemIds = useMemo(() => items.map((i) => i.id), [items]);
 
   if (viewMode === "flat") {
     return (

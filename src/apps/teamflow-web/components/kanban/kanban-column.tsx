@@ -77,7 +77,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
         />
         <span
           style={{
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: 700,
             color: "var(--tf-text2)",
             fontFamily: "var(--tf-font-mono)",
@@ -90,7 +90,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
         </span>
         <span
           style={{
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: 600,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-mono)",
@@ -138,7 +138,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 11,
+              fontSize: 13,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-body)",
               fontStyle: "italic",

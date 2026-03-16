@@ -41,7 +41,7 @@ export function SprintStatusBadge({ status }: SprintStatusBadgeProps) {
         alignItems: "center",
         padding: "2px 8px",
         borderRadius: 100,
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: 600,
         fontFamily: "var(--tf-font-mono)",
         background: config.bg,

@@ -120,7 +120,7 @@ export function SprintCard({ sprint, projectId, onEdit, onDelete }: SprintCardPr
           {sprint.goal && (
             <p
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--tf-text3)",
                 marginTop: 3,
                 lineHeight: 1.5,
@@ -202,7 +202,7 @@ export function SprintCard({ sprint, projectId, onEdit, onDelete }: SprintCardPr
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
-                    fontSize: 12,
+                    fontSize: 13,
                     color: "var(--tf-text2)",
                     textAlign: "left",
                     transition: "background var(--tf-tr)",
@@ -229,7 +229,7 @@ export function SprintCard({ sprint, projectId, onEdit, onDelete }: SprintCardPr
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
-                    fontSize: 12,
+                    fontSize: 13,
                     color: "var(--tf-red)",
                     textAlign: "left",
                     transition: "background var(--tf-tr)",
@@ -254,10 +254,10 @@ export function SprintCard({ sprint, projectId, onEdit, onDelete }: SprintCardPr
       {sprint.totalPoints > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 10, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
+            <span style={{ fontSize: 13, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
               Progress
             </span>
-            <span style={{ fontSize: 10, color: "var(--tf-text2)", fontFamily: "var(--tf-font-mono)" }}>
+            <span style={{ fontSize: 13, color: "var(--tf-text2)", fontFamily: "var(--tf-font-mono)" }}>
               {sprint.completedPoints}/{sprint.totalPoints} pts ({progressPct}%)
             </span>
           </div>
@@ -301,7 +301,7 @@ export function SprintCard({ sprint, projectId, onEdit, onDelete }: SprintCardPr
             display: "inline-flex",
             alignItems: "center",
             gap: 4,
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-mono)",
           }}
@@ -311,12 +311,12 @@ export function SprintCard({ sprint, projectId, onEdit, onDelete }: SprintCardPr
           {sprint.endDate && ` - ${formatSprintDate(sprint.endDate)}`}
         </span>
 
-        <span style={{ fontSize: 11, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
+        <span style={{ fontSize: 13, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
           {sprint.itemCount} item{sprint.itemCount !== 1 ? "s" : ""}
         </span>
 
         {sprint.capacityUtilization !== null && (
-          <span style={{ fontSize: 11, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
+          <span style={{ fontSize: 13, color: "var(--tf-text3)", fontFamily: "var(--tf-font-mono)" }}>
             {Math.round(sprint.capacityUtilization * 100)}% capacity
           </span>
         )}

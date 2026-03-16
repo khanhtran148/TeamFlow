@@ -97,7 +97,7 @@ export function ConfirmDialog({
         </div>
 
         {/* Message */}
-        <p style={{ fontSize: 12, color: "var(--tf-text3)", lineHeight: 1.5 }}>
+        <p style={{ fontSize: 13, color: "var(--tf-text3)", lineHeight: 1.5 }}>
           {message}
         </p>
 
@@ -114,7 +114,7 @@ export function ConfirmDialog({
               border: "1px solid var(--tf-border)",
               background: "transparent",
               color: "var(--tf-text2)",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 500,
               cursor: isPending ? "not-allowed" : "pointer",
               opacity: isPending ? 0.5 : 1,
@@ -133,7 +133,7 @@ export function ConfirmDialog({
               border: destructive ? "1px solid var(--tf-red)" : "1px solid var(--tf-yellow)",
               background: destructive ? "var(--tf-red-dim)" : "var(--tf-yellow-dim)",
               color: destructive ? "var(--tf-red)" : "var(--tf-yellow)",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               cursor: isPending ? "not-allowed" : "pointer",
               opacity: isPending ? 0.7 : 1,

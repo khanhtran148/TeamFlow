@@ -913,6 +913,10 @@ namespace TeamFlow.Infrastructure.Migrations
                         .HasColumnType("character varying(10)")
                         .HasColumnName("anonymity_mode");
 
+                    b.Property<JsonDocument>("ColumnsConfig")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("columns_config");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("created_at");
@@ -920,6 +924,14 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.Property<Guid>("FacilitatorId")
                         .HasColumnType("uuid")
                         .HasColumnName("facilitator_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasDefaultValue("Retro")
+                        .HasColumnName("name");
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid")

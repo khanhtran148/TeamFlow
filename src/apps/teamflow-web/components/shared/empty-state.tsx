@@ -50,7 +50,7 @@ export function EmptyState({ icon: Icon, title, description, action }: EmptyStat
           {title}
         </p>
         {description && (
-          <p style={{ fontSize: 12, color: "var(--tf-text3)" }}>
+          <p style={{ fontSize: 13, color: "var(--tf-text3)" }}>
             {description}
           </p>
         )}

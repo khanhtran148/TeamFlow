@@ -153,7 +153,7 @@ export function CapacityForm({
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {entries.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--tf-text3)", textAlign: "center", padding: "12px 0" }}>
+            <p style={{ fontSize: 13, color: "var(--tf-text3)", textAlign: "center", padding: "12px 0" }}>
               No team members configured for this sprint.
             </p>
           ) : (
@@ -210,7 +210,7 @@ export function CapacityForm({
                     />
                     <span
                       style={{
-                        fontSize: 11,
+                        fontSize: 13,
                         color: "var(--tf-text3)",
                         fontFamily: "var(--tf-font-mono)",
                       }}
@@ -235,7 +235,7 @@ export function CapacityForm({
           >
             <span
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--tf-text2)",
                 fontWeight: 600,
               }}
@@ -266,7 +266,7 @@ export function CapacityForm({
                 border: "1px solid var(--tf-border)",
                 background: "transparent",
                 color: "var(--tf-text2)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 500,
                 cursor: isPending ? "not-allowed" : "pointer",
                 opacity: isPending ? 0.5 : 1,
@@ -284,7 +284,7 @@ export function CapacityForm({
                 border: "1px solid var(--tf-accent)",
                 background: "var(--tf-accent)",
                 color: "var(--primary-foreground)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: isPending ? "not-allowed" : "pointer",
                 opacity: isPending ? 0.7 : 1,

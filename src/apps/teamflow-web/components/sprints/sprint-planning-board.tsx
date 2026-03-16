@@ -94,7 +94,7 @@ function DraggableItem({
       <span
         style={{
           flex: 1,
-          fontSize: 12,
+          fontSize: 13,
           color: "var(--tf-text)",
           fontWeight: 500,
           overflow: "hidden",
@@ -110,7 +110,7 @@ function DraggableItem({
         {item.estimationValue !== null && item.estimationValue !== undefined && (
           <span
             style={{
-              fontSize: 10,
+              fontSize: 13,
               fontFamily: "var(--tf-font-mono)",
               color: "var(--tf-text3)",
               background: "var(--tf-bg4)",
@@ -189,7 +189,7 @@ function DroppablePanel({
               borderRadius: 100,
               background: "var(--tf-bg4)",
               color: "var(--tf-text3)",
-              fontSize: 11,
+              fontSize: 13,
               fontFamily: "var(--tf-font-mono)",
             }}
           >
@@ -377,7 +377,7 @@ export function SprintPlanningBoard({ sprintId, projectId }: SprintPlanningBoard
             background: "var(--tf-yellow-dim)",
             border: "1px solid var(--tf-yellow)",
             borderRadius: 6,
-            fontSize: 12,
+            fontSize: 13,
             color: "var(--tf-yellow)",
             fontWeight: 500,
           }}
@@ -413,7 +413,7 @@ export function SprintPlanningBoard({ sprintId, projectId }: SprintPlanningBoard
                   padding: "24px 16px",
                   textAlign: "center",
                   color: "var(--tf-text3)",
-                  fontSize: 12,
+                  fontSize: 13,
                 }}
               >
                 No unscheduled items in backlog.
@@ -437,7 +437,7 @@ export function SprintPlanningBoard({ sprintId, projectId }: SprintPlanningBoard
                   padding: "24px 16px",
                   textAlign: "center",
                   color: "var(--tf-text3)",
-                  fontSize: 12,
+                  fontSize: 13,
                 }}
               >
                 Drag items from the backlog to plan this sprint.

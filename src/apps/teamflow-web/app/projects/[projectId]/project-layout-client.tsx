@@ -93,7 +93,7 @@ export function ProjectLayoutClient({ projectId, children }: ProjectLayoutClient
               <Link
                 href="/projects"
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   color: "var(--tf-accent)",
                   textDecoration: "none",
                 }}

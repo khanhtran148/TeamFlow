@@ -78,7 +78,7 @@ export function RetroSummary({ session }: RetroSummaryProps) {
           </div>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 13,
               color: "var(--tf-text3)",
               marginTop: 2,
             }}
@@ -106,7 +106,7 @@ export function RetroSummary({ session }: RetroSummaryProps) {
           </div>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 13,
               color: "var(--tf-text3)",
               marginTop: 2,
             }}
@@ -134,7 +134,7 @@ export function RetroSummary({ session }: RetroSummaryProps) {
           </div>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 13,
               color: "var(--tf-text3)",
               marginTop: 2,
             }}
@@ -174,7 +174,7 @@ export function RetroSummary({ session }: RetroSummaryProps) {
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
-                    fontSize: 12,
+                    fontSize: 13,
                     color: "var(--tf-text)",
                   }}
                 >
@@ -203,7 +203,7 @@ export function RetroSummary({ session }: RetroSummaryProps) {
                       fontFamily: "var(--tf-font-mono)",
                       fontWeight: 600,
                       color: "var(--tf-accent)",
-                      fontSize: 11,
+                      fontSize: 13,
                     }}
                   >
                     {card.totalVotes} votes
@@ -221,7 +221,7 @@ export function RetroSummary({ session }: RetroSummaryProps) {
           padding: "10px 12px",
           background: "var(--tf-bg4)",
           borderRadius: 6,
-          fontSize: 12,
+          fontSize: 13,
           color: "var(--tf-text2)",
         }}
       >

@@ -45,7 +45,7 @@ function FilterChip({ label, active, color, onClick }: FilterChipProps) {
         gap: 4,
         padding: "3px 10px",
         borderRadius: 100,
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: 500,
         fontFamily: "var(--tf-font-body)",
         border: `1px solid ${active ? (color ?? "var(--tf-accent)") : "var(--tf-border)"}`,
@@ -140,7 +140,7 @@ export function KanbanToolbar() {
             gap: 3,
             padding: "3px 8px",
             borderRadius: 100,
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: 500,
             border: "none",
             background: "none",
@@ -162,7 +162,7 @@ export function KanbanToolbar() {
           display: "flex",
           alignItems: "center",
           gap: 6,
-          fontSize: 11,
+          fontSize: 13,
           color: "var(--tf-text2)",
           fontFamily: "var(--tf-font-body)",
         }}
@@ -182,7 +182,7 @@ export function KanbanToolbar() {
               onClick={() => setSwimlane(opt.value)}
               style={{
                 padding: "4px 10px",
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: 500,
                 fontFamily: "var(--tf-font-body)",
                 background:

@@ -40,7 +40,7 @@ export function RetroCardForm({
           background: "var(--tf-bg4)",
           border: "1px solid var(--tf-border)",
           borderRadius: 6,
-          fontSize: 12,
+          fontSize: 13,
           color: "var(--tf-text)",
           fontFamily: "var(--tf-font-body)",
           outline: "none",

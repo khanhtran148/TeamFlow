@@ -8,6 +8,7 @@ import {
   listRetroSessions,
   getRetroSession,
   createRetroSession,
+  updateColumnsConfig,
   startRetroSession,
   transitionRetroSession,
   closeRetroSession,
@@ -189,6 +190,23 @@ export function useCreateRetroActionItem(projectId: string) {
       queryClient.invalidateQueries({
         queryKey: retroKeys.previousActions(projectId),
       });
+    },
+  });
+}
+
+export function useUpdateColumnsConfig() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      columnsConfig,
+    }: {
+      sessionId: string;
+      columnsConfig: unknown;
+    }) => updateColumnsConfig(sessionId, columnsConfig),
+    onSuccess: (_result, { sessionId }) => {
+      queryClient.invalidateQueries({ queryKey: retroKeys.detail(sessionId) });
     },
   });
 }
