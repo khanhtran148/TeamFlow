@@ -57,6 +57,8 @@ TeamFlow.slnx
 8. **All API errors return ProblemDetails** (RFC 7807) — never plain strings
 9. **All new classes MUST be sealed by default** — unless explicitly designed for inheritance
 10. **Test-First Development** — write failing tests first, then implement minimal code, then refactor while green
+11. **E2E tests required for every feature** — always add E2E tests for new features and update existing E2E tests when behavior changes
+12. **Testcontainers for all unit & integration tests** — use Testcontainers with real PostgreSQL as much as possible; avoid in-memory mocks/fakes for database interactions
 
 ---
 
@@ -160,6 +162,8 @@ if (item is not null) { ... }
 
 - **Framework:** xUnit + FluentAssertions + NSubstitute
 - **Integration tests:** Testcontainers with real PostgreSQL
+- **Unit & integration tests MUST use Testcontainers** whenever possible — prefer real PostgreSQL over in-memory mocks/fakes for database interactions
+- **E2E tests are mandatory** — every new feature must include E2E tests; existing E2E tests must be updated when behavior changes
 - **Coverage target:** ≥70% on Application layer
 
 ### Theory Pattern Testing (Non-Negotiable)

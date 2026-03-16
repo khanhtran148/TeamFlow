@@ -103,6 +103,39 @@ export function UserMenu() {
           </div>
 
           <button
+            data-testid="profile-btn"
+            onClick={() => {
+              setOpen(false);
+              router.push("/profile");
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              padding: "8px 12px",
+              borderRadius: 6,
+              border: "none",
+              background: "transparent",
+              color: "var(--tf-text2)",
+              fontSize: 13,
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--tf-bg3)";
+              e.currentTarget.style.color = "var(--tf-text)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--tf-text2)";
+            }}
+          >
+            <User size={14} />
+            Profile
+          </button>
+
+          <button
             data-testid="logout-btn"
             onClick={handleLogout}
             style={{

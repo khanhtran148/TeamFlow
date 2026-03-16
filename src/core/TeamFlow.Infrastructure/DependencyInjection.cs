@@ -50,6 +50,10 @@ public static class DependencyInjection
         services.AddScoped<IPlanningPokerSessionRepository, PlanningPokerSessionRepository>();
         services.AddScoped<IInAppNotificationRepository, InAppNotificationRepository>();
 
+        // User profile repositories
+        services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+        services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
+
         // Phase 5 repositories
         services.AddScoped<ISavedFilterRepository, SavedFilterRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();

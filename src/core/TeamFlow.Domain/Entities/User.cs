@@ -10,6 +10,7 @@ public sealed class User : BaseEntity
     public SystemRole SystemRole { get; set; } = SystemRole.User;
     public bool MustChangePassword { get; set; } = false;
     public bool IsActive { get; set; } = true;
+    public string? AvatarUrl { get; set; }
 
     // Navigation
     public ICollection<TeamMember> TeamMemberships { get; set; } = [];

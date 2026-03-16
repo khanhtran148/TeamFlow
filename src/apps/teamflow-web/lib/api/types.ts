@@ -870,6 +870,52 @@ export interface ReleaseProgressDto {
   completionPct: number;
 }
 
+// ---- Profile DTOs ----
+
+export interface UserProfileDto {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl: string | null;
+  systemRole: SystemRole;
+  createdAt: string;
+  organizations: ProfileOrganizationDto[];
+  teams: ProfileTeamDto[];
+}
+
+export interface ProfileOrganizationDto {
+  orgId: string;
+  orgName: string;
+  orgSlug: string;
+  role: OrgRole;
+  joinedAt: string;
+}
+
+export interface ProfileTeamDto {
+  teamId: string;
+  teamName: string;
+  orgId: string;
+  orgName: string;
+  role: string;
+  joinedAt: string;
+}
+
+export interface UpdateProfileBody {
+  name: string;
+  avatarUrl?: string | null;
+}
+
+export interface ActivityLogItemDto {
+  id: string;
+  workItemId: string;
+  workItemTitle: string;
+  actionType: string;
+  fieldName: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
+}
+
 // ---- Report DTOs ----
 
 export interface SprintReportDto {
