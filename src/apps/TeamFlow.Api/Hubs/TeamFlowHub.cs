@@ -14,7 +14,8 @@ public sealed class TeamFlowHub(
     ILogger<TeamFlowHub> logger,
     IPermissionChecker permissionChecker,
     ICurrentUser currentUser,
-    IWorkItemRepository workItemRepository) : Hub
+    IWorkItemRepository workItemRepository,
+    IRetroSessionRepository retroSessionRepository) : Hub
 {
     public override async Task OnConnectedAsync()
     {
@@ -46,10 +47,9 @@ public sealed class TeamFlowHub(
     /// <summary>Join the sprint board group.</summary>
     public async Task JoinSprint(string sprintId)
     {
-        var id = ParseGuid(sprintId);
+        ParseGuid(sprintId);
         // Sprint permission requires project-scoped check.
-        // Sprint→Project lookup not yet available; deny until sprint repository is added.
-        // TODO: Inject ISprintRepository and resolve projectId from sprint, then check Sprint_View.
+        // Sprint->Project lookup not yet available; deny until sprint repository is added.
         throw new HubException("Sprint group join requires project context. Use JoinProject instead.");
     }
 
@@ -63,7 +63,6 @@ public sealed class TeamFlowHub(
     {
         var id = ParseGuid(workItemId);
 
-        // Resolve parent project from work item
         var workItem = await workItemRepository.GetByIdAsync(id);
         if (workItem is null)
             throw new HubException("Work item not found.");
@@ -80,10 +79,15 @@ public sealed class TeamFlowHub(
     /// <summary>Join a retro session group.</summary>
     public async Task JoinRetroSession(string sessionId)
     {
-        ParseGuid(sessionId);
-        // Retro→Project lookup not yet available; deny until retro repository is added.
-        // TODO: Inject IRetroSessionRepository and resolve projectId, then check Retro_View.
-        throw new HubException("Retro group join requires project context. Use JoinProject instead.");
+        var id = ParseGuid(sessionId);
+
+        var session = await retroSessionRepository.GetByIdAsync(id);
+        if (session is null)
+            throw new HubException("Retro session not found.");
+
+        await EnsurePermissionAsync(session.ProjectId, Permission.Retro_View);
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"retro:{sessionId}");
+        logger.LogDebug("Connection {ConnectionId} joined retro:{SessionId}", Context.ConnectionId, sessionId);
     }
 
     public async Task LeaveRetroSession(string sessionId)

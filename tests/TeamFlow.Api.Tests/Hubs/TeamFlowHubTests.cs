@@ -56,11 +56,12 @@ public sealed class TeamFlowHubTests
     }
 
     private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
+    private readonly IRetroSessionRepository _retroSessionRepo = Substitute.For<IRetroSessionRepository>();
 
     private Api.Hubs.TeamFlowHub CreateHub()
     {
         var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<Api.Hubs.TeamFlowHub>>();
-        var hub = new Api.Hubs.TeamFlowHub(logger, _permissionChecker, _currentUser, _workItemRepo);
+        var hub = new Api.Hubs.TeamFlowHub(logger, _permissionChecker, _currentUser, _workItemRepo, _retroSessionRepo);
 
         var clients = Substitute.For<IHubCallerClients>();
         var groups = Substitute.For<IGroupManager>();

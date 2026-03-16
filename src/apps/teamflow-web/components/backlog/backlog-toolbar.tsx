@@ -74,6 +74,7 @@ export function BacklogToolbar({ onNewItem }: BacklogToolbarProps) {
     setType,
     setPriority,
     setBlockedOnly,
+    setReadyOnly,
     setViewMode,
     resetFilters,
   } = useBacklogFilterStore();
@@ -83,7 +84,8 @@ export function BacklogToolbar({ onNewItem }: BacklogToolbarProps) {
     !!filters.priority ||
     !!filters.assigneeId ||
     !!filters.releaseId ||
-    filters.blockedOnly;
+    filters.blockedOnly ||
+    filters.readyOnly;
 
   return (
     <div
@@ -196,6 +198,14 @@ export function BacklogToolbar({ onNewItem }: BacklogToolbarProps) {
         active={filters.blockedOnly}
         color="var(--tf-red)"
         onClick={() => setBlockedOnly(!filters.blockedOnly)}
+      />
+
+      {/* Ready only chip */}
+      <FilterChip
+        label="Ready"
+        active={filters.readyOnly}
+        color="var(--tf-accent)"
+        onClick={() => setReadyOnly(!filters.readyOnly)}
       />
 
       {/* Clear filters */}

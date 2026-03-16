@@ -25,6 +25,9 @@ public sealed class PermissionMatrixTests
     [InlineData(Permission.Sprint_View)]
     [InlineData(Permission.Release_View)]
     [InlineData(Permission.Retro_View)]
+    [InlineData(Permission.Comment_View)]
+    [InlineData(Permission.Poker_View)]
+    [InlineData(Permission.Notification_View)]
     public void Viewer_HasOnlyViewPermissions(Permission permission)
     {
         PermissionMatrix.RoleHasPermission(ProjectRole.Viewer, permission)
@@ -118,5 +121,118 @@ public sealed class PermissionMatrixTests
     {
         PermissionMatrix.RoleHasPermission(role, Permission.Team_Manage)
             .Should().BeFalse($"{role} should NOT have Team_Manage");
+    }
+
+    // --- Phase 4: Comment permissions ---
+
+    [Theory]
+    [InlineData(ProjectRole.OrgAdmin)]
+    [InlineData(ProjectRole.ProductOwner)]
+    [InlineData(ProjectRole.TechnicalLeader)]
+    [InlineData(ProjectRole.TeamManager)]
+    [InlineData(ProjectRole.Developer)]
+    [InlineData(ProjectRole.Viewer)]
+    public void AllRoles_HaveCommentView(ProjectRole role)
+    {
+        PermissionMatrix.RoleHasPermission(role, Permission.Comment_View)
+            .Should().BeTrue($"{role} should have Comment_View");
+    }
+
+    [Theory]
+    [InlineData(ProjectRole.OrgAdmin)]
+    [InlineData(ProjectRole.ProductOwner)]
+    [InlineData(ProjectRole.TechnicalLeader)]
+    [InlineData(ProjectRole.TeamManager)]
+    [InlineData(ProjectRole.Developer)]
+    public void AllRolesExceptViewer_HaveCommentCreate(ProjectRole role)
+    {
+        PermissionMatrix.RoleHasPermission(role, Permission.Comment_Create)
+            .Should().BeTrue($"{role} should have Comment_Create");
+    }
+
+    [Fact]
+    public void Viewer_CannotCreateComments()
+    {
+        PermissionMatrix.RoleHasPermission(ProjectRole.Viewer, Permission.Comment_Create)
+            .Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(Permission.Comment_EditOwn)]
+    [InlineData(Permission.Comment_DeleteOwn)]
+    public void Viewer_CannotEditOrDeleteComments(Permission permission)
+    {
+        PermissionMatrix.RoleHasPermission(ProjectRole.Viewer, permission)
+            .Should().BeFalse($"Viewer should NOT have {permission}");
+    }
+
+    // --- Phase 4: Planning Poker permissions ---
+
+    [Theory]
+    [InlineData(ProjectRole.OrgAdmin)]
+    [InlineData(ProjectRole.ProductOwner)]
+    [InlineData(ProjectRole.TechnicalLeader)]
+    [InlineData(ProjectRole.TeamManager)]
+    [InlineData(ProjectRole.Developer)]
+    [InlineData(ProjectRole.Viewer)]
+    public void AllRoles_HavePokerView(ProjectRole role)
+    {
+        PermissionMatrix.RoleHasPermission(role, Permission.Poker_View)
+            .Should().BeTrue($"{role} should have Poker_View");
+    }
+
+    [Fact]
+    public void ProductOwner_CannotVoteInPoker()
+    {
+        PermissionMatrix.RoleHasPermission(ProjectRole.ProductOwner, Permission.Poker_Vote)
+            .Should().BeFalse("PO is observer only in poker");
+    }
+
+    [Theory]
+    [InlineData(ProjectRole.OrgAdmin)]
+    [InlineData(ProjectRole.TechnicalLeader)]
+    [InlineData(ProjectRole.TeamManager)]
+    [InlineData(ProjectRole.Developer)]
+    public void DevAndAbove_CanVoteInPoker(ProjectRole role)
+    {
+        PermissionMatrix.RoleHasPermission(role, Permission.Poker_Vote)
+            .Should().BeTrue($"{role} should have Poker_Vote");
+    }
+
+    [Theory]
+    [InlineData(ProjectRole.Viewer)]
+    [InlineData(ProjectRole.ProductOwner)]
+    [InlineData(ProjectRole.Developer)]
+    public void OnlyLeadership_CanFacilitatePoker(ProjectRole role)
+    {
+        PermissionMatrix.RoleHasPermission(role, Permission.Poker_Facilitate)
+            .Should().BeFalse($"{role} should NOT have Poker_Facilitate");
+    }
+
+    [Theory]
+    [InlineData(ProjectRole.OrgAdmin)]
+    [InlineData(ProjectRole.TechnicalLeader)]
+    [InlineData(ProjectRole.TeamManager)]
+    public void Leadership_CanFacilitateAndConfirmPoker(ProjectRole role)
+    {
+        PermissionMatrix.RoleHasPermission(role, Permission.Poker_Facilitate)
+            .Should().BeTrue($"{role} should have Poker_Facilitate");
+        PermissionMatrix.RoleHasPermission(role, Permission.Poker_ConfirmEstimate)
+            .Should().BeTrue($"{role} should have Poker_ConfirmEstimate");
+    }
+
+    // --- Phase 4: Notification permissions ---
+
+    [Theory]
+    [InlineData(ProjectRole.OrgAdmin)]
+    [InlineData(ProjectRole.ProductOwner)]
+    [InlineData(ProjectRole.TechnicalLeader)]
+    [InlineData(ProjectRole.TeamManager)]
+    [InlineData(ProjectRole.Developer)]
+    [InlineData(ProjectRole.Viewer)]
+    public void AllRoles_HaveNotificationView(ProjectRole role)
+    {
+        PermissionMatrix.RoleHasPermission(role, Permission.Notification_View)
+            .Should().BeTrue($"{role} should have Notification_View");
     }
 }

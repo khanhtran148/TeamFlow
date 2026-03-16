@@ -1,0 +1,82 @@
+Summary
+  Generated on: 16/3/2026 - 10:33:26
+  Coverage date: 16/3/2026 - 10:30:16 - 16/3/2026 - 10:30:33
+  Parser: MultiReport (5x Cobertura)
+  Assemblies: 1
+  Classes: 60
+  Files: 35
+  Line coverage: 60.6%
+  Covered lines: 324
+  Uncovered lines: 210
+  Coverable lines: 534
+  Total lines: 879
+  Branch coverage: 100% (16 of 16)
+  Covered branches: 16
+  Total branches: 16
+  Method coverage: 56.7% (270 of 476)
+  Full method coverage: 51% (243 of 476)
+  Covered methods: 270
+  Fully covered methods: 243
+  Total methods: 476
+
+TeamFlow.Domain                                                         60.6%
+  TeamFlow.Domain.Entities.AiInteraction                                   0%
+  TeamFlow.Domain.Entities.BaseEntity                                    100%
+  TeamFlow.Domain.Entities.BurndownDataPoint                            88.8%
+  TeamFlow.Domain.Entities.Comment                                        80%
+  TeamFlow.Domain.Entities.DomainEvent                                     0%
+  TeamFlow.Domain.Entities.InAppNotification                               0%
+  TeamFlow.Domain.Entities.JobExecutionMetric                           72.7%
+  TeamFlow.Domain.Entities.Organization                                  100%
+  TeamFlow.Domain.Entities.PlanningPokerSession                         78.5%
+  TeamFlow.Domain.Entities.PlanningPokerVote                            85.7%
+  TeamFlow.Domain.Entities.Project                                        90%
+  TeamFlow.Domain.Entities.ProjectMembership                              75%
+  TeamFlow.Domain.Entities.RefreshToken                                  100%
+  TeamFlow.Domain.Entities.Release                                      85.7%
+  TeamFlow.Domain.Entities.RetroActionItem                              76.9%
+  TeamFlow.Domain.Entities.RetroCard                                    92.3%
+  TeamFlow.Domain.Entities.RetroSession                                 84.6%
+  TeamFlow.Domain.Entities.RetroVote                                    66.6%
+  TeamFlow.Domain.Entities.Sprint                                         97%
+  TeamFlow.Domain.Entities.SprintSnapshot                               85.7%
+  TeamFlow.Domain.Entities.Team                                           80%
+  TeamFlow.Domain.Entities.TeamMember                                   71.4%
+  TeamFlow.Domain.Entities.TeamVelocityHistory                            50%
+  TeamFlow.Domain.Entities.User                                          100%
+  TeamFlow.Domain.Entities.WorkItem                                       93%
+  TeamFlow.Domain.Entities.WorkItemEmbedding                               0%
+  TeamFlow.Domain.Entities.WorkItemHistory                              83.3%
+  TeamFlow.Domain.Entities.WorkItemLink                                   90%
+  TeamFlow.Domain.Enums.RetroAnonymityModes                              100%
+  TeamFlow.Domain.Events.CommentCreatedDomainEvent                      28.5%
+  TeamFlow.Domain.Events.CommentMentionDomainEvent                      42.8%
+  TeamFlow.Domain.Events.PokerEstimateConfirmedDomainEvent              28.5%
+  TeamFlow.Domain.Events.PokerSessionCreatedDomainEvent                 33.3%
+  TeamFlow.Domain.Events.PokerVoteCastDomainEvent                         40%
+  TeamFlow.Domain.Events.PokerVotesRevealedDomainEvent                    40%
+  TeamFlow.Domain.Events.ReleaseCreatedDomainEvent                      66.6%
+  TeamFlow.Domain.Events.ReleaseItemAssignedDomainEvent                 33.3%
+  TeamFlow.Domain.Events.ReleaseOverdueDetectedDomainEvent              57.1%
+  TeamFlow.Domain.Events.ReleaseStatusChangedDomainEvent                   0%
+  TeamFlow.Domain.Events.RetroActionItemCreatedDomainEvent              28.5%
+  TeamFlow.Domain.Events.RetroCardsRevealedDomainEvent                     0%
+  TeamFlow.Domain.Events.RetroCardSubmittedDomainEvent                    40%
+  TeamFlow.Domain.Events.RetroSessionClosedDomainEvent                    25%
+  TeamFlow.Domain.Events.RetroSessionStartedDomainEvent                 33.3%
+  TeamFlow.Domain.Events.RetroVoteCastDomainEvent                       33.3%
+  TeamFlow.Domain.Events.SprintCompletedDomainEvent                       75%
+  TeamFlow.Domain.Events.SprintItemAddedDomainEvent                     66.6%
+  TeamFlow.Domain.Events.SprintItemRemovedDomainEvent                   66.6%
+  TeamFlow.Domain.Events.SprintStartedDomainEvent                       66.6%
+  TeamFlow.Domain.Events.WorkItemAssignedDomainEvent                    28.5%
+  TeamFlow.Domain.Events.WorkItemCreatedDomainEvent                     57.1%
+  TeamFlow.Domain.Events.WorkItemEstimationChangedDomainEvent             25%
+  TeamFlow.Domain.Events.WorkItemLinkAddedDomainEvent                   66.6%
+  TeamFlow.Domain.Events.WorkItemLinkRemovedDomainEvent                 33.3%
+  TeamFlow.Domain.Events.WorkItemNeedsClarificationFlaggedDomainEvent      0%
+  TeamFlow.Domain.Events.WorkItemPriorityChangedDomainEvent             28.5%
+  TeamFlow.Domain.Events.WorkItemRejectedDomainEvent                       0%
+  TeamFlow.Domain.Events.WorkItemStaleFlaggedDomainEvent                83.3%
+  TeamFlow.Domain.Events.WorkItemStatusChangedDomainEvent                 25%
+  TeamFlow.Domain.Events.WorkItemUnassignedDomainEvent                  33.3%

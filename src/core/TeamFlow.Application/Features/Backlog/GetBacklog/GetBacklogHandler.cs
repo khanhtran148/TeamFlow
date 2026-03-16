@@ -1,5 +1,6 @@
 using CSharpFunctionalExtensions;
 using MediatR;
+using TeamFlow.Application.Common.Errors;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Common.Models;
 using TeamFlow.Domain.Entities;
@@ -16,7 +17,7 @@ public sealed class GetBacklogHandler(
     public async Task<Result<PagedResult<BacklogItemDto>>> Handle(GetBacklogQuery request, CancellationToken ct)
     {
         if (!await permissions.HasPermissionAsync(currentUser.Id, request.ProjectId, Permission.WorkItem_View, ct))
-            return Result.Failure<PagedResult<BacklogItemDto>>("Access denied");
+            return DomainError.Forbidden<PagedResult<BacklogItemDto>>();
 
         var (items, totalCount) = await workItemRepository.GetBacklogPagedAsync(
             request.ProjectId,
@@ -28,6 +29,7 @@ public sealed class GetBacklogHandler(
             request.ReleaseId,
             request.Unscheduled,
             request.Search,
+            request.IsReady,
             request.Page,
             request.PageSize,
             ct);

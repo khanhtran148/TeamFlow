@@ -1,0 +1,73 @@
+Summary
+  Generated on: 16/3/2026 - 10:33:24
+  Coverage date: 16/3/2026 - 10:30:16 - 16/3/2026 - 10:30:33
+  Parser: MultiReport (5x Cobertura)
+  Assemblies: 1
+  Classes: 51
+  Files: 25
+  Line coverage: 41.6%
+  Covered lines: 409
+  Uncovered lines: 573
+  Coverable lines: 982
+  Total lines: 2013
+  Branch coverage: 34.4% (64 of 186)
+  Covered branches: 64
+  Total branches: 186
+  Method coverage: 29.9% (53 of 177)
+  Full method coverage: 28.2% (50 of 177)
+  Covered methods: 53
+  Fully covered methods: 50
+  Total methods: 177
+
+TeamFlow.Api                                                           41.6%
+  Program                                                              69.7%
+  TeamFlow.Api.Controllers.AddLinkBody                                    0%
+  TeamFlow.Api.Controllers.AddProjectMemberBody                           0%
+  TeamFlow.Api.Controllers.AddTeamMemberBody                              0%
+  TeamFlow.Api.Controllers.AssignBody                                     0%
+  TeamFlow.Api.Controllers.AuthController                                 0%
+  TeamFlow.Api.Controllers.BacklogController                              0%
+  TeamFlow.Api.Controllers.Base.ApiControllerBase                      80.4%
+  TeamFlow.Api.Controllers.CapacityEntryBody                            100%
+  TeamFlow.Api.Controllers.ChangeRoleBody                                 0%
+  TeamFlow.Api.Controllers.ChangeStatusBody                               0%
+  TeamFlow.Api.Controllers.CommentsController                             0%
+  TeamFlow.Api.Controllers.ConfirmPokerBody                               0%
+  TeamFlow.Api.Controllers.CreateCommentBody                              0%
+  TeamFlow.Api.Controllers.KanbanController                               0%
+  TeamFlow.Api.Controllers.MoveWorkItemBody                               0%
+  TeamFlow.Api.Controllers.OrganizationsController                        0%
+  TeamFlow.Api.Controllers.PlanningPokerController                        0%
+  TeamFlow.Api.Controllers.ProjectMembershipsController                   0%
+  TeamFlow.Api.Controllers.ProjectsController                          35.7%
+  TeamFlow.Api.Controllers.ReleasesController                             0%
+  TeamFlow.Api.Controllers.RetrosController                               0%
+  TeamFlow.Api.Controllers.ShipBody                                       0%
+  TeamFlow.Api.Controllers.SprintsController                            100%
+  TeamFlow.Api.Controllers.SubmitCardBody                                 0%
+  TeamFlow.Api.Controllers.TeamsController                                0%
+  TeamFlow.Api.Controllers.ToggleReadyBody                                0%
+  TeamFlow.Api.Controllers.TransitionBody                                 0%
+  TeamFlow.Api.Controllers.UpdateCapacityBody                           100%
+  TeamFlow.Api.Controllers.UpdateCommentBody                              0%
+  TeamFlow.Api.Controllers.UpdateNotesBody                                0%
+  TeamFlow.Api.Controllers.UpdateProjectBody                              0%
+  TeamFlow.Api.Controllers.UpdateReleaseBody                              0%
+  TeamFlow.Api.Controllers.UpdateSprintBody                             100%
+  TeamFlow.Api.Controllers.UpdateTeamBody                                 0%
+  TeamFlow.Api.Controllers.UpdateWorkItemBody                             0%
+  TeamFlow.Api.Controllers.VoteBody                                       0%
+  TeamFlow.Api.Controllers.VotePokerBody                                  0%
+  TeamFlow.Api.Controllers.WorkItemsController                            0%
+  TeamFlow.Api.HealthChecks.RabbitMqHealthCheck                           0%
+  TeamFlow.Api.Hubs.TeamFlowHub                                        33.3%
+  TeamFlow.Api.Middleware.CorrelationIdMiddleware                       100%
+  TeamFlow.Api.Middleware.CorrelationIdMiddlewareExtensions             100%
+  TeamFlow.Api.Middleware.GlobalExceptionHandlerMiddleware             23.5%
+  TeamFlow.Api.Middleware.GlobalExceptionHandlerMiddlewareExtensions    100%
+  TeamFlow.Api.RateLimiting.RateLimitPolicies                          72.1%
+  TeamFlow.Api.RateLimiting.RateLimitSettings                           100%
+  TeamFlow.Api.Services.AlwaysAllowPermissionChecker                      0%
+  TeamFlow.Api.Services.FakeCurrentUser                                   0%
+  TeamFlow.Api.Services.JwtCurrentUser                                   50%
+  TeamFlow.Api.Services.SignalRBroadcastService                           0%

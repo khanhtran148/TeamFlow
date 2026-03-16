@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using TeamFlow.Api.Controllers.Base;
+using TeamFlow.Application.Features.Backlog.BulkUpdatePriority;
 using TeamFlow.Application.Features.Backlog.GetBacklog;
 using TeamFlow.Application.Features.Backlog.ReorderBacklog;
 using TeamFlow.Domain.Enums;
@@ -22,12 +23,13 @@ public sealed class BacklogController : ApiControllerBase
         [FromQuery] Guid? releaseId,
         [FromQuery] bool? unscheduled,
         [FromQuery] string? search,
+        [FromQuery] bool? isReady,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
     {
         var result = await Sender.Send(
-            new GetBacklogQuery(projectId, status, priority, assigneeId, type, sprintId, releaseId, unscheduled, search, page, pageSize),
+            new GetBacklogQuery(projectId, status, priority, assigneeId, type, sprintId, releaseId, unscheduled, search, isReady, page, pageSize),
             ct);
         return HandleResult(result);
     }
@@ -35,6 +37,14 @@ public sealed class BacklogController : ApiControllerBase
     [HttpPost("reorder")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> Reorder([FromBody] ReorderBacklogCommand cmd, CancellationToken ct)
+    {
+        var result = await Sender.Send(cmd, ct);
+        return HandleResult(result);
+    }
+
+    [HttpPost("bulk-priority")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkUpdatePriority([FromBody] BulkUpdatePriorityCommand cmd, CancellationToken ct)
     {
         var result = await Sender.Send(cmd, ct);
         return HandleResult(result);

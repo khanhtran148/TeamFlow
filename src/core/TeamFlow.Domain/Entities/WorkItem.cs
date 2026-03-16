@@ -28,6 +28,9 @@ public class WorkItem : BaseEntity
     // Backlog ordering
     public int SortOrder { get; set; }
 
+    // Refinement
+    public bool IsReadyForSprint { get; set; }
+
     // Retrospective link
     public Guid? RetroActionItemId { get; set; }
 

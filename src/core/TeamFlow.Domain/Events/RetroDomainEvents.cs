@@ -9,6 +9,14 @@ public record RetroSessionStartedDomainEvent(
     Guid FacilitatorId
 ) : INotification;
 
+/// <summary>
+/// Published when a retro card is submitted.
+/// WARNING: AuthorId is included for internal processing only.
+/// Any consumer that broadcasts this event to clients (e.g., SignalR, WebSocket)
+/// MUST check the session's AnonymityMode and strip AuthorId when the session
+/// is anonymous. Use <see cref="TeamFlow.Domain.Enums.RetroAnonymityModes"/> constants.
+/// Failure to do so leaks the author's identity in anonymous retro sessions.
+/// </summary>
 public record RetroCardSubmittedDomainEvent(
     Guid SessionId,
     Guid CardId,

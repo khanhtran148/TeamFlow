@@ -49,6 +49,21 @@ public enum Permission
     Retro_SubmitCard,
     Retro_Vote,
 
+    // Comments
+    Comment_View,
+    Comment_Create,
+    Comment_EditOwn,
+    Comment_DeleteOwn,
+
+    // Planning Poker
+    Poker_View,
+    Poker_Facilitate,
+    Poker_Vote,
+    Poker_ConfirmEstimate,
+
+    // Notifications
+    Notification_View,
+
     // Project
     Project_View,
     Project_Edit,

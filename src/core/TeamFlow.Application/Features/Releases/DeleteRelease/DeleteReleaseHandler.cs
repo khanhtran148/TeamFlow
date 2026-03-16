@@ -1,5 +1,6 @@
 using CSharpFunctionalExtensions;
 using MediatR;
+using TeamFlow.Application.Common.Errors;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Enums;
 
@@ -15,13 +16,13 @@ public sealed class DeleteReleaseHandler(
     {
         var release = await releaseRepository.GetByIdAsync(request.ReleaseId, ct);
         if (release is null)
-            return Result.Failure("Release not found");
+            return DomainError.NotFound("Release not found");
 
         if (!await permissions.HasPermissionAsync(currentUser.Id, release.ProjectId, Permission.Release_Edit, ct))
-            return Result.Failure("Access denied");
+            return DomainError.Forbidden();
 
         if (release.Status == ReleaseStatus.Released)
-            return Result.Failure("Cannot delete a released release");
+            return DomainError.Validation("Cannot delete a released release");
 
         // Unlink all work items first
         await releaseRepository.UnlinkAllItemsAsync(request.ReleaseId, ct);

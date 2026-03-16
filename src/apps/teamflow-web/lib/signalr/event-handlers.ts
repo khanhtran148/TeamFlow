@@ -10,6 +10,9 @@ import { backlogKeys } from "@/lib/hooks/use-backlog";
 import { releaseKeys } from "@/lib/hooks/use-releases";
 import { workItemKeys } from "@/lib/hooks/use-work-items";
 import { sprintKeys } from "@/lib/hooks/use-sprints";
+import { commentKeys } from "@/lib/hooks/use-comments";
+import { retroKeys } from "@/lib/hooks/use-retros";
+import { pokerKeys } from "@/lib/hooks/use-poker";
 
 // ---- Payload types (must match backend event payloads) ----
 
@@ -45,6 +48,28 @@ export interface BurndownUpdatedPayload {
   sprintId: string;
 }
 
+export interface CommentEventPayload {
+  workItemId: string;
+  projectId: string;
+  commentId: string;
+}
+
+export interface RetroEventPayload {
+  sessionId: string;
+  projectId: string;
+}
+
+export interface PokerEventPayload {
+  sessionId: string;
+  workItemId: string;
+  projectId: string;
+}
+
+export interface NotificationEventPayload {
+  recipientId: string;
+  notificationId: string;
+}
+
 // ---- Event name constants (must match backend hub broadcasts) ----
 
 export const HubEvents = {
@@ -72,6 +97,25 @@ export const HubEvents = {
   SprintItemAdded: "Sprint.ItemAdded",
   SprintItemRemoved: "Sprint.ItemRemoved",
   BurndownUpdated: "Burndown.Updated",
+  // Comment events
+  CommentCreated: "comment.created",
+  CommentUpdated: "comment.updated",
+  CommentDeleted: "comment.deleted",
+  // Retro events
+  RetroSessionStarted: "retro.session_started",
+  RetroCardSubmitted: "retro.card_submitted",
+  RetroCardsRevealed: "retro.cards_revealed",
+  RetroVoteCast: "retro.vote_cast",
+  RetroCardDiscussed: "retro.card_discussed",
+  RetroActionItemCreated: "retro.action_item_created",
+  RetroSessionClosed: "retro.session_closed",
+  // Poker events
+  PokerSessionCreated: "poker.session_created",
+  PokerVoteCast: "poker.vote_cast",
+  PokerVotesRevealed: "poker.votes_revealed",
+  PokerEstimateConfirmed: "poker.estimate_confirmed",
+  // Notification events
+  NotificationCreated: "notification.created",
 } as const;
 
 export type HubEventName = (typeof HubEvents)[keyof typeof HubEvents];
@@ -164,6 +208,54 @@ function handleBurndownUpdated(
 ): void {
   const { sprintId } = payload;
   queryClient.invalidateQueries({ queryKey: sprintKeys.burndown(sprintId) });
+}
+
+// ---- Handler: Comment events ----
+
+function handleCommentEvent(
+  queryClient: QueryClient,
+  payload: CommentEventPayload,
+): void {
+  queryClient.invalidateQueries({
+    queryKey: commentKeys.all(payload.workItemId),
+  });
+}
+
+// ---- Handler: Retro events ----
+
+function handleRetroEvent(
+  queryClient: QueryClient,
+  payload: RetroEventPayload,
+): void {
+  queryClient.invalidateQueries({
+    queryKey: retroKeys.detail(payload.sessionId),
+  });
+  queryClient.invalidateQueries({
+    queryKey: retroKeys.all(payload.projectId),
+  });
+}
+
+// ---- Handler: Poker events ----
+
+function handlePokerEvent(
+  queryClient: QueryClient,
+  payload: PokerEventPayload,
+): void {
+  queryClient.invalidateQueries({
+    queryKey: pokerKeys.detail(payload.sessionId),
+  });
+  queryClient.invalidateQueries({
+    queryKey: pokerKeys.byWorkItem(payload.workItemId),
+  });
+}
+
+// ---- Handler: Notification events ----
+
+function handleNotificationEvent(
+  queryClient: QueryClient,
+  _payload: NotificationEventPayload,
+): void {
+  queryClient.invalidateQueries({ queryKey: ["notifications"] });
 }
 
 // ---- Main registration: wires all event listeners onto a hub connection ----
@@ -262,6 +354,62 @@ export function registerEventHandlers(
   };
   connection.on(HubEvents.BurndownUpdated, burndownHandler);
 
+  // Comment events
+  const commentEvents: HubEventName[] = [
+    HubEvents.CommentCreated,
+    HubEvents.CommentUpdated,
+    HubEvents.CommentDeleted,
+  ];
+
+  const commentHandlers = commentEvents.map((event) => {
+    const handler = (payload: CommentEventPayload) => {
+      handleCommentEvent(queryClient, payload);
+    };
+    connection.on(event, handler);
+    return { event, handler };
+  });
+
+  // Retro events
+  const retroEvents: HubEventName[] = [
+    HubEvents.RetroSessionStarted,
+    HubEvents.RetroCardSubmitted,
+    HubEvents.RetroCardsRevealed,
+    HubEvents.RetroVoteCast,
+    HubEvents.RetroCardDiscussed,
+    HubEvents.RetroActionItemCreated,
+    HubEvents.RetroSessionClosed,
+  ];
+
+  const retroHandlers = retroEvents.map((event) => {
+    const handler = (payload: RetroEventPayload) => {
+      handleRetroEvent(queryClient, payload);
+    };
+    connection.on(event, handler);
+    return { event, handler };
+  });
+
+  // Poker events
+  const pokerEvents: HubEventName[] = [
+    HubEvents.PokerSessionCreated,
+    HubEvents.PokerVoteCast,
+    HubEvents.PokerVotesRevealed,
+    HubEvents.PokerEstimateConfirmed,
+  ];
+
+  const pokerHandlers = pokerEvents.map((event) => {
+    const handler = (payload: PokerEventPayload) => {
+      handlePokerEvent(queryClient, payload);
+    };
+    connection.on(event, handler);
+    return { event, handler };
+  });
+
+  // Notification events
+  const notificationHandler = (payload: NotificationEventPayload) => {
+    handleNotificationEvent(queryClient, payload);
+  };
+  connection.on(HubEvents.NotificationCreated, notificationHandler);
+
   return () => {
     workItemHandlers.forEach(({ event, handler }) => connection.off(event, handler));
     linkHandlers.forEach(({ event, handler }) => connection.off(event, handler));
@@ -269,5 +417,9 @@ export function registerEventHandlers(
     sprintLifecycleHandlers.forEach(({ event, handler }) => connection.off(event, handler));
     sprintItemHandlers.forEach(({ event, handler }) => connection.off(event, handler));
     connection.off(HubEvents.BurndownUpdated, burndownHandler);
+    commentHandlers.forEach(({ event, handler }) => connection.off(event, handler));
+    retroHandlers.forEach(({ event, handler }) => connection.off(event, handler));
+    pokerHandlers.forEach(({ event, handler }) => connection.off(event, handler));
+    connection.off(HubEvents.NotificationCreated, notificationHandler);
   };
 }

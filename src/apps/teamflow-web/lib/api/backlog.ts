@@ -4,6 +4,8 @@ import type {
   BacklogItemDto,
   GetBacklogParams,
   ReorderBacklogBody,
+  ToggleReadyBody,
+  BulkUpdatePriorityBody,
 } from "./types";
 
 export async function getBacklog(
@@ -18,4 +20,17 @@ export async function getBacklog(
 
 export async function reorderBacklog(data: ReorderBacklogBody): Promise<void> {
   await apiClient.post("/backlog/reorder", data);
+}
+
+export async function toggleReadyForSprint(
+  workItemId: string,
+  data: ToggleReadyBody,
+): Promise<void> {
+  await apiClient.post(`/workitems/${workItemId}/ready`, data);
+}
+
+export async function bulkUpdatePriority(
+  data: BulkUpdatePriorityBody,
+): Promise<void> {
+  await apiClient.post("/backlog/bulk-priority", data);
 }

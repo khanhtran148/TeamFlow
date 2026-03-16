@@ -34,6 +34,7 @@ export default function BacklogPage() {
     priority: filters.priority || undefined,
     assigneeId: filters.assigneeId || undefined,
     releaseId: filters.releaseId || undefined,
+    isReady: filters.readyOnly ? true : undefined,
     page,
     pageSize: PAGE_SIZE,
   };

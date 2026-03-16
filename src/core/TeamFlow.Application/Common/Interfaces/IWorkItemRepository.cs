@@ -6,6 +6,7 @@ namespace TeamFlow.Application.Common.Interfaces;
 public interface IWorkItemRepository
 {
     Task<WorkItem?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<WorkItem>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default);
     Task<WorkItem?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct = default);
     Task<IEnumerable<WorkItem>> GetByProjectAsync(Guid projectId, CancellationToken ct = default);
     Task<IEnumerable<WorkItem>> GetBySprintAsync(Guid sprintId, CancellationToken ct = default);
@@ -27,9 +28,12 @@ public interface IWorkItemRepository
         Guid? releaseId,
         bool? unscheduled,
         string? search,
+        bool? isReady,
         int page,
         int pageSize,
         CancellationToken ct = default);
+
+    Task<IEnumerable<WorkItem>> GetByReleaseIdAsync(Guid releaseId, CancellationToken ct = default);
     Task<IEnumerable<WorkItem>> GetKanbanItemsAsync(
         Guid projectId,
         Guid? assigneeId,

@@ -1,10 +1,14 @@
 import { apiClient } from "./client";
 import type {
   ReleaseDto,
+  ReleaseDetailDto,
+  ShipReleaseResultDto,
   PaginatedResponse,
   GetReleasesParams,
   CreateReleaseBody,
   UpdateReleaseBody,
+  UpdateReleaseNotesBody,
+  ShipReleaseBody,
 } from "./types";
 
 export async function getReleases(
@@ -39,4 +43,27 @@ export async function assignItem(releaseId: string, workItemId: string): Promise
 
 export async function unassignItem(releaseId: string, workItemId: string): Promise<void> {
   await apiClient.delete(`/releases/${releaseId}/items/${workItemId}`);
+}
+
+export async function getReleaseDetail(id: string): Promise<ReleaseDetailDto> {
+  const response = await apiClient.get<ReleaseDetailDto>(`/releases/${id}/detail`);
+  return response.data;
+}
+
+export async function updateReleaseNotes(
+  id: string,
+  data: UpdateReleaseNotesBody,
+): Promise<void> {
+  await apiClient.put(`/releases/${id}/notes`, data);
+}
+
+export async function shipRelease(
+  id: string,
+  data: ShipReleaseBody,
+): Promise<ShipReleaseResultDto> {
+  const response = await apiClient.post<ShipReleaseResultDto>(
+    `/releases/${id}/ship`,
+    data,
+  );
+  return response.data;
 }

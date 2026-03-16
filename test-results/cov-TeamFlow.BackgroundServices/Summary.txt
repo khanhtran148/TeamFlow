@@ -1,0 +1,34 @@
+Summary
+  Generated on: 16/3/2026 - 10:33:27
+  Coverage date: 16/3/2026 - 10:30:16 - 16/3/2026 - 10:30:33
+  Parser: MultiReport (5x Cobertura)
+  Assemblies: 1
+  Classes: 12
+  Files: 11
+  Line coverage: 57.5%
+  Covered lines: 320
+  Uncovered lines: 236
+  Coverable lines: 556
+  Total lines: 932
+  Branch coverage: 62.2% (56 of 90)
+  Covered branches: 56
+  Total branches: 90
+  Method coverage: 58.6% (17 of 29)
+  Full method coverage: 37.9% (11 of 29)
+  Covered methods: 17
+  Fully covered methods: 11
+  Total methods: 29
+
+TeamFlow.BackgroundServices                                                      57.5%
+  Program                                                                           0%
+  TeamFlow.BackgroundServices.Consumers.DomainEventStoreConsumer                    0%
+  TeamFlow.BackgroundServices.Consumers.SignalRBroadcastConsumer                    0%
+  TeamFlow.BackgroundServices.Consumers.SignalRWorkItemStatusBroadcastConsumer      0%
+  TeamFlow.BackgroundServices.Consumers.SprintCompletedConsumer                   100%
+  TeamFlow.BackgroundServices.Consumers.SprintStartedConsumer                     100%
+  TeamFlow.BackgroundServices.EventDriven.Consumers.BaseConsumer<T>              68.4%
+  TeamFlow.BackgroundServices.Scheduled.Jobs.BaseJob                             10.6%
+  TeamFlow.BackgroundServices.Scheduled.Jobs.BurndownSnapshotJob                 85.8%
+  TeamFlow.BackgroundServices.Scheduled.Jobs.EventPartitionCreatorJob            70.4%
+  TeamFlow.BackgroundServices.Scheduled.Jobs.ReleaseOverdueDetectorJob           80.7%
+  TeamFlow.BackgroundServices.Scheduled.Jobs.StaleItemDetectorJob                  83%

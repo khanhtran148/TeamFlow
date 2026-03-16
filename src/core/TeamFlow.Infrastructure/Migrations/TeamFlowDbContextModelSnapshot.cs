@@ -135,6 +135,59 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.ToTable("burndown_data_points", (string)null);
                 });
 
+            modelBuilder.Entity("TeamFlow.Domain.Entities.Comment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("edited_at");
+
+                    b.Property<Guid?>("ParentCommentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_comment_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("WorkItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_item_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("ParentCommentId");
+
+                    b.HasIndex("WorkItemId", "CreatedAt")
+                        .IsDescending(false, true);
+
+                    b.ToTable("comments", (string)null);
+                });
+
             modelBuilder.Entity("TeamFlow.Domain.Entities.DomainEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -203,6 +256,59 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.HasIndex("AggregateType", "AggregateId", "OccurredAt");
 
                     b.ToTable("domain_events", (string)null);
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.InAppNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_read");
+
+                    b.Property<Guid>("RecipientId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recipient_id");
+
+                    b.Property<Guid?>("ReferenceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reference_id");
+
+                    b.Property<string>("ReferenceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("reference_type");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientId", "IsRead", "CreatedAt")
+                        .IsDescending(false, false, true);
+
+                    b.ToTable("in_app_notifications", (string)null);
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.JobExecutionMetric", b =>
@@ -285,6 +391,94 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("organizations", (string)null);
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.PlanningPokerSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("closed_at");
+
+                    b.Property<Guid?>("ConfirmedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("confirmed_by_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("FacilitatorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("facilitator_id");
+
+                    b.Property<decimal?>("FinalEstimate")
+                        .HasColumnType("decimal(5,1)")
+                        .HasColumnName("final_estimate");
+
+                    b.Property<bool>("IsRevealed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_revealed");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<Guid>("WorkItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_item_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConfirmedById");
+
+                    b.HasIndex("FacilitatorId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("WorkItemId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_poker_sessions_work_item_id_active")
+                        .HasFilter("closed_at IS NULL");
+
+                    b.ToTable("planning_poker_sessions", (string)null);
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.PlanningPokerVote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_id");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("decimal(5,1)")
+                        .HasColumnName("value");
+
+                    b.Property<DateTime>("VotedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("voted_at");
+
+                    b.Property<Guid>("VoterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voter_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VoterId");
+
+                    b.HasIndex("SessionId", "VoterId")
+                        .IsUnique();
+
+                    b.ToTable("planning_poker_votes", (string)null);
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.Project", b =>
@@ -451,6 +645,10 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.Property<DateOnly?>("ReleaseDate")
                         .HasColumnType("date")
                         .HasColumnName("release_date");
+
+                    b.Property<string>("ReleaseNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("release_notes");
 
                     b.Property<DateTime?>("ReleasedAt")
                         .HasColumnType("timestamptz")
@@ -983,6 +1181,12 @@ namespace TeamFlow.Infrastructure.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("external_refs");
 
+                    b.Property<bool>("IsReadyForSprint")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_ready_for_sprint");
+
                     b.Property<Guid?>("ParentId")
                         .HasColumnType("uuid")
                         .HasColumnName("parent_id");
@@ -1231,6 +1435,32 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.Navigation("Sprint");
                 });
 
+            modelBuilder.Entity("TeamFlow.Domain.Entities.Comment", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TeamFlow.Domain.Entities.Comment", "ParentComment")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentCommentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TeamFlow.Domain.Entities.WorkItem", "WorkItem")
+                        .WithMany()
+                        .HasForeignKey("WorkItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+
+                    b.Navigation("ParentComment");
+
+                    b.Navigation("WorkItem");
+                });
+
             modelBuilder.Entity("TeamFlow.Domain.Entities.DomainEvent", b =>
                 {
                     b.HasOne("TeamFlow.Domain.Entities.User", "Actor")
@@ -1238,6 +1468,70 @@ namespace TeamFlow.Infrastructure.Migrations
                         .HasForeignKey("ActorId");
 
                     b.Navigation("Actor");
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.InAppNotification", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.User", "Recipient")
+                        .WithMany()
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recipient");
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.PlanningPokerSession", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.User", "ConfirmedBy")
+                        .WithMany()
+                        .HasForeignKey("ConfirmedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("TeamFlow.Domain.Entities.User", "Facilitator")
+                        .WithMany()
+                        .HasForeignKey("FacilitatorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TeamFlow.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TeamFlow.Domain.Entities.WorkItem", "WorkItem")
+                        .WithMany()
+                        .HasForeignKey("WorkItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ConfirmedBy");
+
+                    b.Navigation("Facilitator");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("WorkItem");
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.PlanningPokerVote", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.PlanningPokerSession", "Session")
+                        .WithMany("Votes")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TeamFlow.Domain.Entities.User", "Voter")
+                        .WithMany()
+                        .HasForeignKey("VoterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Session");
+
+                    b.Navigation("Voter");
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.Project", b =>
@@ -1528,8 +1822,7 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.HasOne("TeamFlow.Domain.Entities.WorkItem", "WorkItem")
                         .WithMany("Histories")
                         .HasForeignKey("WorkItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Actor");
 
@@ -1563,11 +1856,21 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.Navigation("Target");
                 });
 
+            modelBuilder.Entity("TeamFlow.Domain.Entities.Comment", b =>
+                {
+                    b.Navigation("Replies");
+                });
+
             modelBuilder.Entity("TeamFlow.Domain.Entities.Organization", b =>
                 {
                     b.Navigation("Projects");
 
                     b.Navigation("Teams");
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.PlanningPokerSession", b =>
+                {
+                    b.Navigation("Votes");
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.Project", b =>

@@ -15,6 +15,7 @@ public sealed record GetBacklogQuery(
     Guid? ReleaseId,
     bool? Unscheduled,
     string? Search,
+    bool? IsReady,
     int Page,
     int PageSize
 ) : IRequest<Result<PagedResult<BacklogItemDto>>>;

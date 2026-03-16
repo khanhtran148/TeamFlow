@@ -1,5 +1,6 @@
 using CSharpFunctionalExtensions;
 using MediatR;
+using TeamFlow.Application.Common.Errors;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Releases;
 using TeamFlow.Domain.Entities;
@@ -18,10 +19,10 @@ public sealed class CreateReleaseHandler(
     public async Task<Result<ReleaseDto>> Handle(CreateReleaseCommand request, CancellationToken ct)
     {
         if (!await permissions.HasPermissionAsync(currentUser.Id, request.ProjectId, Permission.Release_Create, ct))
-            return Result.Failure<ReleaseDto>("Access denied");
+            return DomainError.Forbidden<ReleaseDto>();
 
         if (!await projectRepository.ExistsAsync(request.ProjectId, ct))
-            return Result.Failure<ReleaseDto>("Project not found");
+            return DomainError.NotFound<ReleaseDto>("Project not found");
 
         var release = new Release
         {
