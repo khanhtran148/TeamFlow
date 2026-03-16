@@ -30,6 +30,7 @@ public sealed record BacklogItemDto(
     Priority? Priority,
     Guid? AssigneeId,
     string? AssigneeName,
+    DateTime? AssignedAt,
     Guid? ReleaseId,
     string? ReleaseName,
     bool IsBlocked,

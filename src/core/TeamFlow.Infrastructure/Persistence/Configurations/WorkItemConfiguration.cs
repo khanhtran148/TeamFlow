@@ -42,6 +42,7 @@ public class WorkItemConfiguration : IEntityTypeConfiguration<WorkItem>
 
         // Assignments
         builder.Property(w => w.AssigneeId).HasColumnName("assignee_id");
+        builder.Property(w => w.AssignedAt).HasColumnName("assigned_at").HasColumnType("timestamptz");
         builder.Property(w => w.SprintId).HasColumnName("sprint_id");
         builder.Property(w => w.ReleaseId).HasColumnName("release_id");
         builder.Property(w => w.RetroActionItemId).HasColumnName("retro_action_item_id");

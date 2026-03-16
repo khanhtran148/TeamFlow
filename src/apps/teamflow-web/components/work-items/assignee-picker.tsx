@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { ChevronDown, X, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAssignWorkItem, useUnassignWorkItem } from "@/lib/hooks/use-work-items";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserAvatar, formatAssignedAt } from "@/components/shared/user-avatar";
 import { apiClient } from "@/lib/api/client";
 
 interface ProjectMember {
@@ -36,6 +36,7 @@ interface AssigneePickerProps {
   projectId: string;
   assigneeId: string | null;
   assigneeName: string | null;
+  assignedAt?: string | null;
 }
 
 export function AssigneePicker({
@@ -43,6 +44,7 @@ export function AssigneePicker({
   projectId,
   assigneeId,
   assigneeName,
+  assignedAt,
 }: AssigneePickerProps) {
   const [open, setOpen] = useState(false);
 
@@ -109,7 +111,12 @@ export function AssigneePicker({
         {isPending ? (
           <Loader2 size={12} className="animate-spin" style={{ color: "var(--tf-text3)" }} />
         ) : assigneeName ? (
-          <UserAvatar initials={initials} name={assigneeName} size="xs" />
+          <UserAvatar
+            initials={initials}
+            name={assigneeName}
+            subtitle={formatAssignedAt(assignedAt ?? null)}
+            size="xs"
+          />
         ) : (
           <span
             style={{

@@ -46,4 +46,35 @@ public sealed class GetWorkItemTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
     }
+
+    [Fact]
+    public async Task Handle_AssignedItem_ReturnsAssignedAtInDto()
+    {
+        var assignedAt = new DateTime(2026, 3, 15, 9, 23, 11, DateTimeKind.Utc);
+        var item = WorkItemBuilder.New()
+            .WithType(WorkItemType.Task)
+            .WithAssignee(Guid.NewGuid())
+            .WithAssignedAt(assignedAt)
+            .Build();
+        _workItemRepo.GetByIdWithDetailsAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
+
+        var result = await CreateHandler().Handle(new GetWorkItemQuery(item.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AssignedAt.Should().Be(assignedAt);
+    }
+
+    [Fact]
+    public async Task Handle_UnassignedItem_ReturnsNullAssignedAtInDto()
+    {
+        var item = WorkItemBuilder.New()
+            .WithType(WorkItemType.Task)
+            .Build();
+        _workItemRepo.GetByIdWithDetailsAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
+
+        var result = await CreateHandler().Handle(new GetWorkItemQuery(item.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AssignedAt.Should().BeNull();
+    }
 }

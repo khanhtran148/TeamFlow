@@ -88,4 +88,43 @@ public sealed class AssignWorkItemTests
             Arg.Is<WorkItemHistoryEntry>(e => e.FieldName == "AssigneeId" && e.OldValue == prevAssigneeId.ToString()),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_ValidAssignment_SetsAssignedAt()
+    {
+        var item = WorkItemBuilder.New().WithType(WorkItemType.Task).Build();
+        var assigneeId = Guid.NewGuid();
+        var beforeAssign = DateTime.UtcNow;
+        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
+        _workItemRepo.UserExistsAsync(assigneeId, Arg.Any<CancellationToken>()).Returns(true);
+        _workItemRepo.UpdateAsync(Arg.Any<WorkItem>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<WorkItem>());
+
+        await CreateHandler().Handle(new AssignWorkItemCommand(item.Id, assigneeId), CancellationToken.None);
+
+        item.AssignedAt.Should().NotBeNull();
+        item.AssignedAt.Should().BeOnOrAfter(beforeAssign);
+        item.AssignedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task Handle_Reassignment_UpdatesAssignedAt()
+    {
+        var originalAssignedAt = DateTime.UtcNow.AddDays(-7);
+        var item = WorkItemBuilder.New()
+            .WithType(WorkItemType.Task)
+            .WithAssignee(Guid.NewGuid())
+            .WithAssignedAt(originalAssignedAt)
+            .Build();
+        var newAssigneeId = Guid.NewGuid();
+        var beforeReassign = DateTime.UtcNow;
+        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
+        _workItemRepo.UserExistsAsync(newAssigneeId, Arg.Any<CancellationToken>()).Returns(true);
+        _workItemRepo.UpdateAsync(Arg.Any<WorkItem>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<WorkItem>());
+
+        await CreateHandler().Handle(new AssignWorkItemCommand(item.Id, newAssigneeId), CancellationToken.None);
+
+        item.AssignedAt.Should().BeOnOrAfter(beforeReassign);
+    }
 }

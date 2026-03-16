@@ -6,7 +6,7 @@ import { Plus, GitBranch } from "lucide-react";
 import { useBacklog } from "@/lib/hooks/use-backlog";
 import { TypeIcon } from "@/components/shared/type-icon";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserAvatar, formatAssignedAt } from "@/components/shared/user-avatar";
 import { CreateWorkItemDialog } from "./create-work-item-dialog";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 
@@ -175,7 +175,12 @@ export function ChildrenTab({ workItemId, projectId }: ChildrenTabProps) {
                   </span>
                   <StatusBadge status={child.status} size="sm" />
                   {child.assigneeName ? (
-                    <UserAvatar initials={initials} name={child.assigneeName} size="xs" />
+                    <UserAvatar
+                      initials={initials}
+                      name={child.assigneeName}
+                      subtitle={formatAssignedAt(child.assignedAt)}
+                      size="xs"
+                    />
                   ) : (
                     <div style={{ width: 18, flexShrink: 0 }} />
                   )}

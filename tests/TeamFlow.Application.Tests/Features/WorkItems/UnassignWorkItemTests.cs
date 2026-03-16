@@ -65,4 +65,22 @@ public sealed class UnassignWorkItemTests
 
         result.IsFailure.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Handle_AssignedItem_ClearsAssignedAt()
+    {
+        var assigneeId = Guid.NewGuid();
+        var item = WorkItemBuilder.New()
+            .WithType(WorkItemType.Task)
+            .WithAssignee(assigneeId)
+            .WithAssignedAt(DateTime.UtcNow.AddDays(-3))
+            .Build();
+        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
+        _workItemRepo.UpdateAsync(Arg.Any<WorkItem>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<WorkItem>());
+
+        await CreateHandler().Handle(new UnassignWorkItemCommand(item.Id), CancellationToken.None);
+
+        item.AssignedAt.Should().BeNull();
+    }
 }

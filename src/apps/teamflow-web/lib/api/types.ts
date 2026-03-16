@@ -193,6 +193,7 @@ export interface WorkItemDto {
   estimationValue: number | null;
   assigneeId: string | null;
   assigneeName: string | null;
+  assignedAt: string | null;
   sprintId: string | null;
   releaseId: string | null;
   childCount: number;
@@ -210,6 +211,7 @@ export interface WorkItemSummaryDto {
   priority: Priority | null;
   assigneeId: string | null;
   assigneeName: string | null;
+  assignedAt: string | null;
   parentId: string | null;
   parentTitle: string | null;
   isBlocked: boolean;
@@ -265,6 +267,7 @@ export interface KanbanItemDto {
   priority: Priority | null;
   assigneeId: string | null;
   assigneeName: string | null;
+  assignedAt: string | null;
   parentId: string | null;
   parentTitle: string | null;
   isBlocked: boolean;

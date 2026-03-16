@@ -48,6 +48,7 @@ public sealed class FullTextSearchHandler(
             item.EstimationValue,
             item.AssigneeId,
             item.Assignee?.Name,
+            item.AssignedAt,
             item.SprintId,
             item.ReleaseId,
             defaultLinkCount,

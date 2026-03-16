@@ -112,6 +112,7 @@ public sealed class CreateWorkItemHandler(
             item.EstimationValue,
             item.AssigneeId,
             item.Assignee?.Name,
+            item.AssignedAt,
             item.SprintId,
             item.ReleaseId,
             0,

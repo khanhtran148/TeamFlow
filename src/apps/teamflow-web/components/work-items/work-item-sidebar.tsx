@@ -96,6 +96,7 @@ export function WorkItemSidebar({ workItem, projectId }: WorkItemSidebarProps) {
             projectId={projectId}
             assigneeId={workItem.assigneeId}
             assigneeName={workItem.assigneeName}
+            assignedAt={workItem.assignedAt}
           />
         </SidebarSection>
       )}

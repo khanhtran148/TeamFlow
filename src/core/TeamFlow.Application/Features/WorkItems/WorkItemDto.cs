@@ -14,6 +14,7 @@ public sealed record WorkItemDto(
     decimal? EstimationValue,
     Guid? AssigneeId,
     string? AssigneeName,
+    DateTime? AssignedAt,
     Guid? SprintId,
     Guid? ReleaseId,
     int ChildCount,

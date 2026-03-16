@@ -31,6 +31,7 @@ public sealed class AssignWorkItemHandler(
 
         var oldAssigneeId = item.AssigneeId;
         item.AssigneeId = request.AssigneeId;
+        item.AssignedAt = DateTime.UtcNow;
 
         await historyService.RecordAsync(new WorkItemHistoryEntry(
             item.Id, currentUser.Id, "Assigned", "AssigneeId",

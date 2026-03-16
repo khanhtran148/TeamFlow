@@ -77,6 +77,7 @@ public sealed class UpdateWorkItemHandler(
             item.EstimationValue,
             item.AssigneeId,
             item.Assignee?.Name,
+            item.AssignedAt,
             item.SprintId,
             item.ReleaseId,
             item.Children.Count,

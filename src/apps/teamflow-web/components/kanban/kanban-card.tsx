@@ -5,7 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useRouter, useParams } from "next/navigation";
 import { TypeIcon } from "@/components/shared/type-icon";
 import { PriorityIcon } from "@/components/shared/priority-icon";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserAvatar, formatAssignedAt } from "@/components/shared/user-avatar";
 import type { KanbanItemDto } from "@/lib/api/types";
 
 interface KanbanCardProps {
@@ -138,6 +138,7 @@ export function KanbanCard({ item }: KanbanCardProps) {
           <UserAvatar
             initials={initials}
             name={item.assigneeName}
+            subtitle={formatAssignedAt(item.assignedAt)}
             size="xs"
           />
         )}
@@ -237,7 +238,12 @@ export function KanbanCardGhost({ item }: { item: KanbanItemDto }) {
       </div>
       {item.assigneeName && (
         <div style={{ paddingLeft: 23 }}>
-          <UserAvatar initials={initials} name={item.assigneeName} size="xs" />
+          <UserAvatar
+            initials={initials}
+            name={item.assigneeName}
+            subtitle={formatAssignedAt(item.assignedAt)}
+            size="xs"
+          />
         </div>
       )}
     </div>

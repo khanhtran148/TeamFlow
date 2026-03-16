@@ -26,6 +26,7 @@ public sealed class UnassignWorkItemHandler(
         {
             var previousAssigneeId = item.AssigneeId.Value;
             item.AssigneeId = null;
+            item.AssignedAt = null;
 
             await historyService.RecordAsync(new WorkItemHistoryEntry(
                 item.Id, currentUser.Id, "Unassigned", "AssigneeId",

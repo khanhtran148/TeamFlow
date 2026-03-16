@@ -1,6 +1,7 @@
 interface UserAvatarProps {
   initials: string;
   name?: string;
+  subtitle?: string;
   size?: "xs" | "sm" | "md";
   colorIndex?: number;
 }
@@ -26,13 +27,31 @@ const SIZE_MAP = {
   md: { width: 36, height: 36, fontSize: 13 },
 };
 
-export function UserAvatar({ initials, name, size = "md", colorIndex }: UserAvatarProps) {
+export function formatAssignedAt(isoDate: string | null): string | undefined {
+  if (!isoDate) return undefined;
+  return `Assigned ${new Date(isoDate).toLocaleString("en-AU", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+}
+
+export function UserAvatar({ initials, name, subtitle, size = "md", colorIndex }: UserAvatarProps) {
   const dims = SIZE_MAP[size];
   const displayInitials = initials.slice(0, 2).toUpperCase();
 
+  const tooltipText =
+    name != null
+      ? subtitle
+        ? `${name}\n${subtitle}`
+        : name
+      : displayInitials;
+
   return (
     <div
-      title={name ?? displayInitials}
+      title={tooltipText}
       style={{
         width: dims.width,
         height: dims.height,
