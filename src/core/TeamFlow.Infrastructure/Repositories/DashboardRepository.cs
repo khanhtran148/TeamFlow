@@ -151,34 +151,33 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
     {
         var staleThreshold = DateTime.UtcNow.AddDays(-14);
 
-        // Run all independent queries in parallel
-        var activeSprintTask = context.Sprints
+        var activeSprint = await context.Sprints
             .AsNoTracking()
             .Where(s => s.ProjectId == projectId && s.Status == SprintStatus.Active)
             .Select(s => new { s.Id, s.Name })
             .FirstOrDefaultAsync(ct);
 
-        var totalItemsTask = context.WorkItems
+        var totalItems = await context.WorkItems
             .AsNoTracking()
             .CountAsync(w => w.ProjectId == projectId, ct);
 
-        var openItemsTask = context.WorkItems
+        var openItems = await context.WorkItems
             .AsNoTracking()
             .CountAsync(w => w.ProjectId == projectId
                 && w.Status != WorkItemStatus.Done
                 && w.Status != WorkItemStatus.Rejected, ct);
 
-        var overdueReleasesTask = context.Releases
+        var overdueReleases = await context.Releases
             .AsNoTracking()
             .CountAsync(r => r.ProjectId == projectId && r.Status == ReleaseStatus.Overdue, ct);
 
-        var staleItemsTask = context.WorkItems
+        var staleItems = await context.WorkItems
             .AsNoTracking()
             .CountAsync(w => w.ProjectId == projectId
                 && w.Status == WorkItemStatus.InProgress
                 && w.UpdatedAt < staleThreshold, ct);
 
-        var velocity3AvgTask = context.TeamVelocityHistories
+        var velocity3Avg = await context.TeamVelocityHistories
             .AsNoTracking()
             .Where(v => v.ProjectId == projectId)
             .OrderByDescending(v => v.RecordedAt)
@@ -186,12 +185,6 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
             .Select(v => v.Velocity3SprintAvg)
             .FirstOrDefaultAsync(ct);
 
-        await Task.WhenAll(activeSprintTask, totalItemsTask, openItemsTask,
-            overdueReleasesTask, staleItemsTask, velocity3AvgTask);
-
-        var activeSprint = await activeSprintTask;
-        var totalItems = await totalItemsTask;
-        var openItems = await openItemsTask;
         var completionPct = totalItems > 0 ? Math.Round((double)(totalItems - openItems) / totalItems, 3) : 0;
 
         return new DashboardSummaryDto(
@@ -200,9 +193,9 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
             totalItems,
             openItems,
             completionPct,
-            await overdueReleasesTask,
-            await staleItemsTask,
-            (decimal)(await velocity3AvgTask ?? 0)
+            overdueReleases,
+            staleItems,
+            (decimal)(velocity3Avg ?? 0)
         );
     }
 

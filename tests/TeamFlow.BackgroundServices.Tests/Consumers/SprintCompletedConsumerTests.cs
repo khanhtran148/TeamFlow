@@ -7,6 +7,7 @@ using NSubstitute;
 using MassTransit;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.BackgroundServices.Consumers;
+using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Events;
 using TeamFlow.Infrastructure.Persistence;
 using TeamFlow.Tests.Common;
@@ -21,6 +22,7 @@ public sealed class SprintCompletedConsumerTests(PostgresCollectionFixture fixtu
     private IServiceScope _scope = null!;
     private TeamFlowDbContext _dbContext = null!;
     private IDbContextTransaction _transaction = null!;
+    private Project _project = null!;
 
     private readonly IBroadcastService _broadcastService = Substitute.For<IBroadcastService>();
     private readonly ILogger<SprintCompletedConsumer> _logger = Substitute.For<ILogger<SprintCompletedConsumer>>();
@@ -36,6 +38,10 @@ public sealed class SprintCompletedConsumerTests(PostgresCollectionFixture fixtu
         _scope = _provider.CreateScope();
         _dbContext = _scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
         _transaction = await _dbContext.Database.BeginTransactionAsync();
+
+        _project = ProjectBuilder.New().WithOrganization(PostgresCollectionFixture.SeedOrgId).Build();
+        _dbContext.Projects.Add(_project);
+        await _dbContext.SaveChangesAsync();
     }
 
     public async Task DisposeAsync()
@@ -49,6 +55,7 @@ public sealed class SprintCompletedConsumerTests(PostgresCollectionFixture fixtu
     public async Task ConsumeInternal_CreatesFinalSnapshot()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Completed()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14)), DateOnly.FromDateTime(DateTime.UtcNow))
             .Build();
@@ -83,6 +90,7 @@ public sealed class SprintCompletedConsumerTests(PostgresCollectionFixture fixtu
     public async Task ConsumeInternal_RecordsVelocity()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Completed()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14)), DateOnly.FromDateTime(DateTime.UtcNow))
             .Build();
@@ -119,6 +127,7 @@ public sealed class SprintCompletedConsumerTests(PostgresCollectionFixture fixtu
     public async Task ConsumeInternal_BroadcastsSprintCompleted()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Completed()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14)), DateOnly.FromDateTime(DateTime.UtcNow))
             .Build();

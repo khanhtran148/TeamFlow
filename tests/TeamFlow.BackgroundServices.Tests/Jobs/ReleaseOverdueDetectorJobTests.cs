@@ -24,6 +24,7 @@ public sealed class ReleaseOverdueDetectorJobTests(PostgresCollectionFixture fix
     private IServiceScope _scope = null!;
     private TeamFlowDbContext _dbContext = null!;
     private IDbContextTransaction _transaction = null!;
+    private Project _project = null!;
 
     private readonly IBroadcastService _broadcastService = Substitute.For<IBroadcastService>();
     private readonly IPublisher _publisher = Substitute.For<IPublisher>();
@@ -42,6 +43,10 @@ public sealed class ReleaseOverdueDetectorJobTests(PostgresCollectionFixture fix
         _dbContext = _scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
         _transaction = await _dbContext.Database.BeginTransactionAsync();
 
+        _project = ProjectBuilder.New().WithOrganization(PostgresCollectionFixture.SeedOrgId).Build();
+        _dbContext.Projects.Add(_project);
+        await _dbContext.SaveChangesAsync();
+
         _jobContext.CancellationToken.Returns(CancellationToken.None);
     }
 
@@ -56,6 +61,7 @@ public sealed class ReleaseOverdueDetectorJobTests(PostgresCollectionFixture fix
     public async Task ExecuteInternal_ReleasePastDueDate_SetsStatusOverdue()
     {
         var release = ReleaseBuilder.New()
+            .WithProject(_project.Id)
             .WithReleaseDate(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)))
             .WithStatus(ReleaseStatus.Unreleased)
             .Build();
@@ -79,6 +85,7 @@ public sealed class ReleaseOverdueDetectorJobTests(PostgresCollectionFixture fix
     public async Task ExecuteInternal_AlreadyOverdueRelease_DoesNotDoubleTransition()
     {
         var release = ReleaseBuilder.New()
+            .WithProject(_project.Id)
             .WithReleaseDate(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)))
             .WithStatus(ReleaseStatus.Overdue)
             .Build();
@@ -103,6 +110,7 @@ public sealed class ReleaseOverdueDetectorJobTests(PostgresCollectionFixture fix
     public async Task ExecuteInternal_ReleasedRelease_IsIgnored()
     {
         var release = ReleaseBuilder.New()
+            .WithProject(_project.Id)
             .WithReleaseDate(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)))
             .Released()
             .Build();
@@ -124,6 +132,7 @@ public sealed class ReleaseOverdueDetectorJobTests(PostgresCollectionFixture fix
     public async Task ExecuteInternal_OverdueRelease_PublishesDomainEvent()
     {
         var release = ReleaseBuilder.New()
+            .WithProject(_project.Id)
             .WithName("v2.0")
             .WithReleaseDate(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)))
             .WithStatus(ReleaseStatus.Unreleased)
@@ -150,6 +159,7 @@ public sealed class ReleaseOverdueDetectorJobTests(PostgresCollectionFixture fix
     public async Task ExecuteInternal_OverdueRelease_BroadcastsSignalR()
     {
         var release = ReleaseBuilder.New()
+            .WithProject(_project.Id)
             .WithReleaseDate(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)))
             .WithStatus(ReleaseStatus.Unreleased)
             .Build();

@@ -61,12 +61,8 @@ public sealed class StaleItemDetectorJobTests(PostgresCollectionFixture fixture)
 
     private async Task<Project> AddProjectAsync(string status = "Active")
     {
-        var org = OrganizationBuilder.New().Build();
-        _dbContext.Organizations.Add(org);
-        await _dbContext.SaveChangesAsync();
-
         var project = ProjectBuilder.New()
-            .WithOrganization(org.Id)
+            .WithOrganization(PostgresCollectionFixture.SeedOrgId)
             .WithStatus(status)
             .Build();
         _dbContext.Projects.Add(project);

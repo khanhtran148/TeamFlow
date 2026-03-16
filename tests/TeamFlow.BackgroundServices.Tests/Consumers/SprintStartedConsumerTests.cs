@@ -7,6 +7,7 @@ using NSubstitute;
 using MassTransit;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.BackgroundServices.Consumers;
+using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Events;
 using TeamFlow.Infrastructure.Persistence;
 using TeamFlow.Tests.Common;
@@ -21,6 +22,7 @@ public sealed class SprintStartedConsumerTests(PostgresCollectionFixture fixture
     private IServiceScope _scope = null!;
     private TeamFlowDbContext _dbContext = null!;
     private IDbContextTransaction _transaction = null!;
+    private Project _project = null!;
 
     private readonly IBroadcastService _broadcastService = Substitute.For<IBroadcastService>();
     private readonly ILogger<SprintStartedConsumer> _logger = Substitute.For<ILogger<SprintStartedConsumer>>();
@@ -36,6 +38,10 @@ public sealed class SprintStartedConsumerTests(PostgresCollectionFixture fixture
         _scope = _provider.CreateScope();
         _dbContext = _scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
         _transaction = await _dbContext.Database.BeginTransactionAsync();
+
+        _project = ProjectBuilder.New().WithOrganization(PostgresCollectionFixture.SeedOrgId).Build();
+        _dbContext.Projects.Add(_project);
+        await _dbContext.SaveChangesAsync();
     }
 
     public async Task DisposeAsync()
@@ -49,12 +55,13 @@ public sealed class SprintStartedConsumerTests(PostgresCollectionFixture fixture
     public async Task ConsumeInternal_CreatesOnStartSnapshot()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)))
             .Build();
 
         var workItem = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithEstimation(5)
             .Build();
@@ -91,12 +98,13 @@ public sealed class SprintStartedConsumerTests(PostgresCollectionFixture fixture
     public async Task ConsumeInternal_InitializesBurndownDataPoint()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)))
             .Build();
 
         var workItem = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithEstimation(8)
             .Build();
@@ -133,6 +141,7 @@ public sealed class SprintStartedConsumerTests(PostgresCollectionFixture fixture
     public async Task ConsumeInternal_BroadcastsSprintStarted()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)))
             .Build();

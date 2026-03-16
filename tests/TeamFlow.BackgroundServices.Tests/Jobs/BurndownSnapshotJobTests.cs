@@ -22,6 +22,7 @@ public sealed class BurndownSnapshotJobTests(PostgresCollectionFixture fixture) 
     private IServiceScope _scope = null!;
     private TeamFlowDbContext _dbContext = null!;
     private IDbContextTransaction _transaction = null!;
+    private Project _project = null!;
 
     private readonly IBroadcastService _broadcastService = Substitute.For<IBroadcastService>();
     private readonly ILogger<BurndownSnapshotJob> _logger = Substitute.For<ILogger<BurndownSnapshotJob>>();
@@ -39,6 +40,10 @@ public sealed class BurndownSnapshotJobTests(PostgresCollectionFixture fixture) 
         _dbContext = _scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
         _transaction = await _dbContext.Database.BeginTransactionAsync();
 
+        _project = ProjectBuilder.New().WithOrganization(PostgresCollectionFixture.SeedOrgId).Build();
+        _dbContext.Projects.Add(_project);
+        await _dbContext.SaveChangesAsync();
+
         _jobContext.CancellationToken.Returns(CancellationToken.None);
     }
 
@@ -53,19 +58,20 @@ public sealed class BurndownSnapshotJobTests(PostgresCollectionFixture fixture) 
     public async Task ExecuteInternal_ActiveSprint_CreatesBurndownDataPoint()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)))
             .Build();
 
         var workItem1 = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithStatus(WorkItemStatus.Done)
             .WithEstimation(3)
             .Build();
 
         var workItem2 = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithStatus(WorkItemStatus.InProgress)
             .WithEstimation(5)
@@ -95,6 +101,7 @@ public sealed class BurndownSnapshotJobTests(PostgresCollectionFixture fixture) 
     public async Task ExecuteInternal_AlreadyHasTodayDataPoint_SkipsSprint()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)))
             .Build();
@@ -140,19 +147,20 @@ public sealed class BurndownSnapshotJobTests(PostgresCollectionFixture fixture) 
         var endDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2));
 
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(startDate, endDate)
             .Build();
 
         var doneItem = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithStatus(WorkItemStatus.Done)
             .WithEstimation(1)
             .Build();
 
         var todoItem = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithStatus(WorkItemStatus.ToDo)
             .WithEstimation(9)
@@ -181,6 +189,7 @@ public sealed class BurndownSnapshotJobTests(PostgresCollectionFixture fixture) 
     public async Task ExecuteInternal_ActiveSprint_BroadcastsSignalR()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(11)))
             .Build();
