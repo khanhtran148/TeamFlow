@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+### User Profile Management + Assignee Tooltip (2026-03-16)
+
+#### User Profile — Backend
+
+- `AvatarUrl` (nullable string) added to `User` entity; `AddAvatarUrlToUser` EF Core migration applied
+- `GetProfileQuery` handler: returns own profile (id, display name, email, avatar URL, role, org); no permission check — users access only their own data
+- `UpdateProfileCommand` handler: updates display name and avatar URL with validation; writes history entry
+- `GetActivityLogQuery` handler: paginated (page size capped at 50) activity feed from `work_item_histories` for the current user, newest first
+- Integration tests written first (TFD); all 3 handlers covered with happy path, validation, and edge-case scenarios
+
+#### User Profile — Frontend
+
+- `/profile` page with 4 tabs: Details (name, email, avatar URL), Security (change password form), Notifications (per-type preference toggles), Activity (paginated log)
+- TanStack Query hooks for `useProfile`, `useUpdateProfile`, `useActivityLog`
+- `UserMenu` component updated with "Profile" link navigating to `/profile`
+- Activity log renders work item title, action type (color-coded), and relative timestamp with pagination
+
+#### Assignee Tooltip — Backend
+
+- `AssignedAt` (`DateTimeOffset?`) added to `WorkItem` entity; EF Core migration applied
+- `AssignWorkItemHandler` sets `AssignedAt = DateTimeOffset.UtcNow` on assignment; `UnassignWorkItemHandler` clears it to null
+- `WorkItemDto` and all relevant response DTOs updated to include `assignedAt` field
+- Integration tests cover `AssignedAt` being set, cleared, and reflected in DTOs
+
+#### Assignee Tooltip — Frontend
+
+- `assignedAt` field added to TypeScript `WorkItemDto` and assignee-related types
+- `UserAvatar` tooltip enhanced: now shows full display name and formatted assignment date (e.g., "Assigned Mar 14, 2026")
+- All assignee avatar usages updated: Backlog rows, Kanban cards, Work Item Detail children tab, and Assignee Picker
+
+#### Testing Rules Update (CLAUDE.md)
+
+- Rule 11 added: E2E tests are mandatory for every new feature; existing E2E tests must be updated when behavior changes
+- Rule 12 added: Testcontainers required for all unit and integration tests — real PostgreSQL preferred over in-memory mocks
+
+#### E2E Tests — User Profile
+
+- 14 Playwright E2E tests added covering: profile page load, tab navigation, display name update, avatar URL update, change password (success + validation), notification preference toggle, activity log pagination, UserMenu profile link navigation
+- Tests run against real API via Testcontainers; storage state reused from global auth setup
+
+#### Developer Scripts
+
+- `scripts/start-all.sh` (macOS/Linux): single command to start full stack — Docker infra (PostgreSQL, RabbitMQ, MailHog), EF Core migrations, .NET API, Background Services, Next.js frontend; waits for health checks before proceeding; `stop` argument or Ctrl+C gracefully terminates all processes
+- `scripts/start-all.ps1` (Windows PowerShell): equivalent script for Windows developers; same startup sequence and health-check logic
+
+---
+
 ### Phase 3 — Hardening + Sprint Planning (2026-03-15)
 
 #### Sprint Planning Backend (Phase 3.0 + 3.1)

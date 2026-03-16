@@ -115,24 +115,9 @@ test.describe("Sprint Navigation", () => {
   }) => {
     await sprintHelpers.authenticatePage(page, { accessToken: token, refreshToken: "" });
 
-    // Step 1: Navigate to Projects list
-    await page.goto("/projects");
-    await expect(page).toHaveURL(/\/projects/);
-
-    // Search for the project to make it visible (list may have many projects)
-    const searchInput = page.getByPlaceholder(/search/i);
-    if (await searchInput.isVisible()) {
-      await searchInput.fill(projectName);
-      await page.waitForTimeout(500);
-    }
-
-    // Wait for projects to load, find our project
-    await expect(page.getByText(projectName)).toBeVisible({ timeout: 10_000 });
-
-    // Step 2: Click on the project to navigate to project detail
-    await page.getByText(projectName).click();
-
-    // Project detail redirects to /projects/{id}/backlog
+    // Step 1: Navigate directly to the project backlog
+    // (The /projects list page now redirects to /onboarding for org-based routing)
+    await page.goto(`/projects/${projectId}/backlog`);
     await expect(page).toHaveURL(new RegExp(`/projects/${projectId}`));
 
     // Step 3: Navigate to Sprints tab

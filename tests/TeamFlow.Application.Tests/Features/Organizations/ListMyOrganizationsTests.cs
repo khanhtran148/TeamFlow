@@ -1,58 +1,40 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Organizations.ListMyOrganizations;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Organizations;
 
-public sealed class ListMyOrganizationsTests
+[Collection("Projects")]
+public sealed class ListMyOrganizationsTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IOrganizationMemberRepository _memberRepo = Substitute.For<IOrganizationMemberRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly Guid _userId = Guid.NewGuid();
-
-    public ListMyOrganizationsTests()
-    {
-        _currentUser.Id.Returns(_userId);
-    }
-
-    private ListMyOrganizationsHandler CreateHandler() => new(_memberRepo, _currentUser);
-
     [Fact]
     public async Task Handle_UserIsMemberOfOrgs_ReturnsMemberOrgDtos()
     {
-        var org1 = new Organization { Name = "Org A", Slug = "org-a" };
-        var org2 = new Organization { Name = "Org B", Slug = "org-b" };
+        var org1 = OrganizationBuilder.New().WithName("Org A").WithSlug("org-a-" + Guid.NewGuid().ToString("N")[..6]).Build();
+        var org2 = OrganizationBuilder.New().WithName("Org B").WithSlug("org-b-" + Guid.NewGuid().ToString("N")[..6]).Build();
+        DbContext.Organizations.AddRange(org1, org2);
 
-        var memberships = new List<(Organization Org, OrgRole Role, DateTime JoinedAt)>
-        {
-            (org1, OrgRole.Owner, DateTime.UtcNow.AddDays(-10)),
-            (org2, OrgRole.Member, DateTime.UtcNow.AddDays(-5)),
-        };
+        var m1 = OrganizationMemberBuilder.New().WithOrganization(org1.Id).WithUser(SeedUserId).WithRole(OrgRole.Owner).Build();
+        var m2 = OrganizationMemberBuilder.New().WithOrganization(org2.Id).WithUser(SeedUserId).WithRole(OrgRole.Member).Build();
+        DbContext.OrganizationMembers.AddRange(m1, m2);
+        await DbContext.SaveChangesAsync();
 
-        _memberRepo.ListOrganizationsForUserAsync(_userId, Arg.Any<CancellationToken>())
-            .Returns(memberships);
-
-        var result = await CreateHandler().Handle(new ListMyOrganizationsQuery(), CancellationToken.None);
+        var result = await Sender.Send(new ListMyOrganizationsQuery());
 
         result.IsSuccess.Should().BeTrue();
         var items = result.Value.ToList();
-        items.Should().HaveCount(2);
-        items[0].Name.Should().Be("Org A");
-        items[0].Role.Should().Be(OrgRole.Owner);
-        items[1].Name.Should().Be("Org B");
-        items[1].Role.Should().Be(OrgRole.Member);
+        items.Should().Contain(o => o.Name == "Org A" && o.Role == OrgRole.Owner);
+        items.Should().Contain(o => o.Name == "Org B" && o.Role == OrgRole.Member);
     }
 
     [Fact]
     public async Task Handle_UserHasNoMemberships_ReturnsEmptyList()
     {
-        _memberRepo.ListOrganizationsForUserAsync(_userId, Arg.Any<CancellationToken>())
-            .Returns(new List<(Organization, OrgRole, DateTime)>());
-
-        var result = await CreateHandler().Handle(new ListMyOrganizationsQuery(), CancellationToken.None);
+        // SeedUserId has no org memberships in this transaction
+        var result = await Sender.Send(new ListMyOrganizationsQuery());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();

@@ -216,3 +216,23 @@ Every mutation writes an immutable history record:
 - Project list view
 - System font stack (font rendering improvement)
 - Epic assignee field hidden (Epics are not assignable)
+
+---
+
+## Phase 6 — Org Management, Admin Bootstrap & User Profile
+
+### User Profile
+- `GET /api/v1/users/me/profile` — rich profile including organisations, teams, system role, `createdAt`, `avatarUrl`
+- `PUT /api/v1/users/me/profile` — update display name and avatar URL
+- `GET /api/v1/users/me/activity` — paginated activity log sourced from `work_item_histories`
+- Frontend: `/profile` page with four tabs — Details, Security, Notifications, Activity
+- Profile link added to UserMenu in the top bar
+
+### Assignee Tooltip
+- `AssignedAt` recorded on `WorkItems` when an assignee is set; cleared on unassign
+- `WorkItemDto`, `BacklogItemDto`, and `KanbanItemDto` include `AssignedAt`
+- `UserAvatar` tooltip displays "Name\nAssigned 16 Mar 2026, 05:50 pm"
+
+### Startup Scripts
+- `scripts/start-all.sh` — macOS: starts Docker infrastructure, API, BackgroundServices, and frontend in parallel
+- `scripts/start-all.ps1` — Windows equivalent

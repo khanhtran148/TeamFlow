@@ -24,8 +24,8 @@ public sealed class DeleteSprintHandler(
         if (sprint.Status is not SprintStatus.Planning)
             return Result.Failure("Cannot delete a sprint that is not in Planning status");
 
-        // Unlink all work items from this sprint
-        foreach (var item in sprint.WorkItems)
+        // Unlink all work items from this sprint (snapshot to avoid modifying tracked collection during iteration)
+        foreach (var item in sprint.WorkItems.ToList())
         {
             item.SprintId = null;
             await workItemRepository.UpdateAsync(item, ct);

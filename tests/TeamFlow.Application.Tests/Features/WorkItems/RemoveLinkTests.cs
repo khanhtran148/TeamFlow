@@ -1,60 +1,51 @@
 using FluentAssertions;
-using MediatR;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using TeamFlow.Application.Features.WorkItems.AddLink;
 using TeamFlow.Application.Features.WorkItems.RemoveLink;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.WorkItems;
 
-public sealed class RemoveLinkTests
+[Collection("WorkItems")]
+public sealed class RemoveLinkTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly IWorkItemLinkRepository _linkRepo = Substitute.For<IWorkItemLinkRepository>();
-    private readonly IHistoryService _historyService = Substitute.For<IHistoryService>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
-
-    public RemoveLinkTests()
-    {
-        _currentUser.Id.Returns(Guid.NewGuid());
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private RemoveWorkItemLinkHandler CreateHandler() =>
-        new(_workItemRepo, _linkRepo, _historyService, _currentUser, _permissions, _publisher);
-
     [Fact]
     public async Task Handle_ExistingLink_RemovesBothDirections()
     {
-        var sourceId = Guid.NewGuid();
-        var targetId = Guid.NewGuid();
-        var link = WorkItemLinkBuilder.New()
-            .WithSource(sourceId).WithTarget(targetId).WithLinkType(LinkType.RelatesTo).Build();
-        var sourceItem = WorkItemBuilder.New().Build();
-        var targetItem = WorkItemBuilder.New().Build();
+        var project = await SeedProjectAsync();
+        var itemA = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var itemB = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        _linkRepo.GetByIdAsync(link.Id, Arg.Any<CancellationToken>()).Returns(link);
-        _workItemRepo.GetByIdAsync(sourceId, Arg.Any<CancellationToken>()).Returns(sourceItem);
-        _workItemRepo.GetByIdAsync(targetId, Arg.Any<CancellationToken>()).Returns(targetItem);
+        // Create the bidirectional link pair
+        await Sender.Send(new AddWorkItemLinkCommand(itemA.Id, itemB.Id, LinkType.RelatesTo));
+        DbContext.ChangeTracker.Clear();
 
-        var result = await CreateHandler().Handle(new RemoveWorkItemLinkCommand(link.Id), CancellationToken.None);
+        // Find the forward link to get its ID
+        var forwardLink = await DbContext.Set<Domain.Entities.WorkItemLink>()
+            .AsNoTracking()
+            .FirstAsync(l => l.SourceId == itemA.Id && l.TargetId == itemB.Id);
+
+        DbContext.ChangeTracker.Clear();
+
+        var result = await Sender.Send(new RemoveWorkItemLinkCommand(forwardLink.Id));
 
         result.IsSuccess.Should().BeTrue();
-        await _linkRepo.Received(1).DeletePairAsync(sourceId, targetId, Arg.Any<CancellationToken>());
+        DbContext.ChangeTracker.Clear();
+        var remaining = await DbContext.Set<Domain.Entities.WorkItemLink>()
+            .AsNoTracking()
+            .Where(l => (l.SourceId == itemA.Id && l.TargetId == itemB.Id)
+                     || (l.SourceId == itemB.Id && l.TargetId == itemA.Id))
+            .ToListAsync();
+        remaining.Should().BeEmpty();
     }
 
     [Fact]
     public async Task Handle_NonExistentLink_ReturnsNotFound()
     {
-        var linkId = Guid.NewGuid();
-        _linkRepo.GetByIdAsync(linkId, Arg.Any<CancellationToken>()).Returns((WorkItemLink?)null);
-
-        var result = await CreateHandler().Handle(new RemoveWorkItemLinkCommand(linkId), CancellationToken.None);
+        var result = await Sender.Send(new RemoveWorkItemLinkCommand(Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");

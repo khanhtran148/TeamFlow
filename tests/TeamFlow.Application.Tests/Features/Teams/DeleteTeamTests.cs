@@ -1,61 +1,58 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Teams.DeleteTeam;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Teams;
 
-public sealed class DeleteTeamTests
+[Collection("Projects")]
+public sealed class DeleteTeamTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ITeamRepository _teamRepo = Substitute.For<ITeamRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public DeleteTeamTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private DeleteTeamHandler CreateHandler() => new(_teamRepo, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_ExistingTeam_DeletesSuccessfully()
     {
-        var team = TeamBuilder.New().Build();
-        _teamRepo.GetByIdAsync(team.Id, Arg.Any<CancellationToken>()).Returns(team);
+        var team = TeamBuilder.New().WithOrganization(SeedOrgId).Build();
+        DbContext.Teams.Add(team);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new DeleteTeamCommand(team.Id), CancellationToken.None);
+        var result = await Sender.Send(new DeleteTeamCommand(team.Id));
 
         result.IsSuccess.Should().BeTrue();
-        await _teamRepo.Received(1).DeleteAsync(team, Arg.Any<CancellationToken>());
+        DbContext.ChangeTracker.Clear();
+        var deleted = await DbContext.Teams.FindAsync(team.Id);
+        deleted.Should().BeNull();
     }
 
     [Fact]
     public async Task Handle_TeamNotFound_ReturnsFailure()
     {
-        _teamRepo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns((Domain.Entities.Team?)null);
-
-        var result = await CreateHandler().Handle(new DeleteTeamCommand(Guid.NewGuid()), CancellationToken.None);
+        var result = await Sender.Send(new DeleteTeamCommand(Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
+    }
+}
+
+[Collection("Projects")]
+public sealed class DeleteTeamForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
     }
 
     [Fact]
     public async Task Handle_NoPermission_ReturnsAccessDenied()
     {
-        var team = TeamBuilder.New().Build();
-        _teamRepo.GetByIdAsync(team.Id, Arg.Any<CancellationToken>()).Returns(team);
-        _permissions.HasPermissionAsync(ActorId, team.OrgId, Permission.Team_Manage, Arg.Any<CancellationToken>())
-            .Returns(false);
+        var team = TeamBuilder.New().WithOrganization(SeedOrgId).Build();
+        DbContext.Teams.Add(team);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new DeleteTeamCommand(team.Id), CancellationToken.None);
+        var result = await Sender.Send(new DeleteTeamCommand(team.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");

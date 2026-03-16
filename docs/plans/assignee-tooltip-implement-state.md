@@ -1,6 +1,6 @@
 ---
 topic: Assignee Tooltip with Name + Assignment Date
-status: in-progress
+status: complete
 created: 2026-03-16
 ---
 

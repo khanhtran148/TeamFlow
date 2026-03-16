@@ -44,7 +44,8 @@ public sealed class TeamRepository(TeamFlowDbContext context) : ITeamRepository
 
     public async Task<Team> UpdateAsync(Team team, CancellationToken ct = default)
     {
-        context.Teams.Update(team);
+        if (context.Entry(team).State == Microsoft.EntityFrameworkCore.EntityState.Detached)
+            context.Teams.Update(team);
         await context.SaveChangesAsync(ct);
         return team;
     }

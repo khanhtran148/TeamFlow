@@ -15,12 +15,12 @@ public sealed class AddProjectMemberHandler(
 {
     public async Task<Result<ProjectMembershipDto>> Handle(AddProjectMemberCommand request, CancellationToken ct)
     {
+        if (!await permissions.HasPermissionAsync(currentUser.Id, request.ProjectId, Permission.Project_ManageMembers, ct))
+            return Result.Failure<ProjectMembershipDto>("Access denied");
+
         var project = await projectRepository.GetByIdAsync(request.ProjectId, ct);
         if (project is null)
             return Result.Failure<ProjectMembershipDto>("Project not found");
-
-        if (!await permissions.HasPermissionAsync(currentUser.Id, request.ProjectId, Permission.Project_ManageMembers, ct))
-            return Result.Failure<ProjectMembershipDto>("Access denied");
 
         if (await membershipRepository.ExistsAsync(request.ProjectId, request.MemberId, request.MemberType, ct))
             return Result.Failure<ProjectMembershipDto>("Member is already a member of this project");

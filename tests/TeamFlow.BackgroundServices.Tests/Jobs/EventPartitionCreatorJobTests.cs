@@ -1,27 +1,48 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Quartz;
 using TeamFlow.BackgroundServices.Scheduled.Jobs;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Infrastructure.Persistence;
+using TeamFlow.Tests.Common;
 
 namespace TeamFlow.BackgroundServices.Tests.Jobs;
 
-public sealed class EventPartitionCreatorJobTests : IDisposable
+[Collection("BackgroundServices")]
+public sealed class EventPartitionCreatorJobTests(PostgresCollectionFixture fixture) : IAsyncLifetime
 {
-    private readonly TeamFlowDbContext _dbContext;
-    private readonly ILogger<EventPartitionCreatorJob> _logger;
-    private readonly EventPartitionCreatorJob _sut;
-    private readonly IJobExecutionContext _jobContext;
+    private ServiceProvider _provider = null!;
+    private IServiceScope _scope = null!;
+    private TeamFlowDbContext _dbContext = null!;
+    private IDbContextTransaction _transaction = null!;
 
-    public EventPartitionCreatorJobTests()
+    private readonly ILogger<EventPartitionCreatorJob> _logger = Substitute.For<ILogger<EventPartitionCreatorJob>>();
+    private readonly IJobExecutionContext _jobContext = Substitute.For<IJobExecutionContext>();
+
+    public async Task InitializeAsync()
     {
-        _dbContext = TestDbContextFactory.Create();
-        _logger = Substitute.For<ILogger<EventPartitionCreatorJob>>();
-        _sut = new EventPartitionCreatorJob(_logger, _dbContext);
-        _jobContext = Substitute.For<IJobExecutionContext>();
+        var services = new ServiceCollection();
+        services.AddLogging(l => l.AddConsole().SetMinimumLevel(LogLevel.Warning));
+        services.AddDbContext<TeamFlowDbContext>(options =>
+            options.UseNpgsql(fixture.ConnectionString, npgsql =>
+                npgsql.MigrationsAssembly("TeamFlow.Infrastructure")));
+        _provider = services.BuildServiceProvider();
+        _scope = _provider.CreateScope();
+        _dbContext = _scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
+        _transaction = await _dbContext.Database.BeginTransactionAsync();
+
         _jobContext.CancellationToken.Returns(CancellationToken.None);
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _transaction.RollbackAsync();
+        _scope.Dispose();
+        await _provider.DisposeAsync();
     }
 
     [Fact]
@@ -31,11 +52,8 @@ public sealed class EventPartitionCreatorJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        // SQLite doesn't support PARTITION OF, but the job gracefully handles non-relational
-        // by checking Database.IsRelational(). For SQLite, it is relational but doesn't support
-        // the raw SQL. The job should still complete and record metrics.
-        // We verify the job logs the correct partition name.
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new EventPartitionCreatorJob(_logger, _dbContext);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         metric.RecordsProcessed.Should().Be(1);
 
@@ -57,20 +75,16 @@ public sealed class EventPartitionCreatorJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric1);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric1);
+        var sut = new EventPartitionCreatorJob(_logger, _dbContext);
+        await sut.ExecuteJobAsync(_jobContext, metric1);
 
         var metric2 = new JobExecutionMetric { JobType = "EventPartitionCreatorJob", JobRunId = Guid.NewGuid(), StartedAt = DateTime.UtcNow };
         _dbContext.JobExecutionMetrics.Add(metric2);
         await _dbContext.SaveChangesAsync();
 
-        var act = () => _sut.ExecuteJobAsync(_jobContext, metric2);
+        var act = () => sut.ExecuteJobAsync(_jobContext, metric2);
 
         await act.Should().NotThrowAsync();
         metric2.RecordsProcessed.Should().Be(1);
-    }
-
-    public void Dispose()
-    {
-        _dbContext.Dispose();
     }
 }

@@ -1,3 +1,4 @@
+using MediatR;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Enums;
 
@@ -33,4 +34,45 @@ public sealed class NullBroadcastService : IBroadcastService
 public sealed class TestHistoryService : IHistoryService
 {
     public Task RecordAsync(WorkItemHistoryEntry entry, CancellationToken ct = default) => Task.CompletedTask;
+}
+
+public sealed class AlwaysDenyTestPermissionChecker : IPermissionChecker
+{
+    public Task<bool> HasPermissionAsync(Guid userId, Guid projectId, Permission permission, CancellationToken ct = default)
+        => Task.FromResult(false);
+
+    public Task<ProjectRole?> GetEffectiveRoleAsync(Guid userId, Guid projectId, CancellationToken ct = default)
+        => Task.FromResult<ProjectRole?>(null);
+}
+
+public sealed class TestAdminCurrentUser(Guid userId) : ICurrentUser
+{
+    public Guid Id => userId;
+    public string Email => "admin@teamflow.dev";
+    public string Name => "Admin User";
+    public bool IsAuthenticated => true;
+    public SystemRole SystemRole => SystemRole.SystemAdmin;
+}
+
+public sealed class CapturingPublisher : IPublisher
+{
+    private readonly List<object> _published = [];
+    public IReadOnlyList<object> Published => _published;
+
+    public Task Publish(object notification, CancellationToken ct = default)
+    {
+        _published.Add(notification);
+        return Task.CompletedTask;
+    }
+
+    public Task Publish<TNotification>(TNotification notification, CancellationToken ct = default)
+        where TNotification : INotification
+    {
+        _published.Add(notification!);
+        return Task.CompletedTask;
+    }
+
+    public bool HasPublished<T>() => _published.OfType<T>().Any();
+    public T GetPublished<T>() => _published.OfType<T>().Single();
+    public IEnumerable<T> GetAllPublished<T>() => _published.OfType<T>();
 }

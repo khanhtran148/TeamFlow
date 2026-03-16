@@ -1,81 +1,47 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Retros.RenameRetroSession;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Retros;
 
-public sealed class RenameRetroSessionTests
+[Collection("Social")]
+public sealed class RenameRetroSessionTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IRetroSessionRepository _retroRepo = Substitute.For<IRetroSessionRepository>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid UserId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public RenameRetroSessionTests()
-    {
-        _currentUser.Id.Returns(UserId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private RenameRetroSessionHandler CreateHandler() =>
-        new(_retroRepo, _permissions, _currentUser);
-
     [Fact]
     public async Task Handle_ValidName_RenamesSession()
     {
+        var project = await SeedProjectAsync();
         var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
             .WithStatus(RetroSessionStatus.Open)
             .Build();
-
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        DbContext.Set<TeamFlow.Domain.Entities.RetroSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
         var command = new RenameRetroSessionCommand(session.Id, "New Name");
-        var result = await CreateHandler().Handle(command, CancellationToken.None);
+        var result = await Sender.Send(command);
 
         result.IsSuccess.Should().BeTrue();
-        session.Name.Should().Be("New Name");
-        await _retroRepo.Received(1).UpdateAsync(session, Arg.Any<CancellationToken>());
+        var persisted = await DbContext.Set<TeamFlow.Domain.Entities.RetroSession>()
+            .SingleAsync(s => s.Id == session.Id);
+        persisted.Name.Should().Be("New Name");
     }
 
     [Fact]
     public async Task Handle_SessionNotFound_ReturnsFailure()
     {
-        var sessionId = Guid.NewGuid();
-        _retroRepo.GetByIdAsync(sessionId, Arg.Any<CancellationToken>()).Returns((RetroSession?)null);
-
-        var command = new RenameRetroSessionCommand(sessionId, "New Name");
-        var result = await CreateHandler().Handle(command, CancellationToken.None);
+        var command = new RenameRetroSessionCommand(Guid.NewGuid(), "New Name");
+        var result = await Sender.Send(command);
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().Contain("Retro session not found");
-    }
-
-    [Fact]
-    public async Task Handle_NoPermission_ReturnsFailure()
-    {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .Build();
-
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-        _permissions.HasPermissionAsync(UserId, ProjectId, Permission.Retro_Facilitate, Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        var command = new RenameRetroSessionCommand(session.Id, "New Name");
-        var result = await CreateHandler().Handle(command, CancellationToken.None);
-
-        result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Contain("Access denied");
     }
 
     [Theory]
@@ -84,15 +50,16 @@ public sealed class RenameRetroSessionTests
     [InlineData(null)]
     public async Task Handle_EmptyOrWhitespaceName_ReturnsFailure(string? name)
     {
+        var project = await SeedProjectAsync();
         var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
             .Build();
-
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        DbContext.Set<TeamFlow.Domain.Entities.RetroSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
         var command = new RenameRetroSessionCommand(session.Id, name!);
-        var result = await CreateHandler().Handle(command, CancellationToken.None);
+        var result = await Sender.Send(command);
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().Contain("Name is required");
@@ -101,17 +68,48 @@ public sealed class RenameRetroSessionTests
     [Fact]
     public async Task Handle_NameWithWhitespace_TrimsBeforeSaving()
     {
+        var project = await SeedProjectAsync();
         var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
             .Build();
-
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        DbContext.Set<TeamFlow.Domain.Entities.RetroSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
         var command = new RenameRetroSessionCommand(session.Id, "  Trimmed Name  ");
-        var result = await CreateHandler().Handle(command, CancellationToken.None);
+        var result = await Sender.Send(command);
 
         result.IsSuccess.Should().BeTrue();
-        session.Name.Should().Be("Trimmed Name");
+        var persisted = await DbContext.Set<TeamFlow.Domain.Entities.RetroSession>()
+            .SingleAsync(s => s.Id == session.Id);
+        persisted.Name.Should().Be("Trimmed Name");
+    }
+}
+
+[Collection("Social")]
+public sealed class RenameRetroSessionForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
+    }
+
+    [Fact]
+    public async Task Handle_NoPermission_ReturnsFailure()
+    {
+        var project = await SeedProjectAsync();
+        var session = RetroSessionBuilder.New()
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Build();
+        DbContext.Set<TeamFlow.Domain.Entities.RetroSession>().Add(session);
+        await DbContext.SaveChangesAsync();
+
+        var command = new RenameRetroSessionCommand(session.Id, "New Name");
+        var result = await Sender.Send(command);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().Contain("Access denied");
     }
 }

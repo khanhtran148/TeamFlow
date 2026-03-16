@@ -1,50 +1,68 @@
+using System.Text.Json;
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Features.Search.DeleteSavedFilter;
 using TeamFlow.Domain.Entities;
-using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Search;
 
-public sealed class DeleteSavedFilterTests
+[Collection("WorkItems")]
+public sealed class DeleteSavedFilterTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ISavedFilterRepository _repo = Substitute.For<ISavedFilterRepository>();
-    private readonly IPermissionChecker _permissionChecker = Substitute.For<IPermissionChecker>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public DeleteSavedFilterTests()
+    private async Task<(SavedFilter filter, Guid projectId)> SeedOwnedFilterAsync(string name = "Test")
     {
-        _currentUser.Id.Returns(ActorId);
-        _permissionChecker.HasPermissionAsync(ActorId, ProjectId, Permission.WorkItem_View, Arg.Any<CancellationToken>())
-            .Returns(true);
+        var project = await SeedProjectAsync();
+        var filter = new SavedFilter
+        {
+            UserId = SeedUserId,
+            ProjectId = project.Id,
+            Name = name,
+            FilterJson = JsonDocument.Parse("{}"),
+            IsDefault = false
+        };
+        DbContext.Set<SavedFilter>().Add(filter);
+        await DbContext.SaveChangesAsync();
+        return (filter, project.Id);
     }
-
-    private DeleteSavedFilterHandler CreateHandler() => new(_repo, _permissionChecker, _currentUser);
 
     [Fact]
     public async Task Handle_OwnFilter_DeletesSuccessfully()
     {
-        var filter = new SavedFilter { UserId = ActorId, ProjectId = ProjectId, Name = "Test" };
-        _repo.GetByIdAsync(filter.Id, Arg.Any<CancellationToken>()).Returns(filter);
+        var (filter, projectId) = await SeedOwnedFilterAsync();
 
-        var result = await CreateHandler().Handle(new DeleteSavedFilterCommand(ProjectId, filter.Id), CancellationToken.None);
+        var result = await Sender.Send(new DeleteSavedFilterCommand(projectId, filter.Id));
 
         result.IsSuccess.Should().BeTrue();
-        await _repo.Received(1).DeleteAsync(filter.Id, Arg.Any<CancellationToken>());
+        DbContext.ChangeTracker.Clear();
+        var found = await DbContext.Set<SavedFilter>().AsNoTracking()
+            .FirstOrDefaultAsync(f => f.Id == filter.Id);
+        found.Should().BeNull();
     }
 
     [Fact]
     public async Task Handle_OtherUsersFilter_ReturnsForbidden()
     {
-        var otherUserId = Guid.NewGuid();
-        var filter = new SavedFilter { UserId = otherUserId, ProjectId = ProjectId, Name = "Test" };
-        _repo.GetByIdAsync(filter.Id, Arg.Any<CancellationToken>()).Returns(filter);
+        var project = await SeedProjectAsync();
+        var otherUser = UserBuilder.New().Build();
+        DbContext.Users.Add(otherUser);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new DeleteSavedFilterCommand(ProjectId, filter.Id), CancellationToken.None);
+        var filter = new SavedFilter
+        {
+            UserId = otherUser.Id,
+            ProjectId = project.Id,
+            Name = "Other's Filter",
+            FilterJson = JsonDocument.Parse("{}"),
+            IsDefault = false
+        };
+        DbContext.Set<SavedFilter>().Add(filter);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new DeleteSavedFilterCommand(project.Id, filter.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");
@@ -53,21 +71,30 @@ public sealed class DeleteSavedFilterTests
     [Fact]
     public async Task Handle_FilterNotFound_ReturnsNotFound()
     {
-        _repo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((SavedFilter?)null);
+        var project = await SeedProjectAsync();
 
-        var result = await CreateHandler().Handle(new DeleteSavedFilterCommand(ProjectId, Guid.NewGuid()), CancellationToken.None);
+        var result = await Sender.Send(new DeleteSavedFilterCommand(project.Id, Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
+    }
+}
+
+[Collection("WorkItems")]
+public sealed class DeleteSavedFilterPermissionTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<Application.Common.Interfaces.IPermissionChecker, AlwaysDenyTestPermissionChecker>();
     }
 
     [Fact]
     public async Task Handle_NotProjectMember_ReturnsForbidden()
     {
-        _permissionChecker.HasPermissionAsync(ActorId, ProjectId, Permission.WorkItem_View, Arg.Any<CancellationToken>())
-            .Returns(false);
+        var project = await SeedProjectAsync();
 
-        var result = await CreateHandler().Handle(new DeleteSavedFilterCommand(ProjectId, Guid.NewGuid()), CancellationToken.None);
+        var result = await Sender.Send(new DeleteSavedFilterCommand(project.Id, Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");

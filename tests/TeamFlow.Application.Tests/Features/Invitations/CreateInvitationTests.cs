@@ -1,47 +1,44 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Features.Invitations;
 using TeamFlow.Application.Features.Invitations.Create;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Invitations;
 
-public sealed class CreateInvitationTests
+[Collection("Auth")]
+public sealed class CreateInvitationTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IInvitationRepository _invitationRepo = Substitute.For<IInvitationRepository>();
-    private readonly IOrganizationMemberRepository _memberRepo = Substitute.For<IOrganizationMemberRepository>();
-    private readonly IOrganizationRepository _orgRepo = Substitute.For<IOrganizationRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly Guid _orgId = Guid.NewGuid();
-    private readonly Guid _userId = Guid.NewGuid();
-
-    public CreateInvitationTests()
+    private async Task<Organization> SeedOrgWithMemberAsync(OrgRole role)
     {
-        _currentUser.Id.Returns(_userId);
-        _currentUser.Email.Returns("admin@teamflow.dev");
+        var org = OrganizationBuilder.New().Build();
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        _invitationRepo.AddAsync(Arg.Any<Invitation>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Invitation>());
+        DbContext.Set<OrganizationMember>().Add(new OrganizationMember
+        {
+            OrganizationId = org.Id,
+            UserId = SeedUserId,
+            Role = role
+        });
+        await DbContext.SaveChangesAsync();
 
-        _orgRepo.GetByIdAsync(_orgId, Arg.Any<CancellationToken>())
-            .Returns(new Organization { Name = "Test Org", Slug = "test-org" });
+        return org;
     }
-
-    private CreateInvitationHandler CreateHandler() =>
-        new(_invitationRepo, _memberRepo, _orgRepo, _currentUser);
 
     [Theory]
     [InlineData(OrgRole.Owner)]
     [InlineData(OrgRole.Admin)]
     public async Task Handle_OrgOwnerOrAdmin_CanCreateInvitation(OrgRole role)
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(role);
-        var cmd = new CreateInvitationCommand(_orgId, "invite@example.com", OrgRole.Member);
+        var org = await SeedOrgWithMemberAsync(role);
+        var cmd = new CreateInvitationCommand(org.Id, "invite@example.com", OrgRole.Member);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
     }
@@ -49,11 +46,10 @@ public sealed class CreateInvitationTests
     [Fact]
     public async Task Handle_OrgMember_ReturnsForbidden()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Member);
-        var cmd = new CreateInvitationCommand(_orgId, null, OrgRole.Member);
+        var org = await SeedOrgWithMemberAsync(OrgRole.Member);
+        var cmd = new CreateInvitationCommand(org.Id, null, OrgRole.Member);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Owner or Admin");
@@ -62,11 +58,13 @@ public sealed class CreateInvitationTests
     [Fact]
     public async Task Handle_NonMember_ReturnsForbidden()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns((OrgRole?)null);
-        var cmd = new CreateInvitationCommand(_orgId, null, OrgRole.Member);
+        var org = OrganizationBuilder.New().Build();
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var cmd = new CreateInvitationCommand(org.Id, null, OrgRole.Member);
+
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Owner or Admin");
@@ -75,11 +73,10 @@ public sealed class CreateInvitationTests
     [Fact]
     public async Task Handle_ValidCommand_ReturnsRawTokenInResponse()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Owner);
-        var cmd = new CreateInvitationCommand(_orgId, "invite@example.com", OrgRole.Member);
+        var org = await SeedOrgWithMemberAsync(OrgRole.Owner);
+        var cmd = new CreateInvitationCommand(org.Id, "invite@example.com", OrgRole.Member);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Token.Should().NotBeNullOrEmpty();
@@ -89,60 +86,56 @@ public sealed class CreateInvitationTests
     [Fact]
     public async Task Handle_ValidCommand_StoresHashedToken()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Owner);
-        var cmd = new CreateInvitationCommand(_orgId, null, OrgRole.Member);
+        var org = await SeedOrgWithMemberAsync(OrgRole.Owner);
+        var cmd = new CreateInvitationCommand(org.Id, null, OrgRole.Member);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
-        await _invitationRepo.Received(1).AddAsync(
-            Arg.Is<Invitation>(i =>
-                i.TokenHash != result.Value.Token && // hash != raw token
-                i.TokenHash.Length == 64),            // SHA-256 hex = 64 chars
-            Arg.Any<CancellationToken>());
+        var invitation = await DbContext.Set<Invitation>()
+            .Where(i => i.OrganizationId == org.Id)
+            .FirstOrDefaultAsync();
+        invitation.Should().NotBeNull();
+        invitation!.TokenHash.Should().NotBe(result.Value.Token);
+        invitation.TokenHash.Length.Should().Be(64); // SHA-256 hex = 64 chars
     }
 
     [Fact]
     public async Task Handle_ValidCommand_SetsSevenDayExpiry()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Owner);
-        var cmd = new CreateInvitationCommand(_orgId, null, OrgRole.Member);
+        var org = await SeedOrgWithMemberAsync(OrgRole.Owner);
         var before = DateTime.UtcNow.AddDays(6).AddHours(23);
+        var cmd = new CreateInvitationCommand(org.Id, null, OrgRole.Member);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
-        await _invitationRepo.Received(1).AddAsync(
-            Arg.Is<Invitation>(i => i.ExpiresAt > before),
-            Arg.Any<CancellationToken>());
+        var invitation = await DbContext.Set<Invitation>()
+            .Where(i => i.OrganizationId == org.Id)
+            .FirstOrDefaultAsync();
+        invitation!.ExpiresAt.Should().BeAfter(before);
     }
 
     [Fact]
     public async Task Handle_ValidCommand_SetsPendingStatus()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Owner);
-        var cmd = new CreateInvitationCommand(_orgId, null, OrgRole.Member);
+        var org = await SeedOrgWithMemberAsync(OrgRole.Owner);
+        var cmd = new CreateInvitationCommand(org.Id, null, OrgRole.Member);
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        await Sender.Send(cmd);
 
-        await _invitationRepo.Received(1).AddAsync(
-            Arg.Is<Invitation>(i => i.Status == InviteStatus.Pending),
-            Arg.Any<CancellationToken>());
+        var invitation = await DbContext.Set<Invitation>()
+            .Where(i => i.OrganizationId == org.Id)
+            .FirstOrDefaultAsync();
+        invitation!.Status.Should().Be(InviteStatus.Pending);
     }
 
     [Fact]
     public async Task Handle_OrgNotFound_ReturnsNotFound()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Owner);
-        _orgRepo.GetByIdAsync(_orgId, Arg.Any<CancellationToken>())
-            .Returns((Organization?)null);
-        var cmd = new CreateInvitationCommand(_orgId, null, OrgRole.Member);
+        var cmd = new CreateInvitationCommand(Guid.NewGuid(), null, OrgRole.Member);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().ContainEquivalentOf("not found", Exactly.Once(), o => o.IgnoringCase());
@@ -151,11 +144,10 @@ public sealed class CreateInvitationTests
     [Fact]
     public async Task Handle_CannotInviteAsOwner_ReturnsForbidden()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Owner);
-        var cmd = new CreateInvitationCommand(_orgId, null, OrgRole.Owner);
+        var org = await SeedOrgWithMemberAsync(OrgRole.Owner);
+        var cmd = new CreateInvitationCommand(org.Id, null, OrgRole.Owner);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().ContainEquivalentOf("Owner", o => o.IgnoringCase());
@@ -165,7 +157,7 @@ public sealed class CreateInvitationTests
     public async Task Validate_InvalidEmailFormat_ReturnsValidationError()
     {
         var validator = new CreateInvitationValidator();
-        var cmd = new CreateInvitationCommand(_orgId, "not-an-email", OrgRole.Member);
+        var cmd = new CreateInvitationCommand(SeedOrgId, "not-an-email", OrgRole.Member);
 
         var validationResult = await validator.ValidateAsync(cmd);
 
@@ -177,7 +169,7 @@ public sealed class CreateInvitationTests
     public async Task Validate_NullEmail_IsValid()
     {
         var validator = new CreateInvitationValidator();
-        var cmd = new CreateInvitationCommand(_orgId, null, OrgRole.Member);
+        var cmd = new CreateInvitationCommand(SeedOrgId, null, OrgRole.Member);
 
         var validationResult = await validator.ValidateAsync(cmd);
 
@@ -190,7 +182,7 @@ public sealed class CreateInvitationTests
     public async Task Validate_ValidRole_IsValid(OrgRole role)
     {
         var validator = new CreateInvitationValidator();
-        var cmd = new CreateInvitationCommand(_orgId, null, role);
+        var cmd = new CreateInvitationCommand(SeedOrgId, null, role);
 
         var validationResult = await validator.ValidateAsync(cmd);
 

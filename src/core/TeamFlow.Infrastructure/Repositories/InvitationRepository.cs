@@ -22,7 +22,6 @@ public sealed class InvitationRepository(TeamFlowDbContext context) : IInvitatio
 
     public async Task<Invitation?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => await context.Invitations
-            .AsNoTracking()
             .FirstOrDefaultAsync(i => i.Id == id, ct);
 
     public async Task<IEnumerable<Invitation>> ListByOrgAsync(Guid organizationId, CancellationToken ct = default)

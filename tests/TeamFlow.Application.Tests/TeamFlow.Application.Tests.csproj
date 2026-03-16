@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\core\TeamFlow.Application\TeamFlow.Application.csproj" />
+    <ProjectReference Include="..\..\src\core\TeamFlow.Infrastructure\TeamFlow.Infrastructure.csproj" />
     <ProjectReference Include="..\TeamFlow.Tests.Common\TeamFlow.Tests.Common.csproj" />
   </ItemGroup>
 

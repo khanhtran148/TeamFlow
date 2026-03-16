@@ -31,7 +31,8 @@ TeamFlow.Domain
 
 TeamFlow.Infrastructure
   ├── Persistence/       — TeamFlowDbContext, EF Core configurations
-  ├── Repositories/      — WorkItemRepository, ProjectRepository, ReleaseRepository, WorkItemLinkRepository
+  ├── Repositories/      — WorkItemRepository, ProjectRepository, ReleaseRepository, WorkItemLinkRepository,
+  │                        TeamMemberRepository, ActivityLogRepository
   └── Services/          — AuthService, HistoryService, PermissionChecker
 
 TeamFlow.BackgroundServices
@@ -143,6 +144,16 @@ Published events by phase — see `docs/architecture/events.md` for full catalog
 ---
 
 ## Key Interfaces
+
+### ITeamMemberRepository
+
+Defined in `Application/Common/Interfaces/ITeamMemberRepository.cs`. Implemented by `Infrastructure/Repositories/TeamMemberRepository.cs`. Provides team membership lookups used by the User Profile feature to resolve which teams (and their parent organisations) a user belongs to.
+
+### IActivityLogRepository
+
+Defined in `Application/Common/Interfaces/IActivityLogRepository.cs`. Implemented by `Infrastructure/Repositories/ActivityLogRepository.cs`. Returns paginated `ActivityLogItemDto` records drawn from `work_item_histories` filtered by the current user as actor.
+
+---
 
 ### IWorkItemRepository
 
@@ -267,6 +278,11 @@ teamflow-web/
 ├── app/
 │   ├── login/          — Login page
 │   ├── register/       — Registration page
+│   ├── profile/        — User profile (Details, Security, Notifications, Activity tabs)
+│   ├── admin/          — System admin area (users, organisations, change-password)
+│   ├── onboarding/     — Post-login org selection / first-run flow
+│   ├── invite/[token]/ — Invitation acceptance
+│   ├── org/[slug]/     — Org-scoped shell with nested project routes
 │   ├── projects/
 │   │   ├── page.tsx    — Projects list
 │   │   └── [projectId]/
@@ -279,6 +295,10 @@ teamflow-web/
 │       ├── page.tsx        — Teams list
 │       └── [teamId]/       — Team detail
 ├── components/         — Shared UI components (shadcn/ui base)
+│   ├── admin/          — Admin-specific components (UserStatusToggle, ConfirmDialog)
+│   ├── profile/        — Profile tab components (ProfileDetails, ProfileSecurity,
+│   │                      ProfileNotifications, ProfileActivity)
+│   └── auth/           — AuthGuard
 └── lib/
     ├── api/            — Axios clients per domain (auth, sprints, teams, work-items, etc.)
     ├── stores/         — Zustand stores (auth-store, backlog-filter, kanban-filter, sidebar, theme)

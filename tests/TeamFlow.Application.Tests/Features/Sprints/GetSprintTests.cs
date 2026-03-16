@@ -1,54 +1,35 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Sprints.GetSprint;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Sprints;
 
-public sealed class GetSprintTests
+[Collection("Sprints")]
+public sealed class GetSprintTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ISprintRepository _sprintRepo = Substitute.For<ISprintRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public GetSprintTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private GetSprintHandler CreateHandler() =>
-        new(_sprintRepo, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_ExistingSprint_ReturnsDetailDto()
     {
-        var projectId = Guid.NewGuid();
+        var project = await SeedProjectAsync();
         var sprint = SprintBuilder.New()
-            .WithProject(projectId)
+            .WithProject(project.Id)
             .WithName("Sprint 1")
             .WithGoal("Deliver feature X")
             .Build();
-
-        var workItem = WorkItemBuilder.New()
-            .WithProject(projectId)
+        DbContext.Sprints.Add(sprint);
+        await SeedWorkItemAsync(project.Id, b => b
             .WithSprint(sprint.Id)
             .WithEstimation(5)
-            .WithStatus(WorkItemStatus.Done)
-            .Build();
-
-        sprint.WorkItems = [workItem];
-
-        _sprintRepo.GetByIdWithItemsAsync(sprint.Id, Arg.Any<CancellationToken>()).Returns(sprint);
+            .WithStatus(WorkItemStatus.Done));
+        await DbContext.SaveChangesAsync();
 
         var query = new GetSprintQuery(sprint.Id);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Name.Should().Be("Sprint 1");
@@ -61,25 +42,31 @@ public sealed class GetSprintTests
     [Fact]
     public async Task Handle_NonExistentSprint_ReturnsNotFoundError()
     {
-        _sprintRepo.GetByIdWithItemsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Sprint?)null);
-
         var query = new GetSprintQuery(Guid.NewGuid());
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var result = await Sender.Send(query);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Sprint not found");
     }
+}
+
+[Collection("Sprints")]
+public sealed class GetSprintDeniedTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+        => services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
 
     [Fact]
     public async Task Handle_NoPermission_ReturnsAccessDenied()
     {
-        var sprint = SprintBuilder.New().Build();
-        _sprintRepo.GetByIdWithItemsAsync(sprint.Id, Arg.Any<CancellationToken>()).Returns(sprint);
-        _permissions.HasPermissionAsync(ActorId, sprint.ProjectId, Permission.Project_View, Arg.Any<CancellationToken>())
-            .Returns(false);
+        var project = await SeedProjectAsync();
+        var sprint = SprintBuilder.New().WithProject(project.Id).Build();
+        DbContext.Sprints.Add(sprint);
+        await DbContext.SaveChangesAsync();
 
         var query = new GetSprintQuery(sprint.Id);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var result = await Sender.Send(query);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");

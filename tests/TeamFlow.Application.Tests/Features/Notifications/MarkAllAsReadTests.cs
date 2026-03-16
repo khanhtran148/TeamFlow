@@ -1,40 +1,54 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Features.Notifications.MarkAllAsRead;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Notifications;
 
-public sealed class MarkAllAsReadTests
+[Collection("Social")]
+public sealed class MarkAllAsReadTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IInAppNotificationRepository _notifRepo = Substitute.For<IInAppNotificationRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public MarkAllAsReadTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-    }
-
-    private MarkAllAsReadHandler CreateHandler() => new(_notifRepo, _currentUser);
-
     [Fact]
     public async Task Handle_MarksAllForCurrentUser()
     {
-        var result = await CreateHandler().Handle(new MarkAllAsReadCommand(), CancellationToken.None);
+        DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>().AddRange(
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build(),
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build()
+        );
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new MarkAllAsReadCommand());
 
         result.IsSuccess.Should().BeTrue();
-        await _notifRepo.Received(1).MarkAllAsReadAsync(ActorId, Arg.Any<CancellationToken>());
+
+        DbContext.ChangeTracker.Clear();
+        var notifications = await DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>()
+            .Where(n => n.RecipientId == SeedUserId)
+            .ToListAsync();
+        notifications.Should().AllSatisfy(n => n.IsRead.Should().BeTrue());
     }
 
     [Fact]
     public async Task Handle_DoesNotMarkOtherUsersNotifications()
     {
-        var otherUserId = Guid.NewGuid();
+        var otherUser = UserBuilder.New().WithEmail("markallread-other@example.com").Build();
+        DbContext.Users.Add(otherUser);
+        await DbContext.SaveChangesAsync();
 
-        await CreateHandler().Handle(new MarkAllAsReadCommand(), CancellationToken.None);
+        var otherUserId = otherUser.Id;
+        DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>().AddRange(
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build(),
+            InAppNotificationBuilder.New().WithRecipient(otherUserId).Build()
+        );
+        await DbContext.SaveChangesAsync();
 
-        await _notifRepo.DidNotReceive().MarkAllAsReadAsync(otherUserId, Arg.Any<CancellationToken>());
+        await Sender.Send(new MarkAllAsReadCommand());
+
+        var otherNotifications = await DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>()
+            .Where(n => n.RecipientId == otherUserId)
+            .ToListAsync();
+        otherNotifications.Should().AllSatisfy(n => n.IsRead.Should().BeFalse());
     }
 }

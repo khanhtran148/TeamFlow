@@ -21,6 +21,8 @@ Quick reference for development conventions. Full detail and examples are in `CL
 8. All API errors return `ProblemDetails` (RFC 7807) — never plain strings
 9. All new classes must be `sealed` by default unless designed for inheritance
 10. Test-First Development — write failing tests before implementation
+11. E2E tests required for every user-facing feature — Playwright specs under `e2e/`
+12. Testcontainers required for all integration tests — no SQLite or in-memory EF Core
 
 ---
 
@@ -177,7 +179,8 @@ JWT: HMAC-SHA256, 30-minute expiry. Refresh tokens: 64 random bytes, stored as S
 3. Refactor while green
 
 **Framework:** xUnit + FluentAssertions + NSubstitute
-**Integration tests:** Testcontainers with real PostgreSQL
+**Integration tests:** Testcontainers with real PostgreSQL (no SQLite or in-memory EF Core)
+**E2E tests:** Playwright — required for every user-facing feature; specs live under `src/apps/teamflow-web/e2e/`
 **Coverage target:** ≥70% on Application layer
 
 ---

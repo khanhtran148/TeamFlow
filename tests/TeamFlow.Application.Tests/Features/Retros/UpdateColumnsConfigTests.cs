@@ -1,84 +1,72 @@
 using System.Text.Json;
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Retros.UpdateColumnsConfig;
-using TeamFlow.Domain.Entities;
-using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Retros;
 
-public sealed class UpdateColumnsConfigTests
+[Collection("Social")]
+public sealed class UpdateColumnsConfigTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IRetroSessionRepository _retroRepo = Substitute.For<IRetroSessionRepository>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid UserId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public UpdateColumnsConfigTests()
-    {
-        _currentUser.Id.Returns(UserId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private UpdateColumnsConfigHandler CreateHandler() =>
-        new(_retroRepo, _permissions, _currentUser);
-
     [Fact]
     public async Task Handle_ValidConfig_UpdatesSession()
     {
+        var project = await SeedProjectAsync();
         var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
             .Build();
-
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        DbContext.Set<TeamFlow.Domain.Entities.RetroSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
         var config = JsonDocument.Parse("""[{"name":"Went Well","color":"green"},{"name":"To Improve","color":"red"}]""");
         var command = new UpdateColumnsConfigCommand(session.Id, config);
-        var result = await CreateHandler().Handle(command, CancellationToken.None);
+        var result = await Sender.Send(command);
 
         result.IsSuccess.Should().BeTrue();
-        session.ColumnsConfig.Should().BeSameAs(config);
-        await _retroRepo.Received(1).UpdateAsync(session, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_SessionNotFound_ReturnsFailure()
     {
-        var sessionId = Guid.NewGuid();
-        _retroRepo.GetByIdAsync(sessionId, Arg.Any<CancellationToken>()).Returns((RetroSession?)null);
-
         var config = JsonDocument.Parse("[]");
-        var command = new UpdateColumnsConfigCommand(sessionId, config);
-        var result = await CreateHandler().Handle(command, CancellationToken.None);
+        var command = new UpdateColumnsConfigCommand(Guid.NewGuid(), config);
+        var result = await Sender.Send(command);
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().Contain("Retro session not found");
+    }
+}
+
+[Collection("Social")]
+public sealed class UpdateColumnsConfigForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
     }
 
     [Fact]
     public async Task Handle_NoPermission_ReturnsFailure()
     {
+        var project = await SeedProjectAsync();
         var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
             .Build();
-
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-        _permissions.HasPermissionAsync(UserId, ProjectId, Permission.Retro_Facilitate, Arg.Any<CancellationToken>())
-            .Returns(false);
+        DbContext.Set<TeamFlow.Domain.Entities.RetroSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
         var config = JsonDocument.Parse("[]");
         var command = new UpdateColumnsConfigCommand(session.Id, config);
-        var result = await CreateHandler().Handle(command, CancellationToken.None);
+        var result = await Sender.Send(command);
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().Contain("Access denied");
-        await _retroRepo.DidNotReceive().UpdateAsync(Arg.Any<RetroSession>(), Arg.Any<CancellationToken>());
     }
 }

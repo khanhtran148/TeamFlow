@@ -135,6 +135,112 @@ Revokes the current user's refresh token.
 
 ---
 
+## Users — `/api/v1/users`
+
+### GET /api/v1/users/me
+
+Returns minimal current-user data from JWT claims.
+
+**Rate limit:** `General` policy
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 200 OK | `CurrentUserDto` | Authenticated |
+| 401 Unauthorized | `ProblemDetails` | Missing or invalid token |
+
+---
+
+### GET /api/v1/users/me/profile
+
+Returns a rich profile including organisations, teams, system role, avatar URL, and account creation date.
+
+**Rate limit:** `General` policy
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 200 OK | `UserProfileDto` | Authenticated |
+| 401 Unauthorized | `ProblemDetails` | Missing or invalid token |
+
+**UserProfileDto**
+
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "name": "Alice",
+  "avatarUrl": "https://cdn.example.com/avatars/alice.png",
+  "systemRole": "User",
+  "createdAt": "2026-03-15T09:00:00Z",
+  "organizations": [
+    { "orgId": "uuid", "orgName": "Acme", "orgSlug": "acme", "role": "Developer", "joinedAt": "2026-03-15T09:00:00Z" }
+  ],
+  "teams": [
+    { "teamId": "uuid", "teamName": "Backend", "orgId": "uuid", "orgName": "Acme", "role": "Developer", "joinedAt": "2026-03-15T09:00:00Z" }
+  ]
+}
+```
+
+---
+
+### PUT /api/v1/users/me/profile
+
+Updates the authenticated user's display name and/or avatar URL.
+
+**Rate limit:** `Write` policy
+
+**Request body:** `UpdateProfileCommand`
+
+| Field | Type | Required |
+|---|---|---|
+| name | string (max 100 chars) | yes |
+| avatarUrl | string (URL) or null | no |
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 200 OK | `UserProfileDto` | Updated |
+| 400 Bad Request | `ProblemDetails` | Validation failure |
+| 401 Unauthorized | `ProblemDetails` | Missing or invalid token |
+
+---
+
+### GET /api/v1/users/me/activity
+
+Returns a paginated list of the current user's activity drawn from `work_item_histories`.
+
+**Rate limit:** `General` policy
+
+**Query parameters:** `?page=1&pageSize=20`
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 200 OK | `PagedResult<ActivityLogItemDto>` | Authenticated |
+| 401 Unauthorized | `ProblemDetails` | Missing or invalid token |
+
+**ActivityLogItemDto**
+
+```json
+{
+  "id": "uuid",
+  "workItemId": "uuid",
+  "workItemTitle": "Fix login bug",
+  "actionType": "StatusChanged",
+  "fieldName": "Status",
+  "oldValue": "ToDo",
+  "newValue": "InProgress",
+  "createdAt": "2026-03-16T05:50:00Z"
+}
+```
+
+---
+
 ## Organizations — `/api/v1/organizations`
 
 ### POST /api/v1/organizations

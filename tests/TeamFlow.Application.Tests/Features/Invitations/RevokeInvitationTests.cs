@@ -1,51 +1,50 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Invitations.Revoke;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Invitations;
 
-public sealed class RevokeInvitationTests
+[Collection("Auth")]
+public sealed class RevokeInvitationTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IInvitationRepository _invitationRepo = Substitute.For<IInvitationRepository>();
-    private readonly IOrganizationMemberRepository _memberRepo = Substitute.For<IOrganizationMemberRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly Guid _userId = Guid.NewGuid();
-    private readonly Guid _orgId = Guid.NewGuid();
-    private readonly Guid _invitationId = Guid.NewGuid();
-
-    public RevokeInvitationTests()
+    private async Task<(Organization org, Invitation invitation)> SeedPendingInvitationAsync(
+        OrgRole memberRole = OrgRole.Owner,
+        InviteStatus status = InviteStatus.Pending)
     {
-        _currentUser.Id.Returns(_userId);
-        _invitationRepo.UpdateAsync(Arg.Any<Invitation>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Invitation>());
+        var org = OrganizationBuilder.New().Build();
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
+
+        DbContext.Set<OrganizationMember>().Add(new OrganizationMember
+        {
+            OrganizationId = org.Id,
+            UserId = SeedUserId,
+            Role = memberRole
+        });
+
+        var invitation = InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithStatus(status)
+            .Build();
+        DbContext.Set<Invitation>().Add(invitation);
+        await DbContext.SaveChangesAsync();
+
+        return (org, invitation);
     }
-
-    private RevokeInvitationHandler CreateHandler() =>
-        new(_invitationRepo, _memberRepo, _currentUser);
-
-    private Invitation MakePendingInvitation() => new()
-    {
-        OrganizationId = _orgId,
-        InvitedByUserId = Guid.NewGuid(),
-        Role = OrgRole.Member,
-        TokenHash = "somehash",
-        Status = InviteStatus.Pending,
-        ExpiresAt = DateTime.UtcNow.AddDays(7)
-    };
 
     [Theory]
     [InlineData(OrgRole.Owner)]
     [InlineData(OrgRole.Admin)]
     public async Task Handle_OrgOwnerOrAdmin_CanRevokeInvitation(OrgRole role)
     {
-        var invitation = MakePendingInvitation();
-        _invitationRepo.GetByIdAsync(_invitationId, Arg.Any<CancellationToken>()).Returns(invitation);
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>()).Returns(role);
+        var (_, invitation) = await SeedPendingInvitationAsync(role);
 
-        var result = await CreateHandler().Handle(new RevokeInvitationCommand(_invitationId), CancellationToken.None);
+        var result = await Sender.Send(new RevokeInvitationCommand(invitation.Id));
 
         result.IsSuccess.Should().BeTrue();
     }
@@ -53,25 +52,20 @@ public sealed class RevokeInvitationTests
     [Fact]
     public async Task Handle_OrgOwner_SetsStatusToRevoked()
     {
-        var invitation = MakePendingInvitation();
-        _invitationRepo.GetByIdAsync(_invitationId, Arg.Any<CancellationToken>()).Returns(invitation);
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>()).Returns(OrgRole.Owner);
+        var (_, invitation) = await SeedPendingInvitationAsync(OrgRole.Owner);
 
-        await CreateHandler().Handle(new RevokeInvitationCommand(_invitationId), CancellationToken.None);
+        await Sender.Send(new RevokeInvitationCommand(invitation.Id));
 
-        await _invitationRepo.Received(1).UpdateAsync(
-            Arg.Is<Invitation>(i => i.Status == InviteStatus.Revoked),
-            Arg.Any<CancellationToken>());
+        var updated = await DbContext.Set<Invitation>().FindAsync(invitation.Id);
+        updated!.Status.Should().Be(InviteStatus.Revoked);
     }
 
     [Fact]
     public async Task Handle_OrgMember_ReturnsForbidden()
     {
-        var invitation = MakePendingInvitation();
-        _invitationRepo.GetByIdAsync(_invitationId, Arg.Any<CancellationToken>()).Returns(invitation);
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>()).Returns(OrgRole.Member);
+        var (_, invitation) = await SeedPendingInvitationAsync(OrgRole.Member);
 
-        var result = await CreateHandler().Handle(new RevokeInvitationCommand(_invitationId), CancellationToken.None);
+        var result = await Sender.Send(new RevokeInvitationCommand(invitation.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Owner or Admin");
@@ -80,11 +74,19 @@ public sealed class RevokeInvitationTests
     [Fact]
     public async Task Handle_NonMember_ReturnsForbidden()
     {
-        var invitation = MakePendingInvitation();
-        _invitationRepo.GetByIdAsync(_invitationId, Arg.Any<CancellationToken>()).Returns(invitation);
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>()).Returns((OrgRole?)null);
+        var org = OrganizationBuilder.New().Build();
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new RevokeInvitationCommand(_invitationId), CancellationToken.None);
+        var invitation = InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithStatus(InviteStatus.Pending)
+            .Build();
+        DbContext.Set<Invitation>().Add(invitation);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new RevokeInvitationCommand(invitation.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Owner or Admin");
@@ -93,9 +95,7 @@ public sealed class RevokeInvitationTests
     [Fact]
     public async Task Handle_InvitationNotFound_ReturnsNotFound()
     {
-        _invitationRepo.GetByIdAsync(_invitationId, Arg.Any<CancellationToken>()).Returns((Invitation?)null);
-
-        var result = await CreateHandler().Handle(new RevokeInvitationCommand(_invitationId), CancellationToken.None);
+        var result = await Sender.Send(new RevokeInvitationCommand(Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().ContainEquivalentOf("not found", Exactly.Once(), o => o.IgnoringCase());
@@ -104,12 +104,9 @@ public sealed class RevokeInvitationTests
     [Fact]
     public async Task Handle_AlreadyAcceptedInvitation_ReturnsBadRequest()
     {
-        var invitation = MakePendingInvitation();
-        invitation.Status = InviteStatus.Accepted;
-        _invitationRepo.GetByIdAsync(_invitationId, Arg.Any<CancellationToken>()).Returns(invitation);
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>()).Returns(OrgRole.Owner);
+        var (_, invitation) = await SeedPendingInvitationAsync(OrgRole.Owner, InviteStatus.Accepted);
 
-        var result = await CreateHandler().Handle(new RevokeInvitationCommand(_invitationId), CancellationToken.None);
+        var result = await Sender.Send(new RevokeInvitationCommand(invitation.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().ContainEquivalentOf("already", o => o.IgnoringCase());

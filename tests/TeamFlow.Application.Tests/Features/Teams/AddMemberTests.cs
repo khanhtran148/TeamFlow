@@ -1,60 +1,51 @@
-using CSharpFunctionalExtensions;
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
-using TeamFlow.Application.Features.Teams;
 using TeamFlow.Application.Features.Teams.AddTeamMember;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Teams;
 
-public sealed class AddMemberTests
+[Collection("Projects")]
+public sealed class AddMemberTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ITeamRepository _teamRepo = Substitute.For<ITeamRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    public AddMemberTests()
-    {
-        _currentUser.Id.Returns(Guid.NewGuid());
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private AddTeamMemberHandler CreateHandler() => new(_teamRepo, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_ValidCommand_ReturnsSuccess()
     {
-        var orgId = Guid.NewGuid();
-        var team = TeamBuilder.New().WithOrganization(orgId).Build();
-        var userId = Guid.NewGuid();
+        var team = TeamBuilder.New().WithOrganization(SeedOrgId).Build();
+        DbContext.Teams.Add(team);
+        var memberUser = UserBuilder.New().WithEmail("addteam-member@example.com").Build();
+        DbContext.Users.Add(memberUser);
+        await DbContext.SaveChangesAsync();
 
-        _teamRepo.GetByIdWithMembersAsync(team.Id, Arg.Any<CancellationToken>()).Returns(team);
-        _teamRepo.UpdateAsync(Arg.Any<Team>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Team>());
-
+        var userId = memberUser.Id;
         var cmd = new AddTeamMemberCommand(team.Id, userId, ProjectRole.Developer);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
-        team.Members.Should().ContainSingle(m => m.UserId == userId);
+        DbContext.ChangeTracker.Clear();
+        var updated = await DbContext.Teams.FindAsync(team.Id);
+        DbContext.Entry(updated!).Collection(t => t.Members).Load();
+        updated!.Members.Should().ContainSingle(m => m.UserId == userId);
     }
 
     [Fact]
     public async Task Handle_DuplicateMember_ReturnsConflict()
     {
-        var userId = Guid.NewGuid();
-        var team = TeamBuilder.New().WithMember(userId).Build();
+        var memberUser = UserBuilder.New().WithEmail("addteam-dup@example.com").Build();
+        DbContext.Users.Add(memberUser);
+        await DbContext.SaveChangesAsync();
 
-        _teamRepo.GetByIdWithMembersAsync(team.Id, Arg.Any<CancellationToken>()).Returns(team);
+        var userId = memberUser.Id;
+        var team = TeamBuilder.New().WithOrganization(SeedOrgId).WithMember(userId).Build();
+        DbContext.Teams.Add(team);
+        await DbContext.SaveChangesAsync();
 
         var cmd = new AddTeamMemberCommand(team.Id, userId, ProjectRole.Developer);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("already a member");
@@ -63,32 +54,11 @@ public sealed class AddMemberTests
     [Fact]
     public async Task Handle_TeamNotFound_ReturnsNotFound()
     {
-        var teamId = Guid.NewGuid();
-        _teamRepo.GetByIdWithMembersAsync(teamId, Arg.Any<CancellationToken>()).Returns((Team?)null);
-
-        var cmd = new AddTeamMemberCommand(teamId, Guid.NewGuid(), ProjectRole.Developer);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var cmd = new AddTeamMemberCommand(Guid.NewGuid(), Guid.NewGuid(), ProjectRole.Developer);
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
-    }
-
-    [Fact]
-    public async Task Handle_InsufficientPermission_ReturnsForbidden()
-    {
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        var teamId = Guid.NewGuid();
-        var team = TeamBuilder.New().Build();
-        _teamRepo.GetByIdWithMembersAsync(teamId, Arg.Any<CancellationToken>()).Returns(team);
-
-        var cmd = new AddTeamMemberCommand(teamId, Guid.NewGuid(), ProjectRole.Developer);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be("Access denied");
     }
 
     [Fact]
@@ -113,5 +83,29 @@ public sealed class AddMemberTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == nameof(AddTeamMemberCommand.TeamId));
+    }
+}
+
+[Collection("Projects")]
+public sealed class AddMemberForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
+    }
+
+    [Fact]
+    public async Task Handle_InsufficientPermission_ReturnsForbidden()
+    {
+        var team = TeamBuilder.New().WithOrganization(SeedOrgId).Build();
+        DbContext.Teams.Add(team);
+        await DbContext.SaveChangesAsync();
+
+        var cmd = new AddTeamMemberCommand(team.Id, Guid.NewGuid(), ProjectRole.Developer);
+        var result = await Sender.Send(cmd);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be("Access denied");
     }
 }

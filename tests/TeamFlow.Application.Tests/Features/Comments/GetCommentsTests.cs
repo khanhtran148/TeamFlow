@@ -1,49 +1,30 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Comments.GetComments;
-using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Comments;
 
-public sealed class GetCommentsTests
+[Collection("Social")]
+public sealed class GetCommentsTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ICommentRepository _commentRepo = Substitute.For<ICommentRepository>();
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    private static readonly Guid UserId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public GetCommentsTests()
-    {
-        _currentUser.Id.Returns(UserId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private GetCommentsHandler CreateHandler() =>
-        new(_commentRepo, _workItemRepo, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_ValidWorkItem_ReturnsPaginatedComments()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
 
-        var author = new User { Name = "Author" };
-        var comments = new List<Comment>
-        {
-            new() { WorkItemId = workItem.Id, AuthorId = UserId, Content = "Comment 1", Author = author, Replies = [] },
-            new() { WorkItemId = workItem.Id, AuthorId = UserId, Content = "Comment 2", Author = author, Replies = [] }
-        };
-        _commentRepo.GetByWorkItemPagedAsync(workItem.Id, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((comments.AsEnumerable(), 2));
+        DbContext.Set<TeamFlow.Domain.Entities.Comment>().AddRange(
+            CommentBuilder.New().WithWorkItem(workItem.Id).WithAuthor(SeedUserId).WithContent("Comment 1").Build(),
+            CommentBuilder.New().WithWorkItem(workItem.Id).WithAuthor(SeedUserId).WithContent("Comment 2").Build()
+        );
+        await DbContext.SaveChangesAsync();
 
         var query = new GetCommentsQuery(workItem.Id);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().HaveCount(2);
@@ -54,14 +35,11 @@ public sealed class GetCommentsTests
     [Fact]
     public async Task Handle_EmptyWorkItem_ReturnsEmptyList()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
-
-        _commentRepo.GetByWorkItemPagedAsync(workItem.Id, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((Enumerable.Empty<Comment>(), 0));
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
 
         var query = new GetCommentsQuery(workItem.Id);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().BeEmpty();
@@ -71,64 +49,65 @@ public sealed class GetCommentsTests
     [Fact]
     public async Task Handle_InvalidWorkItem_ReturnsNotFound()
     {
-        _workItemRepo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns((WorkItem?)null);
-
         var query = new GetCommentsQuery(Guid.NewGuid());
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var result = await Sender.Send(query);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Work item not found");
     }
 
     [Fact]
-    public async Task Handle_NoPermission_ReturnsForbidden()
-    {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
-        _permissions.HasPermissionAsync(UserId, ProjectId, Permission.Comment_View, Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        var query = new GetCommentsQuery(workItem.Id);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Contain("Access denied");
-    }
-
-    [Fact]
     public async Task Handle_ThreadedComments_IncludesReplies()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
 
-        var author = new User { Name = "Author" };
-        var reply = new Comment
-        {
-            WorkItemId = workItem.Id,
-            AuthorId = UserId,
-            Content = "Reply",
-            Author = author,
-            Replies = []
-        };
-        var parentComment = new Comment
-        {
-            WorkItemId = workItem.Id,
-            AuthorId = UserId,
-            Content = "Parent",
-            Author = author,
-            Replies = [reply]
-        };
+        var parentComment = CommentBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithAuthor(SeedUserId)
+            .WithContent("Parent")
+            .Build();
+        DbContext.Set<TeamFlow.Domain.Entities.Comment>().Add(parentComment);
+        await DbContext.SaveChangesAsync();
 
-        _commentRepo.GetByWorkItemPagedAsync(workItem.Id, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((new[] { parentComment }.AsEnumerable(), 1));
+        var reply = CommentBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithAuthor(SeedUserId)
+            .WithContent("Reply")
+            .WithParent(parentComment.Id)
+            .Build();
+        DbContext.Set<TeamFlow.Domain.Entities.Comment>().Add(reply);
+        await DbContext.SaveChangesAsync();
 
         var query = new GetCommentsQuery(workItem.Id);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().HaveCount(1);
         result.Value.Items[0].Replies.Should().HaveCount(1);
         result.Value.Items[0].Replies[0].Content.Should().Be("Reply");
+    }
+}
+
+[Collection("Social")]
+public sealed class GetCommentsForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
+    }
+
+    [Fact]
+    public async Task Handle_NoPermission_ReturnsForbidden()
+    {
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
+
+        var query = new GetCommentsQuery(workItem.Id);
+        var result = await Sender.Send(query);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("Access denied");
     }
 }

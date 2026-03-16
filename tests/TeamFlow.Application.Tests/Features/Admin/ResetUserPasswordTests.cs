@@ -1,39 +1,38 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Admin.ResetUserPassword;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Admin;
 
-public sealed class ResetUserPasswordTests
+[Collection("Auth")]
+public sealed class ResetUserPasswordTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IUserRepository _userRepo = Substitute.For<IUserRepository>();
-    private readonly IRefreshTokenRepository _refreshTokenRepo = Substitute.For<IRefreshTokenRepository>();
     private readonly IAuthService _authService = Substitute.For<IAuthService>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
 
-    private AdminResetUserPasswordHandler CreateHandler() =>
-        new(_userRepo, _refreshTokenRepo, _authService, _currentUser);
-
-    private void SetupSystemAdmin()
+    protected override void ConfigureServices(IServiceCollection services)
     {
-        _currentUser.SystemRole.Returns(SystemRole.SystemAdmin);
-        _currentUser.Id.Returns(Guid.NewGuid());
+        services.AddScoped<ICurrentUser>(_ => new TestAdminCurrentUser(SeedUserId));
+        services.AddSingleton(_authService);
     }
 
     [Fact]
     public async Task Handle_SystemAdmin_ResetsPasswordSuccessfully()
     {
-        SetupSystemAdmin();
-        var targetUser = UserBuilder.New().WithEmail("target@example.com").Build();
-        _userRepo.GetByIdAsync(targetUser.Id, Arg.Any<CancellationToken>()).Returns(targetUser);
-        _authService.HashPassword("NewPass@123").Returns("new-hashed-password");
-        var cmd = new AdminResetUserPasswordCommand(targetUser.Id, "NewPass@123");
+        var targetUser = UserBuilder.New().WithEmail("rup-target@example.com").Build();
+        DbContext.Set<User>().Add(targetUser);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        _authService.HashPassword("NewPass@123").Returns("new-hashed-password");
+
+        var result = await Sender.Send(new AdminResetUserPasswordCommand(targetUser.Id, "NewPass@123"));
 
         result.IsSuccess.Should().BeTrue();
     }
@@ -41,67 +40,63 @@ public sealed class ResetUserPasswordTests
     [Fact]
     public async Task Handle_SystemAdmin_HashesPassword()
     {
-        SetupSystemAdmin();
-        var targetUser = UserBuilder.New().Build();
-        _userRepo.GetByIdAsync(targetUser.Id, Arg.Any<CancellationToken>()).Returns(targetUser);
+        var targetUser = UserBuilder.New().WithEmail("rup-hash@example.com").Build();
+        DbContext.Set<User>().Add(targetUser);
+        await DbContext.SaveChangesAsync();
+
         _authService.HashPassword("NewPass@123").Returns("new-hashed-password");
-        var cmd = new AdminResetUserPasswordCommand(targetUser.Id, "NewPass@123");
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        await Sender.Send(new AdminResetUserPasswordCommand(targetUser.Id, "NewPass@123"));
 
-        targetUser.PasswordHash.Should().Be("new-hashed-password");
+        var updatedUser = await DbContext.Set<User>().FindAsync(targetUser.Id);
+        updatedUser!.PasswordHash.Should().Be("new-hashed-password");
     }
 
     [Fact]
     public async Task Handle_SystemAdmin_SetsMustChangePasswordTrue()
     {
-        SetupSystemAdmin();
-        var targetUser = UserBuilder.New().WithMustChangePassword(false).Build();
-        _userRepo.GetByIdAsync(targetUser.Id, Arg.Any<CancellationToken>()).Returns(targetUser);
+        var targetUser = UserBuilder.New().WithEmail("rup-mcp@example.com").WithMustChangePassword(false).Build();
+        DbContext.Set<User>().Add(targetUser);
+        await DbContext.SaveChangesAsync();
+
         _authService.HashPassword(Arg.Any<string>()).Returns("hashed");
-        var cmd = new AdminResetUserPasswordCommand(targetUser.Id, "NewPass@123");
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        await Sender.Send(new AdminResetUserPasswordCommand(targetUser.Id, "NewPass@123"));
 
-        targetUser.MustChangePassword.Should().BeTrue();
+        var updatedUser = await DbContext.Set<User>().FindAsync(targetUser.Id);
+        updatedUser!.MustChangePassword.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_SystemAdmin_RevokesAllRefreshTokens()
     {
-        SetupSystemAdmin();
-        var targetUser = UserBuilder.New().Build();
-        _userRepo.GetByIdAsync(targetUser.Id, Arg.Any<CancellationToken>()).Returns(targetUser);
+        var targetUser = UserBuilder.New().WithEmail("rup-revoke@example.com").Build();
+        DbContext.Set<User>().Add(targetUser);
+        await DbContext.SaveChangesAsync();
+
+        DbContext.Set<RefreshToken>().Add(new RefreshToken
+        {
+            UserId = targetUser.Id,
+            TokenHash = "token-rup",
+            ExpiresAt = DateTime.UtcNow.AddDays(7)
+        });
+        await DbContext.SaveChangesAsync();
+
         _authService.HashPassword(Arg.Any<string>()).Returns("hashed");
-        var cmd = new AdminResetUserPasswordCommand(targetUser.Id, "NewPass@123");
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        await Sender.Send(new AdminResetUserPasswordCommand(targetUser.Id, "NewPass@123"));
 
-        await _refreshTokenRepo.Received(1).RevokeAllForUserAsync(targetUser.Id, Arg.Any<CancellationToken>());
-    }
-
-    [Theory]
-    [InlineData(SystemRole.User)]
-    public async Task Handle_NonSystemAdmin_ReturnsForbidden(SystemRole role)
-    {
-        _currentUser.SystemRole.Returns(role);
-        var cmd = new AdminResetUserPasswordCommand(Guid.NewGuid(), "NewPass@123");
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.ToLowerInvariant().Should().Contain("forbidden");
+        var activeTokens = await DbContext.Set<RefreshToken>()
+            .Where(t => t.UserId == targetUser.Id && t.RevokedAt == null)
+            .CountAsync();
+        activeTokens.Should().Be(0);
     }
 
     [Fact]
     public async Task Handle_UserNotFound_ReturnsNotFound()
     {
-        SetupSystemAdmin();
-        var userId = Guid.NewGuid();
-        _userRepo.GetByIdAsync(userId, Arg.Any<CancellationToken>()).Returns((User?)null);
-        var cmd = new AdminResetUserPasswordCommand(userId, "NewPass@123");
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        _authService.HashPassword(Arg.Any<string>()).Returns("hashed");
+        var result = await Sender.Send(new AdminResetUserPasswordCommand(Guid.NewGuid(), "NewPass@123"));
 
         result.IsFailure.Should().BeTrue();
         result.Error.ToLowerInvariant().Should().Contain("not found");
@@ -115,9 +110,7 @@ public sealed class ResetUserPasswordTests
     {
         var validator = new AdminResetUserPasswordValidator();
         var cmd = new AdminResetUserPasswordCommand(Guid.NewGuid(), password!);
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeFalse();
     }
 
@@ -126,9 +119,7 @@ public sealed class ResetUserPasswordTests
     {
         var validator = new AdminResetUserPasswordValidator();
         var cmd = new AdminResetUserPasswordCommand(Guid.NewGuid(), "ValidPass@1");
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeTrue();
     }
 
@@ -137,9 +128,27 @@ public sealed class ResetUserPasswordTests
     {
         var validator = new AdminResetUserPasswordValidator();
         var cmd = new AdminResetUserPasswordCommand(Guid.Empty, "ValidPass@1");
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeFalse();
+    }
+}
+
+[Collection("Auth")]
+public sealed class ResetUserPasswordForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        var authService = Substitute.For<IAuthService>();
+        services.AddSingleton(authService);
+    }
+
+    [Fact]
+    public async Task Handle_NonSystemAdmin_ReturnsForbidden()
+    {
+        var result = await Sender.Send(new AdminResetUserPasswordCommand(Guid.NewGuid(), "NewPass@123"));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.ToLowerInvariant().Should().Contain("forbidden");
     }
 }

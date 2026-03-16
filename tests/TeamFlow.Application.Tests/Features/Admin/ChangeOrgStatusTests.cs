@@ -1,104 +1,98 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Admin.ChangeOrgStatus;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Admin;
 
-public sealed class ChangeOrgStatusTests
+[Collection("Auth")]
+public sealed class ChangeOrgStatusTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IOrganizationRepository _orgRepo = Substitute.For<IOrganizationRepository>();
-    private readonly IInvitationRepository _invitationRepo = Substitute.For<IInvitationRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private AdminChangeOrgStatusHandler CreateHandler() =>
-        new(_orgRepo, _invitationRepo, _currentUser);
-
-    private void SetupSystemAdmin()
+    protected override void ConfigureServices(IServiceCollection services)
     {
-        _currentUser.SystemRole.Returns(SystemRole.SystemAdmin);
-        _currentUser.Id.Returns(Guid.NewGuid());
+        services.AddScoped<ICurrentUser>(_ => new TestAdminCurrentUser(SeedUserId));
     }
 
     [Fact]
     public async Task Handle_SystemAdmin_DeactivatesOrg()
     {
-        SetupSystemAdmin();
         var org = OrganizationBuilder.New().WithIsActive(true).Build();
-        _orgRepo.GetByIdAsync(org.Id, Arg.Any<CancellationToken>()).Returns(org);
-        var cmd = new AdminChangeOrgStatusCommand(org.Id, false);
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminChangeOrgStatusCommand(org.Id, false));
 
         result.IsSuccess.Should().BeTrue();
-        org.IsActive.Should().BeFalse();
+        var updated = await DbContext.Set<Organization>().FindAsync(org.Id);
+        updated!.IsActive.Should().BeFalse();
     }
 
     [Fact]
     public async Task Handle_SystemAdmin_ActivatesOrg()
     {
-        SetupSystemAdmin();
         var org = OrganizationBuilder.New().WithIsActive(false).Build();
-        _orgRepo.GetByIdAsync(org.Id, Arg.Any<CancellationToken>()).Returns(org);
-        var cmd = new AdminChangeOrgStatusCommand(org.Id, true);
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminChangeOrgStatusCommand(org.Id, true));
 
         result.IsSuccess.Should().BeTrue();
-        org.IsActive.Should().BeTrue();
+        var updated = await DbContext.Set<Organization>().FindAsync(org.Id);
+        updated!.IsActive.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_Deactivation_RevokesPendingInvitations()
     {
-        SetupSystemAdmin();
         var org = OrganizationBuilder.New().WithIsActive(true).Build();
-        _orgRepo.GetByIdAsync(org.Id, Arg.Any<CancellationToken>()).Returns(org);
-        var cmd = new AdminChangeOrgStatusCommand(org.Id, false);
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        var pendingInv = InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithStatus(InviteStatus.Pending)
+            .Build();
+        DbContext.Set<Invitation>().Add(pendingInv);
+        await DbContext.SaveChangesAsync();
 
-        await _invitationRepo.Received(1).RevokePendingByOrgAsync(org.Id, Arg.Any<CancellationToken>());
+        await Sender.Send(new AdminChangeOrgStatusCommand(org.Id, false));
+
+        var inv = await DbContext.Set<Invitation>().FindAsync(pendingInv.Id);
+        inv!.Status.Should().Be(InviteStatus.Revoked);
     }
 
     [Fact]
     public async Task Handle_Activation_DoesNotRevokePendingInvitations()
     {
-        SetupSystemAdmin();
         var org = OrganizationBuilder.New().WithIsActive(false).Build();
-        _orgRepo.GetByIdAsync(org.Id, Arg.Any<CancellationToken>()).Returns(org);
-        var cmd = new AdminChangeOrgStatusCommand(org.Id, true);
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        var pendingInv = InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithStatus(InviteStatus.Pending)
+            .Build();
+        DbContext.Set<Invitation>().Add(pendingInv);
+        await DbContext.SaveChangesAsync();
 
-        await _invitationRepo.DidNotReceive().RevokePendingByOrgAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-    }
+        await Sender.Send(new AdminChangeOrgStatusCommand(org.Id, true));
 
-    [Theory]
-    [InlineData(SystemRole.User)]
-    public async Task Handle_NonSystemAdmin_ReturnsForbidden(SystemRole role)
-    {
-        _currentUser.SystemRole.Returns(role);
-        var cmd = new AdminChangeOrgStatusCommand(Guid.NewGuid(), false);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.ToLowerInvariant().Should().Contain("forbidden");
+        var inv = await DbContext.Set<Invitation>().FindAsync(pendingInv.Id);
+        inv!.Status.Should().Be(InviteStatus.Pending);
     }
 
     [Fact]
     public async Task Handle_OrgNotFound_ReturnsNotFound()
     {
-        SetupSystemAdmin();
-        var orgId = Guid.NewGuid();
-        _orgRepo.GetByIdAsync(orgId, Arg.Any<CancellationToken>()).Returns((Organization?)null);
-        var cmd = new AdminChangeOrgStatusCommand(orgId, false);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminChangeOrgStatusCommand(Guid.NewGuid(), false));
 
         result.IsFailure.Should().BeTrue();
         result.Error.ToLowerInvariant().Should().Contain("not found");
@@ -109,9 +103,7 @@ public sealed class ChangeOrgStatusTests
     {
         var validator = new AdminChangeOrgStatusValidator();
         var cmd = new AdminChangeOrgStatusCommand(Guid.Empty, false);
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeFalse();
     }
 
@@ -120,9 +112,21 @@ public sealed class ChangeOrgStatusTests
     {
         var validator = new AdminChangeOrgStatusValidator();
         var cmd = new AdminChangeOrgStatusCommand(Guid.NewGuid(), true);
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeTrue();
+    }
+}
+
+[Collection("Auth")]
+public sealed class ChangeOrgStatusForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    [Fact]
+    public async Task Handle_NonSystemAdmin_ReturnsForbidden()
+    {
+        var result = await Sender.Send(new AdminChangeOrgStatusCommand(Guid.NewGuid(), false));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.ToLowerInvariant().Should().Contain("forbidden");
     }
 }

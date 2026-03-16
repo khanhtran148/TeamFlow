@@ -1,54 +1,43 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Notifications.GetNotifications;
-using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Notifications;
 
-public sealed class GetNotificationsTests
+[Collection("Social")]
+public sealed class GetNotificationsTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IInAppNotificationRepository _notifRepo = Substitute.For<IInAppNotificationRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public GetNotificationsTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-    }
-
-    private GetNotificationsHandler CreateHandler() => new(_notifRepo, _currentUser);
-
     [Fact]
     public async Task Handle_ReturnsCurrentUserNotifications()
     {
-        var notifications = new[]
-        {
-            InAppNotificationBuilder.New().WithRecipient(ActorId).Build(),
-            InAppNotificationBuilder.New().WithRecipient(ActorId).Build()
-        };
-        _notifRepo.GetByRecipientPagedAsync(ActorId, null, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((notifications.AsEnumerable(), 2));
+        DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>().AddRange(
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build(),
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build()
+        );
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new GetNotificationsQuery(null, 1, 20), CancellationToken.None);
+        var result = await Sender.Send(new GetNotificationsQuery(null, 1, 20));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.TotalCount.Should().Be(2);
+        result.Value.TotalCount.Should().BeGreaterThanOrEqualTo(2);
     }
 
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task Handle_FilterByIsRead_PassesFilter(bool isRead)
+    public async Task Handle_FilterByIsRead_ReturnsFilteredNotifications(bool isRead)
     {
-        _notifRepo.GetByRecipientPagedAsync(ActorId, isRead, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((Enumerable.Empty<InAppNotification>(), 0));
+        DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>().AddRange(
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build(),
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Read().Build()
+        );
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new GetNotificationsQuery(isRead, 1, 20), CancellationToken.None);
+        var result = await Sender.Send(new GetNotificationsQuery(isRead, 1, 20));
 
         result.IsSuccess.Should().BeTrue();
-        await _notifRepo.Received(1).GetByRecipientPagedAsync(ActorId, isRead, 1, 20, Arg.Any<CancellationToken>());
+        result.Value.Items.Should().AllSatisfy(n => n.IsRead.Should().Be(isRead));
     }
 }

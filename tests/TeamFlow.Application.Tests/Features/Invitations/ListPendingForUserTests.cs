@@ -1,48 +1,42 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Invitations;
 using TeamFlow.Application.Features.Invitations.ListPendingForUser;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Invitations;
 
-public sealed class ListPendingForUserTests
+[Collection("Auth")]
+public sealed class ListPendingForUserTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IInvitationRepository _invitationRepo = Substitute.For<IInvitationRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly Guid _userId = Guid.NewGuid();
-    private const string UserEmail = "user@example.com";
+    // TestCurrentUser has Email = "test@teamflow.dev"
+    private const string UserEmail = "test@teamflow.dev";
 
-    public ListPendingForUserTests()
+    private async Task<Organization> SeedOrgAsync()
     {
-        _currentUser.Id.Returns(_userId);
-        _currentUser.Email.Returns(UserEmail);
+        var org = OrganizationBuilder.New().Build();
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
+        return org;
     }
-
-    private ListPendingForUserHandler CreateHandler() =>
-        new(_invitationRepo, _currentUser);
 
     [Fact]
     public async Task Handle_ReturnsPendingInvitationsMatchingUserEmail()
     {
-        var pendingInvitation = new Invitation
-        {
-            OrganizationId = Guid.NewGuid(),
-            Email = UserEmail,
-            Role = OrgRole.Member,
-            TokenHash = "hash1",
-            Status = InviteStatus.Pending,
-            ExpiresAt = DateTime.UtcNow.AddDays(5),
-            InvitedByUserId = Guid.NewGuid()
-        };
+        var org = await SeedOrgAsync();
+        DbContext.Set<Invitation>().Add(InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithEmail(UserEmail)
+            .WithStatus(InviteStatus.Pending)
+            .WithExpiresAt(DateTime.UtcNow.AddDays(5))
+            .Build());
+        await DbContext.SaveChangesAsync();
 
-        _invitationRepo.ListPendingByEmailAsync(UserEmail, Arg.Any<CancellationToken>())
-            .Returns([pendingInvitation]);
-
-        var result = await CreateHandler().Handle(
-            new ListPendingForUserQuery(), CancellationToken.None);
+        var result = await Sender.Send(new ListPendingForUserQuery());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().HaveCount(1);
@@ -51,22 +45,17 @@ public sealed class ListPendingForUserTests
     [Fact]
     public async Task Handle_ExcludesExpiredInvitations()
     {
-        var expiredInvitation = new Invitation
-        {
-            OrganizationId = Guid.NewGuid(),
-            Email = UserEmail,
-            Role = OrgRole.Member,
-            TokenHash = "hash2",
-            Status = InviteStatus.Pending,
-            ExpiresAt = DateTime.UtcNow.AddDays(-1), // expired
-            InvitedByUserId = Guid.NewGuid()
-        };
+        var org = await SeedOrgAsync();
+        DbContext.Set<Invitation>().Add(InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithEmail(UserEmail)
+            .WithStatus(InviteStatus.Pending)
+            .WithExpiresAt(DateTime.UtcNow.AddDays(-1))
+            .Build());
+        await DbContext.SaveChangesAsync();
 
-        _invitationRepo.ListPendingByEmailAsync(UserEmail, Arg.Any<CancellationToken>())
-            .Returns([expiredInvitation]);
-
-        var result = await CreateHandler().Handle(
-            new ListPendingForUserQuery(), CancellationToken.None);
+        var result = await Sender.Send(new ListPendingForUserQuery());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();
@@ -75,22 +64,17 @@ public sealed class ListPendingForUserTests
     [Fact]
     public async Task Handle_ExcludesRevokedInvitations()
     {
-        var revokedInvitation = new Invitation
-        {
-            OrganizationId = Guid.NewGuid(),
-            Email = UserEmail,
-            Role = OrgRole.Member,
-            TokenHash = "hash-revoked",
-            Status = InviteStatus.Revoked,
-            ExpiresAt = DateTime.UtcNow.AddDays(5),
-            InvitedByUserId = Guid.NewGuid()
-        };
+        var org = await SeedOrgAsync();
+        DbContext.Set<Invitation>().Add(InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithEmail(UserEmail)
+            .WithStatus(InviteStatus.Revoked)
+            .WithExpiresAt(DateTime.UtcNow.AddDays(5))
+            .Build());
+        await DbContext.SaveChangesAsync();
 
-        _invitationRepo.ListPendingByEmailAsync(UserEmail, Arg.Any<CancellationToken>())
-            .Returns([revokedInvitation]);
-
-        var result = await CreateHandler().Handle(
-            new ListPendingForUserQuery(), CancellationToken.None);
+        var result = await Sender.Send(new ListPendingForUserQuery());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();
@@ -99,24 +83,17 @@ public sealed class ListPendingForUserTests
     [Fact]
     public async Task Handle_ExcludesAcceptedInvitations()
     {
-        var acceptedInvitation = new Invitation
-        {
-            OrganizationId = Guid.NewGuid(),
-            Email = UserEmail,
-            Role = OrgRole.Member,
-            TokenHash = "hash-accepted",
-            Status = InviteStatus.Accepted,
-            ExpiresAt = DateTime.UtcNow.AddDays(5),
-            InvitedByUserId = Guid.NewGuid(),
-            AcceptedAt = DateTime.UtcNow.AddDays(-1),
-            AcceptedByUserId = Guid.NewGuid()
-        };
+        var org = await SeedOrgAsync();
+        DbContext.Set<Invitation>().Add(InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithEmail(UserEmail)
+            .WithStatus(InviteStatus.Accepted)
+            .WithExpiresAt(DateTime.UtcNow.AddDays(5))
+            .Build());
+        await DbContext.SaveChangesAsync();
 
-        _invitationRepo.ListPendingByEmailAsync(UserEmail, Arg.Any<CancellationToken>())
-            .Returns([acceptedInvitation]);
-
-        var result = await CreateHandler().Handle(
-            new ListPendingForUserQuery(), CancellationToken.None);
+        var result = await Sender.Send(new ListPendingForUserQuery());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();
@@ -125,11 +102,7 @@ public sealed class ListPendingForUserTests
     [Fact]
     public async Task Handle_ReturnsEmptyWhenNoInvitations()
     {
-        _invitationRepo.ListPendingByEmailAsync(UserEmail, Arg.Any<CancellationToken>())
-            .Returns([]);
-
-        var result = await CreateHandler().Handle(
-            new ListPendingForUserQuery(), CancellationToken.None);
+        var result = await Sender.Send(new ListPendingForUserQuery());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();
@@ -138,27 +111,22 @@ public sealed class ListPendingForUserTests
     [Fact]
     public async Task Handle_ReturnsMappedDto()
     {
-        var orgId = Guid.NewGuid();
-        var invitation = new Invitation
-        {
-            OrganizationId = orgId,
-            Email = UserEmail,
-            Role = OrgRole.Admin,
-            TokenHash = "hash3",
-            Status = InviteStatus.Pending,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            InvitedByUserId = Guid.NewGuid()
-        };
+        var org = await SeedOrgAsync();
+        DbContext.Set<Invitation>().Add(InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithEmail(UserEmail)
+            .WithRole(OrgRole.Admin)
+            .WithStatus(InviteStatus.Pending)
+            .WithExpiresAt(DateTime.UtcNow.AddDays(7))
+            .Build());
+        await DbContext.SaveChangesAsync();
 
-        _invitationRepo.ListPendingByEmailAsync(UserEmail, Arg.Any<CancellationToken>())
-            .Returns([invitation]);
-
-        var result = await CreateHandler().Handle(
-            new ListPendingForUserQuery(), CancellationToken.None);
+        var result = await Sender.Send(new ListPendingForUserQuery());
 
         result.IsSuccess.Should().BeTrue();
         var dto = result.Value.Single();
-        dto.OrganizationId.Should().Be(orgId);
+        dto.OrganizationId.Should().Be(org.Id);
         dto.Role.Should().Be(OrgRole.Admin);
         dto.Status.Should().Be(InviteStatus.Pending);
     }

@@ -20,6 +20,7 @@ CREATE TABLE users (
   email         VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   name          VARCHAR(100) NOT NULL,
+  avatar_url    VARCHAR(1000),            -- nullable; user-supplied URL
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -109,6 +110,7 @@ CREATE TABLE work_items (
 
   -- Assignments
   assignee_id     UUID REFERENCES users(id),
+  assigned_at     TIMESTAMPTZ,             -- set when assignee is set, cleared on unassign
   sprint_id       UUID REFERENCES sprints(id),
   release_id      UUID REFERENCES releases(id),
 

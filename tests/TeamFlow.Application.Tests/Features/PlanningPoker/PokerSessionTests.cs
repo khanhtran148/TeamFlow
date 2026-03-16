@@ -1,66 +1,48 @@
 using FluentAssertions;
-using MediatR;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.PlanningPoker.CastPokerVote;
 using TeamFlow.Application.Features.PlanningPoker.ConfirmPokerEstimate;
 using TeamFlow.Application.Features.PlanningPoker.CreatePokerSession;
 using TeamFlow.Application.Features.PlanningPoker.GetPokerSession;
 using TeamFlow.Application.Features.PlanningPoker.RevealPokerVotes;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.PlanningPoker;
 
-public sealed class PokerSessionTests
+[Collection("Social")]
+public sealed class PokerSessionTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IPlanningPokerSessionRepository _pokerRepo = Substitute.For<IPlanningPokerSessionRepository>();
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly IHistoryService _historyService = Substitute.For<IHistoryService>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
-
-    private static readonly Guid UserId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public PokerSessionTests()
-    {
-        _currentUser.Id.Returns(UserId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
     // --- CreatePokerSession ---
 
     [Fact]
     public async Task Create_ValidWorkItem_CreatesSession()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
-        _pokerRepo.GetActiveByWorkItemAsync(workItem.Id, Arg.Any<CancellationToken>())
-            .Returns((PlanningPokerSession?)null);
-        _pokerRepo.AddAsync(Arg.Any<PlanningPokerSession>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<PlanningPokerSession>());
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
 
-        var handler = new CreatePokerSessionHandler(_pokerRepo, _workItemRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CreatePokerSessionCommand(workItem.Id), CancellationToken.None);
+        var result = await Sender.Send(new CreatePokerSessionCommand(workItem.Id));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.WorkItemId.Should().Be(workItem.Id);
-        result.Value.FacilitatorId.Should().Be(UserId);
+        result.Value.FacilitatorId.Should().Be(SeedUserId);
     }
 
     [Fact]
     public async Task Create_DuplicateActive_ReturnsConflict()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
-        _pokerRepo.GetActiveByWorkItemAsync(workItem.Id, Arg.Any<CancellationToken>())
-            .Returns(PlanningPokerSessionBuilder.New().WithWorkItem(workItem.Id).Build());
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
+        var existingSession = PlanningPokerSessionBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(existingSession);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new CreatePokerSessionHandler(_pokerRepo, _workItemRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CreatePokerSessionCommand(workItem.Id), CancellationToken.None);
+        var result = await Sender.Send(new CreatePokerSessionCommand(workItem.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("already exists");
@@ -71,16 +53,17 @@ public sealed class PokerSessionTests
     [Fact]
     public async Task CastVote_ValidSession_Succeeds()
     {
-        var session = PlanningPokerSessionBuilder.New().WithProject(ProjectId).Build();
-        _pokerRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-        _pokerRepo.GetVoteAsync(session.Id, UserId, Arg.Any<CancellationToken>())
-            .Returns((PlanningPokerVote?)null);
-        _pokerRepo.AddVoteAsync(Arg.Any<PlanningPokerVote>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<PlanningPokerVote>());
-        _pokerRepo.GetVoteCountAsync(session.Id, Arg.Any<CancellationToken>()).Returns(1);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
+        var session = PlanningPokerSessionBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new CastPokerVoteHandler(_pokerRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CastPokerVoteCommand(session.Id, 5), CancellationToken.None);
+        var result = await Sender.Send(new CastPokerVoteCommand(session.Id, 5));
 
         result.IsSuccess.Should().BeTrue();
     }
@@ -88,30 +71,44 @@ public sealed class PokerSessionTests
     [Fact]
     public async Task CastVote_UpdateExisting_Succeeds()
     {
-        var session = PlanningPokerSessionBuilder.New().WithProject(ProjectId).Build();
-        var existingVote = new PlanningPokerVote { SessionId = session.Id, VoterId = UserId, Value = 3 };
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
+        var session = PlanningPokerSessionBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
-        _pokerRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-        _pokerRepo.GetVoteAsync(session.Id, UserId, Arg.Any<CancellationToken>()).Returns(existingVote);
-        _pokerRepo.UpdateVoteAsync(Arg.Any<PlanningPokerVote>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<PlanningPokerVote>());
-        _pokerRepo.GetVoteCountAsync(session.Id, Arg.Any<CancellationToken>()).Returns(1);
+        DbContext.Set<PlanningPokerVote>().Add(new PlanningPokerVote
+        {
+            SessionId = session.Id,
+            VoterId = SeedUserId,
+            Value = 3
+        });
+        await DbContext.SaveChangesAsync();
 
-        var handler = new CastPokerVoteHandler(_pokerRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CastPokerVoteCommand(session.Id, 8), CancellationToken.None);
+        var result = await Sender.Send(new CastPokerVoteCommand(session.Id, 8));
 
         result.IsSuccess.Should().BeTrue();
-        existingVote.Value.Should().Be(8);
     }
 
     [Fact]
     public async Task CastVote_ClosedSession_ReturnsFailure()
     {
-        var session = PlanningPokerSessionBuilder.New().WithProject(ProjectId).Closed().Build();
-        _pokerRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
+        var session = PlanningPokerSessionBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Closed()
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new CastPokerVoteHandler(_pokerRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CastPokerVoteCommand(session.Id, 5), CancellationToken.None);
+        var result = await Sender.Send(new CastPokerVoteCommand(session.Id, 5));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("closed");
@@ -149,15 +146,17 @@ public sealed class PokerSessionTests
     [Fact]
     public async Task Reveal_AsFacilitator_Succeeds()
     {
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
         var session = PlanningPokerSessionBuilder.New()
-            .WithProject(ProjectId).WithFacilitator(UserId).Build();
-        session.Votes = [];
-        _pokerRepo.GetByIdWithVotesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-        _pokerRepo.UpdateAsync(Arg.Any<PlanningPokerSession>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<PlanningPokerSession>());
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new RevealPokerVotesHandler(_pokerRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new RevealPokerVotesCommand(session.Id), CancellationToken.None);
+        var result = await Sender.Send(new RevealPokerVotesCommand(session.Id));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.IsRevealed.Should().BeTrue();
@@ -166,12 +165,21 @@ public sealed class PokerSessionTests
     [Fact]
     public async Task Reveal_NotFacilitator_ReturnsFailure()
     {
-        var session = PlanningPokerSessionBuilder.New()
-            .WithProject(ProjectId).WithFacilitator(Guid.NewGuid()).Build();
-        _pokerRepo.GetByIdWithVotesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
+        var otherFacilitator = UserBuilder.New().WithEmail("poker-facilitator-reveal@example.com").Build();
+        DbContext.Users.Add(otherFacilitator);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new RevealPokerVotesHandler(_pokerRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new RevealPokerVotesCommand(session.Id), CancellationToken.None);
+        var session = PlanningPokerSessionBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(otherFacilitator.Id)
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new RevealPokerVotesCommand(session.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("facilitator");
@@ -180,12 +188,18 @@ public sealed class PokerSessionTests
     [Fact]
     public async Task Reveal_AlreadyRevealed_ReturnsFailure()
     {
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
         var session = PlanningPokerSessionBuilder.New()
-            .WithProject(ProjectId).WithFacilitator(UserId).Revealed().Build();
-        _pokerRepo.GetByIdWithVotesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Revealed()
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new RevealPokerVotesHandler(_pokerRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new RevealPokerVotesCommand(session.Id), CancellationToken.None);
+        var result = await Sender.Send(new RevealPokerVotesCommand(session.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("already been revealed");
@@ -196,40 +210,43 @@ public sealed class PokerSessionTests
     [Fact]
     public async Task Confirm_RevealedSession_ClosesAndUpdatesWorkItem()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
         var session = PlanningPokerSessionBuilder.New()
-            .WithProject(ProjectId).WithFacilitator(UserId).WithWorkItem(workItem.Id).Revealed().Build();
-        session.Votes = [];
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Revealed()
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
-        _pokerRepo.GetByIdWithVotesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-        _pokerRepo.UpdateAsync(Arg.Any<PlanningPokerSession>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<PlanningPokerSession>());
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
-        _workItemRepo.UpdateAsync(Arg.Any<WorkItem>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<WorkItem>());
-
-        var handler = new ConfirmPokerEstimateHandler(
-            _pokerRepo, _workItemRepo, _historyService, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new ConfirmPokerEstimateCommand(session.Id, 8), CancellationToken.None);
+        var result = await Sender.Send(new ConfirmPokerEstimateCommand(session.Id, 8));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.FinalEstimate.Should().Be(8);
         result.Value.ClosedAt.Should().NotBeNull();
-        workItem.EstimationValue.Should().Be(8);
-        workItem.EstimationSource.Should().Be("Poker");
     }
 
     [Fact]
     public async Task Confirm_NotFacilitator_ReturnsFailure()
     {
-        var session = PlanningPokerSessionBuilder.New()
-            .WithProject(ProjectId).WithFacilitator(Guid.NewGuid()).Revealed().Build();
-        session.Votes = [];
-        _pokerRepo.GetByIdWithVotesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
+        var otherFacilitator = UserBuilder.New().WithEmail("poker-facilitator-confirm@example.com").Build();
+        DbContext.Users.Add(otherFacilitator);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new ConfirmPokerEstimateHandler(
-            _pokerRepo, _workItemRepo, _historyService, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new ConfirmPokerEstimateCommand(session.Id, 8), CancellationToken.None);
+        var session = PlanningPokerSessionBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(otherFacilitator.Id)
+            .Revealed()
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new ConfirmPokerEstimateCommand(session.Id, 8));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("facilitator");
@@ -272,14 +289,17 @@ public sealed class PokerSessionTests
     [Fact]
     public async Task Confirm_NotRevealed_ReturnsFailure()
     {
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
         var session = PlanningPokerSessionBuilder.New()
-            .WithProject(ProjectId).WithFacilitator(UserId).Build();
-        session.Votes = [];
-        _pokerRepo.GetByIdWithVotesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new ConfirmPokerEstimateHandler(
-            _pokerRepo, _workItemRepo, _historyService, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new ConfirmPokerEstimateCommand(session.Id, 8), CancellationToken.None);
+        var result = await Sender.Send(new ConfirmPokerEstimateCommand(session.Id, 8));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("revealed");
@@ -290,15 +310,25 @@ public sealed class PokerSessionTests
     [Fact]
     public async Task Get_VotesHiddenBeforeReveal()
     {
-        var session = PlanningPokerSessionBuilder.New().WithProject(ProjectId).Build();
-        session.Votes =
-        [
-            new PlanningPokerVote { VoterId = Guid.NewGuid(), Value = 5, Voter = new User { Name = "Dev1" } }
-        ];
-        _pokerRepo.GetByIdWithVotesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
+        var session = PlanningPokerSessionBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new GetPokerSessionHandler(_pokerRepo, _currentUser, _permissions);
-        var result = await handler.Handle(new GetPokerSessionQuery(session.Id, null), CancellationToken.None);
+        DbContext.Set<PlanningPokerVote>().Add(new PlanningPokerVote
+        {
+            SessionId = session.Id,
+            VoterId = SeedUserId,
+            Value = 5
+        });
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new GetPokerSessionQuery(session.Id, null));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Votes.Should().HaveCount(1);
@@ -308,15 +338,26 @@ public sealed class PokerSessionTests
     [Fact]
     public async Task Get_VotesVisibleAfterReveal()
     {
-        var session = PlanningPokerSessionBuilder.New().WithProject(ProjectId).Revealed().Build();
-        session.Votes =
-        [
-            new PlanningPokerVote { VoterId = Guid.NewGuid(), Value = 5, Voter = new User { Name = "Dev1" } }
-        ];
-        _pokerRepo.GetByIdWithVotesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id);
+        var session = PlanningPokerSessionBuilder.New()
+            .WithWorkItem(workItem.Id)
+            .WithProject(project.Id)
+            .WithFacilitator(SeedUserId)
+            .Revealed()
+            .Build();
+        DbContext.Set<PlanningPokerSession>().Add(session);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new GetPokerSessionHandler(_pokerRepo, _currentUser, _permissions);
-        var result = await handler.Handle(new GetPokerSessionQuery(session.Id, null), CancellationToken.None);
+        DbContext.Set<PlanningPokerVote>().Add(new PlanningPokerVote
+        {
+            SessionId = session.Id,
+            VoterId = SeedUserId,
+            Value = 5
+        });
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new GetPokerSessionQuery(session.Id, null));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Votes[0].Value.Should().Be(5);

@@ -108,6 +108,33 @@ docker compose up
 
 All services start in dependency order (postgres and rabbitmq health-checked before API and background services start).
 
+### One-command local start (recommended)
+
+Start the entire stack — infrastructure, migrations, API, background services, and frontend — with a single command:
+
+**macOS / Linux:**
+
+```bash
+./scripts/start-all.sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+.\scripts\start-all.ps1
+```
+
+The script waits for each service to be healthy before starting the next. Press Ctrl+C or run `./scripts/start-all.sh stop` to shut everything down cleanly.
+
+| URL | Service |
+|---|---|
+| `http://localhost:3000` | Frontend |
+| `http://localhost:5210` | API + Swagger |
+| `http://localhost:15672` | RabbitMQ Management UI |
+| `http://localhost:8025` | MailHog (email preview) |
+
+Default admin login: `admin@teamflow.dev` / `Admin@1234`
+
 ### Production Docker Compose
 
 ```bash
@@ -255,13 +282,15 @@ npx playwright test e2e/sprints/
 
 Integration tests (TeamFlow.Api.Tests) use Testcontainers and start a real PostgreSQL container automatically. Docker must be running.
 
-Current test count: **513 backend** (48 domain, 298 application, 25 background services, 132 API integration, 10 infrastructure) + **63 Playwright E2E**.
+Current test count: **795 backend** + **77 Playwright E2E** (63 sprint/phase E2E + 14 profile E2E).
 
 ---
 
 ## Current Status
 
-**Phase 3 — Hardening + Sprint Planning: in progress** (branch: `feat/phase-3-sprint-hardening`)
+**Active branch:** `feat/org-management-admin-bootstrap`
+
+**All 5 delivery phases complete.** Recent feature work continues on top of the Phase 5 baseline.
 
 **Completed phases:**
 
@@ -271,12 +300,17 @@ Phase 1 — Work Item Management: Project CRUD, work item hierarchy (Epic > Stor
 
 Phase 2 — Authentication & Authorization: JWT + refresh token auth, bcrypt password hashing, 3-level permission resolution (Individual/Team/Org), team management with Team Manager scope enforcement, work item history UI, Playwright test infrastructure.
 
-Phase 3 (in progress): Sprint planning backend (11 endpoints), sprint planning frontend with drag-and-drop and burndown chart, 4 scheduled background jobs, health checks, global exception handler, performance indexes, 513 backend tests + 63 E2E tests.
+Phase 3 — Hardening + Sprint Planning: Sprint planning (11 endpoints + frontend with drag-and-drop and burndown chart), 4 scheduled background jobs, health checks, global exception handler, performance indexes, 513 backend tests + 63 E2E tests.
 
-**Pending in Phase 3:**
-- 1 week dogfooding with real sprint cycle
-- Lighthouse ≥80 on main screens
-- Production zero-downtime deploy verification
+Phase 4 — Collaboration + Planning: Comment system, Planning Poker, Backlog Refinement, Retrospective, Release Detail page.
+
+Phase 5 — Insights + Automation: Advanced search (tsvector + GIN), Dashboard and Analytics (velocity, burndown, cumulative flow, cycle time, heatmap), Notifications and Reminders (email outbox, in-app, per-user preferences), Background Automation (6 scheduled jobs). 795 backend tests passing.
+
+**Recent additions (post-Phase 5):**
+- User Profile Management: `/profile` page with 4 tabs, `AvatarUrl` on User, activity log from work item histories, UserMenu profile link
+- Assignee Tooltip: `AssignedAt` on WorkItem, enhanced avatar tooltip showing full name + assignment date across all views
+- Developer scripts: `scripts/start-all.sh` (macOS) and `scripts/start-all.ps1` (Windows) for one-command full-stack startup
+- Testing rules updated: E2E tests mandatory for every feature; Testcontainers required for all integration tests
 
 See [docs/process/phases.md](docs/process/phases.md) for the full roadmap and [docs/changelog.md](docs/changelog.md) for detailed change history.
 

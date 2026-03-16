@@ -309,6 +309,44 @@ Phase 5 delivered four capabilities across four sub-phases: Advanced Search (tsv
 
 ---
 
+## Post-Phase 5 — Ongoing Feature Work
+**Status: IN PROGRESS** (branch: `feat/org-management-admin-bootstrap`)
+**Goal:** Incremental improvements and new capabilities built on top of the Phase 5 production baseline.
+
+### Completed Features
+
+#### User Profile Management (2026-03-16) — COMPLETE
+- [x] `AvatarUrl` field on `User` entity + `AddAvatarUrlToUser` migration
+- [x] `GetProfileQuery`, `UpdateProfileCommand`, `GetActivityLogQuery` handlers (TFD; all with integration tests)
+- [x] `/profile` page: 4 tabs (Details, Security, Notifications, Activity)
+- [x] `UserMenu` updated with profile link
+- [x] 14 Playwright E2E tests for profile feature
+
+#### Assignee Tooltip (2026-03-16) — COMPLETE
+- [x] `AssignedAt` field on `WorkItem` entity + migration
+- [x] Assign/Unassign handlers updated; `WorkItemDto` includes `assignedAt`
+- [x] `UserAvatar` tooltip enhanced with full name + assignment date
+- [x] All assignee avatar usages updated (Backlog, Kanban, children tab, Assignee Picker)
+
+#### Developer Scripts (2026-03-16) — COMPLETE
+- [x] `scripts/start-all.sh` — macOS/Linux one-command full-stack startup
+- [x] `scripts/start-all.ps1` — Windows PowerShell equivalent
+
+#### Testing Rules Update (2026-03-16) — COMPLETE
+- [x] CLAUDE.md Rule 11: E2E tests mandatory for every new feature
+- [x] CLAUDE.md Rule 12: Testcontainers required for all integration tests
+
+### In Progress
+
+#### Org Management + Admin Bootstrap (2026-03-16) — IN PROGRESS
+- [ ] Organization management screens (admin)
+- [ ] Admin user management with status toggle
+- [ ] Quartz.NET schema migration (`AddQuartzSchema`)
+- [ ] Background services Quartz integration updates
+- [ ] Admin confirm dialogs component
+
+---
+
 ## Cross-Phase Rules
 
 1. **No new features added to a phase in progress** — log to backlog for next phase

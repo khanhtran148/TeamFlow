@@ -28,6 +28,8 @@ TeamFlow is an internal project management platform for engineering teams of 9�
 - All API errors return `ProblemDetails` (RFC 7807) — never plain strings
 - All new classes must be `sealed` by default unless designed for inheritance
 - Test-First Development (TFD) — write failing tests before implementation; no exceptions
+- E2E tests required for every user-facing feature — Playwright specs under `e2e/`
+- Testcontainers required for all integration tests — no SQLite or in-memory EF Core
 - Use `[Theory]` + `[InlineData]` to avoid separate `[Fact]` per edge case
 - Never write permission resolution logic — use `IPermissionChecker`
 - Never write JWT generation/validation without human review — `AuthService` is human-reviewed
@@ -88,19 +90,21 @@ Application/Features/Sprints/CreateSprint/
 
 ### Domain Context
 
-**Feature areas implemented (Phases 0–3):**
+**Feature areas implemented (Phases 0–6):**
 - Auth: register, login, refresh token, change password, logout
-- Organizations: create, get, list
+- User Profile: GET/PUT `/me/profile` (name, avatarUrl, orgs, teams, systemRole, createdAt); GET `/me/activity` (paginated activity log)
+- Organizations: create, get, list; admin org management
 - Teams: full CRUD + member management (add, remove, change role)
 - Project Memberships: add/remove members (user or team), list, get current user's permissions
 - Projects: full CRUD + archive
-- Work Items: full CRUD, hierarchy (Epic → UserStory → Task/Bug/Spike), status transitions, assign/unassign, move, soft delete with cascade
+- Work Items: full CRUD, hierarchy (Epic → UserStory → Task/Bug/Spike), status transitions, assign/unassign (with `AssignedAt`), move, soft delete with cascade
 - Work Item Linking: 6 link types, circular dependency detection, blockers check
 - Work Item History: paginated append-only audit trail
 - Backlog: paginated with full filter matrix + full-text search + reorder
-- Kanban: board grouped by status columns (ToDo / InProgress / InReview / Done)
+- Kanban: board grouped by status columns (ToDo / InProgress / InReview / Done); assignee avatar tooltip shows `AssignedAt`
 - Releases: full CRUD + assign/unassign work items
 - Sprints: full CRUD, start/complete lifecycle, add/remove items, per-member capacity, burndown chart data
+- Admin panel: user list, activate/deactivate users, organisation list
 
 **Background jobs:**
 - `BurndownSnapshotJob` — daily per active sprint; detects At Risk (remaining > ideal × 1.2)
@@ -127,6 +131,18 @@ Application/Features/Sprints/CreateSprint/
 ## How to Build
 
 **Prerequisites:** .NET 10 SDK, Node.js 20+, Docker (for local infrastructure)
+
+### Quick Start (all services at once)
+
+```bash
+# macOS
+./scripts/start-all.sh
+
+# Windows
+.\scripts\start-all.ps1
+```
+
+Both scripts start Docker infrastructure, apply EF Core migrations, and launch the API, BackgroundServices, and frontend in parallel.
 
 ### Backend
 
@@ -209,11 +225,15 @@ npm run e2e:ui        # Playwright UI mode
 | Domain events | `src/core/TeamFlow.Domain/Events/` |
 | EF Core context + config | `src/core/TeamFlow.Infrastructure/Persistence/` |
 | Repositories | `src/core/TeamFlow.Infrastructure/Repositories/` |
+| User Profile handlers | `src/core/TeamFlow.Application/Features/Users/` |
 | Auth, History, Permission services | `src/core/TeamFlow.Infrastructure/Services/` |
 | Quartz jobs | `src/apps/TeamFlow.BackgroundServices/Scheduled/Jobs/` |
 | MassTransit consumers | `src/apps/TeamFlow.BackgroundServices/Consumers/` |
 | Test builders + base | `tests/TeamFlow.Tests.Common/` |
 | Frontend pages | `src/apps/teamflow-web/app/` |
+| Frontend profile page | `src/apps/teamflow-web/app/profile/page.tsx` |
+| Frontend admin pages | `src/apps/teamflow-web/app/admin/` |
+| Frontend E2E specs | `src/apps/teamflow-web/e2e/` |
 | Frontend API clients | `src/apps/teamflow-web/lib/api/` |
 | Frontend Zustand stores | `src/apps/teamflow-web/lib/stores/` |
 | Docker Compose | `docker-compose.yml` |

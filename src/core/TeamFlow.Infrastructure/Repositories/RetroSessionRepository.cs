@@ -125,6 +125,13 @@ public sealed class RetroSessionRepository(TeamFlowDbContext context) : IRetroSe
         return actionItem;
     }
 
+    public async Task<RetroActionItem> UpdateActionItemAsync(RetroActionItem actionItem, CancellationToken ct = default)
+    {
+        context.RetroActionItems.Update(actionItem);
+        await context.SaveChangesAsync(ct);
+        return actionItem;
+    }
+
     public async Task<IEnumerable<RetroActionItem>> GetActionItemsBySessionAsync(
         Guid sessionId, CancellationToken ct = default)
         => await context.RetroActionItems

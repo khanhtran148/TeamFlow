@@ -1,52 +1,43 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Teams.RemoveTeamMember;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Teams;
 
-public sealed class RemoveTeamMemberTests
+[Collection("Projects")]
+public sealed class RemoveTeamMemberTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ITeamRepository _teamRepo = Substitute.For<ITeamRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public RemoveTeamMemberTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private RemoveTeamMemberHandler CreateHandler() => new(_teamRepo, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_ExistingMember_RemovesSuccessfully()
     {
-        var userId = Guid.NewGuid();
-        var team = TeamBuilder.New().WithMember(userId, ProjectRole.Developer).Build();
-        _teamRepo.GetByIdWithMembersAsync(team.Id, Arg.Any<CancellationToken>()).Returns(team);
+        var memberUser = UserBuilder.New().WithEmail("removeteam-member@example.com").Build();
+        DbContext.Users.Add(memberUser);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(
-            new RemoveTeamMemberCommand(team.Id, userId), CancellationToken.None);
+        var userId = memberUser.Id;
+        var team = TeamBuilder.New().WithOrganization(SeedOrgId).WithMember(userId, ProjectRole.Developer).Build();
+        DbContext.Teams.Add(team);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new RemoveTeamMemberCommand(team.Id, userId));
 
         result.IsSuccess.Should().BeTrue();
-        team.Members.Should().BeEmpty();
+        DbContext.ChangeTracker.Clear();
+        DbContext.Entry(await DbContext.Teams.FindAsync(team.Id)!).Collection(t => t.Members).Load();
+        var updatedTeam = await DbContext.Teams.FindAsync(team.Id);
+        DbContext.Entry(updatedTeam!).Collection(t => t.Members).Load();
+        updatedTeam!.Members.Should().BeEmpty();
     }
 
     [Fact]
     public async Task Handle_TeamNotFound_ReturnsFailure()
     {
-        _teamRepo.GetByIdWithMembersAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns((Team?)null);
-
-        var result = await CreateHandler().Handle(
-            new RemoveTeamMemberCommand(Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
+        var result = await Sender.Send(new RemoveTeamMemberCommand(Guid.NewGuid(), Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
@@ -55,26 +46,34 @@ public sealed class RemoveTeamMemberTests
     [Fact]
     public async Task Handle_MemberNotInTeam_ReturnsFailure()
     {
-        var team = TeamBuilder.New().Build();
-        _teamRepo.GetByIdWithMembersAsync(team.Id, Arg.Any<CancellationToken>()).Returns(team);
+        var team = TeamBuilder.New().WithOrganization(SeedOrgId).Build();
+        DbContext.Teams.Add(team);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(
-            new RemoveTeamMemberCommand(team.Id, Guid.NewGuid()), CancellationToken.None);
+        var result = await Sender.Send(new RemoveTeamMemberCommand(team.Id, Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("member not found");
+    }
+}
+
+[Collection("Projects")]
+public sealed class RemoveTeamMemberForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
     }
 
     [Fact]
     public async Task Handle_NoPermission_ReturnsAccessDenied()
     {
-        var team = TeamBuilder.New().Build();
-        _teamRepo.GetByIdWithMembersAsync(team.Id, Arg.Any<CancellationToken>()).Returns(team);
-        _permissions.HasPermissionAsync(ActorId, team.OrgId, Permission.Team_Manage, Arg.Any<CancellationToken>())
-            .Returns(false);
+        var team = TeamBuilder.New().WithOrganization(SeedOrgId).Build();
+        DbContext.Teams.Add(team);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(
-            new RemoveTeamMemberCommand(team.Id, Guid.NewGuid()), CancellationToken.None);
+        var result = await Sender.Send(new RemoveTeamMemberCommand(team.Id, Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");

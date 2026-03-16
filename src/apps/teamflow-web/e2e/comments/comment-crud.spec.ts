@@ -35,7 +35,7 @@ test.describe("Comment CRUD", () => {
 
 test.describe("Comment @mention notification", () => {
   test("notification bell is visible in top bar", async ({ page }) => {
-    await page.goto("/projects");
+    await page.goto("/projects/test-project/backlog");
     await expect(page.getByTestId("notification-bell")).toBeVisible();
   });
 });

@@ -1,45 +1,58 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Notifications.GetUnreadCount;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Notifications;
 
-public sealed class GetUnreadCountTests
+[Collection("Social")]
+public sealed class GetUnreadCountTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IInAppNotificationRepository _notifRepo = Substitute.For<IInAppNotificationRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public GetUnreadCountTests()
+    [Fact]
+    public async Task Handle_NoUnreadNotifications_ReturnsZero()
     {
-        _currentUser.Id.Returns(ActorId);
-    }
-
-    private GetUnreadCountHandler CreateHandler() => new(_notifRepo, _currentUser);
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(5)]
-    [InlineData(42)]
-    public async Task Handle_ReturnsCorrectCount(int expectedCount)
-    {
-        _notifRepo.GetUnreadCountAsync(ActorId, Arg.Any<CancellationToken>()).Returns(expectedCount);
-
-        var result = await CreateHandler().Handle(new GetUnreadCountQuery(), CancellationToken.None);
+        var result = await Sender.Send(new GetUnreadCountQuery());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Count.Should().Be(expectedCount);
+        result.Value.Count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Handle_WithUnreadNotifications_ReturnsCorrectCount()
+    {
+        DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>().AddRange(
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build(),
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build(),
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build(),
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Read().Build()
+        );
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new GetUnreadCountQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Count.Should().Be(3);
     }
 
     [Fact]
     public async Task Handle_QueriesCurrentUserOnly()
     {
-        _notifRepo.GetUnreadCountAsync(ActorId, Arg.Any<CancellationToken>()).Returns(3);
+        var otherUser = UserBuilder.New().WithEmail("getunread-other@example.com").Build();
+        DbContext.Users.Add(otherUser);
+        await DbContext.SaveChangesAsync();
 
-        await CreateHandler().Handle(new GetUnreadCountQuery(), CancellationToken.None);
+        var otherUserId = otherUser.Id;
+        DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>().AddRange(
+            InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build(),
+            InAppNotificationBuilder.New().WithRecipient(otherUserId).Build(),
+            InAppNotificationBuilder.New().WithRecipient(otherUserId).Build()
+        );
+        await DbContext.SaveChangesAsync();
 
-        await _notifRepo.Received(1).GetUnreadCountAsync(ActorId, Arg.Any<CancellationToken>());
+        var result = await Sender.Send(new GetUnreadCountQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Count.Should().Be(1);
     }
 }

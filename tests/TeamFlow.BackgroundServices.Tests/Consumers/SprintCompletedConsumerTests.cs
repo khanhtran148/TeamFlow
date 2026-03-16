@@ -1,31 +1,48 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using MassTransit;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.BackgroundServices.Consumers;
-using TeamFlow.Domain.Entities;
-using TeamFlow.Domain.Enums;
 using TeamFlow.Domain.Events;
 using TeamFlow.Infrastructure.Persistence;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.BackgroundServices.Tests.Consumers;
 
-public sealed class SprintCompletedConsumerTests : IDisposable
+[Collection("BackgroundServices")]
+public sealed class SprintCompletedConsumerTests(PostgresCollectionFixture fixture) : IAsyncLifetime
 {
-    private readonly TeamFlowDbContext _dbContext;
-    private readonly IBroadcastService _broadcastService;
-    private readonly ILogger<SprintCompletedConsumer> _logger;
-    private readonly SprintCompletedConsumer _sut;
+    private ServiceProvider _provider = null!;
+    private IServiceScope _scope = null!;
+    private TeamFlowDbContext _dbContext = null!;
+    private IDbContextTransaction _transaction = null!;
 
-    public SprintCompletedConsumerTests()
+    private readonly IBroadcastService _broadcastService = Substitute.For<IBroadcastService>();
+    private readonly ILogger<SprintCompletedConsumer> _logger = Substitute.For<ILogger<SprintCompletedConsumer>>();
+
+    public async Task InitializeAsync()
     {
-        _dbContext = TestDbContextFactory.Create();
-        _broadcastService = Substitute.For<IBroadcastService>();
-        _logger = Substitute.For<ILogger<SprintCompletedConsumer>>();
-        _sut = new SprintCompletedConsumer(_logger, _dbContext, _broadcastService);
+        var services = new ServiceCollection();
+        services.AddLogging(l => l.AddConsole().SetMinimumLevel(LogLevel.Warning));
+        services.AddDbContext<TeamFlowDbContext>(options =>
+            options.UseNpgsql(fixture.ConnectionString, npgsql =>
+                npgsql.MigrationsAssembly("TeamFlow.Infrastructure")));
+        _provider = services.BuildServiceProvider();
+        _scope = _provider.CreateScope();
+        _dbContext = _scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
+        _transaction = await _dbContext.Database.BeginTransactionAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _transaction.RollbackAsync();
+        _scope.Dispose();
+        await _provider.DisposeAsync();
     }
 
     [Fact]
@@ -51,7 +68,8 @@ public sealed class SprintCompletedConsumerTests : IDisposable
         consumeContext.Message.Returns(@event);
         consumeContext.CancellationToken.Returns(CancellationToken.None);
 
-        await _sut.Consume(consumeContext);
+        var sut = new SprintCompletedConsumer(_logger, _dbContext, _broadcastService);
+        await sut.Consume(consumeContext);
 
         var snapshot = await _dbContext.SprintSnapshots
             .FirstOrDefaultAsync(s => s.SprintId == sprint.Id);
@@ -84,7 +102,8 @@ public sealed class SprintCompletedConsumerTests : IDisposable
         consumeContext.Message.Returns(@event);
         consumeContext.CancellationToken.Returns(CancellationToken.None);
 
-        await _sut.Consume(consumeContext);
+        var sut = new SprintCompletedConsumer(_logger, _dbContext, _broadcastService);
+        await sut.Consume(consumeContext);
 
         var velocity = await _dbContext.TeamVelocityHistories
             .FirstOrDefaultAsync(v => v.SprintId == sprint.Id);
@@ -119,17 +138,13 @@ public sealed class SprintCompletedConsumerTests : IDisposable
         consumeContext.Message.Returns(@event);
         consumeContext.CancellationToken.Returns(CancellationToken.None);
 
-        await _sut.Consume(consumeContext);
+        var sut = new SprintCompletedConsumer(_logger, _dbContext, _broadcastService);
+        await sut.Consume(consumeContext);
 
         await _broadcastService.Received(1).BroadcastToProjectAsync(
             sprint.ProjectId,
             "sprint.completed",
             Arg.Any<object>(),
             Arg.Any<CancellationToken>());
-    }
-
-    public void Dispose()
-    {
-        _dbContext.Dispose();
     }
 }

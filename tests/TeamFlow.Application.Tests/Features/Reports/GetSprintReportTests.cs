@@ -1,67 +1,65 @@
 using System.Text.Json;
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Reports.GetSprintReport;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Reports;
 
-public sealed class GetSprintReportTests
+[Collection("Reports")]
+public sealed class GetSprintReportTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ISprintReportRepository _repo = Substitute.For<ISprintReportRepository>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-    private static readonly Guid SprintId = Guid.NewGuid();
-
-    public GetSprintReportTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private GetSprintReportHandler CreateHandler() => new(_repo, _permissions, _currentUser);
-
     [Fact]
     public async Task Handle_ReportExists_ReturnsReport()
     {
+        var project = await SeedProjectAsync();
+        var sprint = SprintBuilder.New().WithProject(project.Id).Build();
+        DbContext.Sprints.Add(sprint);
         var report = new SprintReport
         {
-            SprintId = SprintId,
-            ProjectId = ProjectId,
+            SprintId = sprint.Id,
+            ProjectId = project.Id,
             ReportData = JsonDocument.Parse("""{"velocity":35}"""),
             GeneratedBy = "System"
         };
-        _repo.GetBySprintIdAsync(SprintId, Arg.Any<CancellationToken>()).Returns(report);
+        DbContext.SprintReports.Add(report);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new GetSprintReportQuery(SprintId, ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new GetSprintReportQuery(sprint.Id, project.Id));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.SprintId.Should().Be(SprintId);
+        result.Value.SprintId.Should().Be(sprint.Id);
     }
 
     [Fact]
     public async Task Handle_ReportNotFound_ReturnsNotFound()
     {
-        _repo.GetBySprintIdAsync(SprintId, Arg.Any<CancellationToken>()).Returns((SprintReport?)null);
+        var project = await SeedProjectAsync();
 
-        var result = await CreateHandler().Handle(new GetSprintReportQuery(SprintId, ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new GetSprintReportQuery(Guid.NewGuid(), project.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
     }
+}
+
+[Collection("Reports")]
+public sealed class GetSprintReportDeniedTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+        => services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
 
     [Fact]
     public async Task Handle_NoPermission_ReturnsAccessDenied()
     {
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(false);
+        var project = await SeedProjectAsync();
 
-        var result = await CreateHandler().Handle(new GetSprintReportQuery(SprintId, ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new GetSprintReportQuery(Guid.NewGuid(), project.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");

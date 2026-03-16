@@ -1,6 +1,6 @@
 ---
 topic: User Profile Management
-status: in-progress
+status: complete
 created: 2026-03-16
 ---
 

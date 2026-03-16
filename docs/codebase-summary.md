@@ -163,9 +163,15 @@ All permission checks go through `IPermissionChecker.HasPermissionAsync()`. Reso
 
 **Admin Panel** — SystemAdmin bootstrap via seed (`MustChangePassword = true`); force password change flow on first login; admin-initiated password reset (`POST /admin/users/{userId}/reset-password`, sets `MustChangePassword = true`); paginated + searchable admin grids for users and organizations; user/org deactivation and activation with token revocation and pending invitation cleanup; org name + slug update; org ownership transfer
 
-**Admin Frontend** — `/admin/users` (search, pagination, reset password dialog, status toggle), `/admin/organizations` (search, pagination, edit dialog, transfer ownership dialog, status toggle), `/admin/change-password` (force-change page on first login), `/deactivated` (static error page), logout button in admin layout, 403 deactivation interceptor redirects to `/deactivated`
+**Admin Frontend** — `/admin/users` (search, pagination, reset password dialog, status toggle with confirm dialog), `/admin/organizations` (search, pagination, edit dialog, transfer ownership dialog, status toggle with confirm dialog), `/admin/change-password` (force-change page on first login), `/deactivated` (static error page), logout button in admin layout, 403 deactivation interceptor redirects to `/deactivated`
 
-**Test count:** 1015 (73 domain + 745 application + 25 background services + 141 API + 31 infrastructure)
+**User Profile** — `GET /api/v1/users/me/profile` returns rich profile (name, email, avatarUrl, systemRole, createdAt, org memberships, team memberships); `PUT /api/v1/users/me/profile` updates name and avatarUrl; `GET /api/v1/users/me/activity` returns paginated activity log from `work_item_histories`. New repositories: `ITeamMemberRepository`, `IActivityLogRepository`. Frontend: `/profile` page with four tabs (Details, Security, Notifications, Activity). Profile link exposed in UserMenu.
+
+**Assignee Tooltip** — `AssignedAt` field added to `WorkItem`; set by `AssignWorkItemHandler`, cleared by `UnassignWorkItemHandler`; included in `WorkItemDto`, `BacklogItemDto`, `KanbanItemDto`. Frontend `UserAvatar` tooltip shows "Name\nAssigned DD Mon YYYY, HH:MM am/pm".
+
+**Startup Scripts** — `scripts/start-all.sh` (macOS) and `scripts/start-all.ps1` (Windows) start all services in parallel.
+
+**Test count:** 1015+ (includes 14 Playwright E2E tests for User Profile in `e2e/profile/profile.spec.ts`)
 
 ---
 
@@ -173,13 +179,13 @@ All permission checks go through `IPermissionChecker.HasPermissionAsync()`. Reso
 
 | Entity | Phase | Description |
 |---|---|---|
-| `User` | 0 | Authenticated user with BCrypt password hash; `IsActive` (default true), `MustChangePassword` (default false) |
+| `User` | 0 | Authenticated user with BCrypt password hash; `IsActive` (default true), `MustChangePassword` (default false), `AvatarUrl` (nullable) |
 | `Organization` | 0 | Top-level tenant; `IsActive` (default true) |
 | `Project` | 0 | Work container within an org |
 | `ProjectMembership` | 0 | Links user or team to a project with a role |
 | `Team` | 0 | Group of users within an org |
 | `TeamMember` | 0 | User membership in a team with a role |
-| `WorkItem` | 0 | Epic / UserStory / Task / Bug / Spike |
+| `WorkItem` | 0 | Epic / UserStory / Task / Bug / Spike; `AssignedAt` records when the current assignee was set |
 | `WorkItemLink` | 0 | Directional link between two work items |
 | `WorkItemHistory` | 0 | Append-only audit trail for work item changes |
 | `Release` | 0 | Named release within a project |
@@ -225,13 +231,5 @@ All permission checks go through `IPermissionChecker.HasPermissionAsync()`. Reso
 ---
 
 ## What Is Next
-
-**Phase 6 — Retrospectives** (planned)
-
-- Retro sessions: create, start, add cards, reveal, vote, close
-- Action items linked to backlog
-- Retro domain events published and consumed
-
-**Frontend testing infrastructure** — Vitest + Testing Library not yet configured; recommended before next frontend phase with logic-bearing hooks.
 
 See `docs/process/phases.md` for full scope and acceptance criteria.

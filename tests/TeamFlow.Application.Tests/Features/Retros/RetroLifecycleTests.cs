@@ -1,7 +1,4 @@
 using FluentAssertions;
-using MediatR;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Retros.CastRetroVote;
 using TeamFlow.Application.Features.Retros.CloseRetroSession;
 using TeamFlow.Application.Features.Retros.MarkCardDiscussed;
@@ -10,27 +7,30 @@ using TeamFlow.Application.Features.Retros.SubmitRetroCard;
 using TeamFlow.Application.Features.Retros.TransitionRetroSession;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Retros;
 
-public sealed class RetroLifecycleTests
+[Collection("Social")]
+public sealed class RetroLifecycleTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IRetroSessionRepository _retroRepo = Substitute.For<IRetroSessionRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
-
-    private static readonly Guid UserId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public RetroLifecycleTests()
+    private async Task<RetroSession> SeedSessionAsync(
+        RetroSessionStatus status = RetroSessionStatus.Draft,
+        Guid? facilitatorId = null,
+        bool anonymous = false)
     {
-        _currentUser.Id.Returns(UserId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-        _retroRepo.UpdateAsync(Arg.Any<RetroSession>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<RetroSession>());
+        var project = await SeedProjectAsync();
+        var builder = RetroSessionBuilder.New()
+            .WithProject(project.Id)
+            .WithFacilitator(facilitatorId ?? SeedUserId)
+            .WithStatus(status);
+        if (anonymous) builder.Anonymous();
+        var session = builder.Build();
+        DbContext.Set<RetroSession>().Add(session);
+        await DbContext.SaveChangesAsync();
+        return session;
     }
 
     // --- StartRetroSession ---
@@ -38,15 +38,9 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task Start_DraftSession_TransitionsToOpen()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(RetroSessionStatus.Draft)
-            .Build();
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var session = await SeedSessionAsync(RetroSessionStatus.Draft);
 
-        var handler = new StartRetroSessionHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new StartRetroSessionCommand(session.Id), CancellationToken.None);
+        var result = await Sender.Send(new StartRetroSessionCommand(session.Id));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be(RetroSessionStatus.Open);
@@ -55,15 +49,9 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task Start_NonDraftSession_ReturnsFailure()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(RetroSessionStatus.Open)
-            .Build();
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var session = await SeedSessionAsync(RetroSessionStatus.Open);
 
-        var handler = new StartRetroSessionHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new StartRetroSessionCommand(session.Id), CancellationToken.None);
+        var result = await Sender.Send(new StartRetroSessionCommand(session.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Draft");
@@ -72,15 +60,13 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task Start_NotFacilitator_ReturnsFailure()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(Guid.NewGuid())
-            .WithStatus(RetroSessionStatus.Draft)
-            .Build();
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var otherFacilitator = UserBuilder.New().WithEmail("retro-start-facilitator@example.com").Build();
+        DbContext.Users.Add(otherFacilitator);
+        await DbContext.SaveChangesAsync();
 
-        var handler = new StartRetroSessionHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new StartRetroSessionCommand(session.Id), CancellationToken.None);
+        var session = await SeedSessionAsync(RetroSessionStatus.Draft, otherFacilitator.Id);
+
+        var result = await Sender.Send(new StartRetroSessionCommand(session.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("facilitator");
@@ -93,15 +79,9 @@ public sealed class RetroLifecycleTests
     [InlineData(RetroSessionStatus.Voting, RetroSessionStatus.Discussing)]
     public async Task Transition_ValidTransition_Succeeds(RetroSessionStatus from, RetroSessionStatus to)
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(from)
-            .Build();
-        _retroRepo.GetByIdWithDetailsAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var session = await SeedSessionAsync(from);
 
-        var handler = new TransitionRetroSessionHandler(_retroRepo, _currentUser, _permissions);
-        var result = await handler.Handle(new TransitionRetroSessionCommand(session.Id, to), CancellationToken.None);
+        var result = await Sender.Send(new TransitionRetroSessionCommand(session.Id, to));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be(to);
@@ -114,15 +94,9 @@ public sealed class RetroLifecycleTests
     [InlineData(RetroSessionStatus.Discussing, RetroSessionStatus.Open)]
     public async Task Transition_InvalidTransition_ReturnsFailure(RetroSessionStatus from, RetroSessionStatus to)
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(from)
-            .Build();
-        _retroRepo.GetByIdWithDetailsAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var session = await SeedSessionAsync(from);
 
-        var handler = new TransitionRetroSessionHandler(_retroRepo, _currentUser, _permissions);
-        var result = await handler.Handle(new TransitionRetroSessionCommand(session.Id, to), CancellationToken.None);
+        var result = await Sender.Send(new TransitionRetroSessionCommand(session.Id, to));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Invalid transition");
@@ -133,19 +107,10 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task SubmitCard_OpenSession_Succeeds()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(RetroSessionStatus.Open)
-            .Build();
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-        _retroRepo.AddCardAsync(Arg.Any<RetroCard>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<RetroCard>());
+        var session = await SeedSessionAsync(RetroSessionStatus.Open);
 
-        var handler = new SubmitRetroCardHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(
-            new SubmitRetroCardCommand(session.Id, RetroCardCategory.WentWell, "Great sprint!"),
-            CancellationToken.None);
+        var result = await Sender.Send(
+            new SubmitRetroCardCommand(session.Id, RetroCardCategory.WentWell, "Great sprint!"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Content.Should().Be("Great sprint!");
@@ -155,16 +120,10 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task SubmitCard_NonOpenSession_ReturnsFailure()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithStatus(RetroSessionStatus.Voting)
-            .Build();
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var session = await SeedSessionAsync(RetroSessionStatus.Voting);
 
-        var handler = new SubmitRetroCardHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(
-            new SubmitRetroCardCommand(session.Id, RetroCardCategory.WentWell, "Card"),
-            CancellationToken.None);
+        var result = await Sender.Send(
+            new SubmitRetroCardCommand(session.Id, RetroCardCategory.WentWell, "Card"));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Open");
@@ -173,20 +132,10 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task SubmitCard_AnonymousSession_StripsAuthorFromDto()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(RetroSessionStatus.Open)
-            .Anonymous()
-            .Build();
-        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-        _retroRepo.AddCardAsync(Arg.Any<RetroCard>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<RetroCard>());
+        var session = await SeedSessionAsync(RetroSessionStatus.Open, anonymous: true);
 
-        var handler = new SubmitRetroCardHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(
-            new SubmitRetroCardCommand(session.Id, RetroCardCategory.NeedsImprovement, "Improve CI"),
-            CancellationToken.None);
+        var result = await Sender.Send(
+            new SubmitRetroCardCommand(session.Id, RetroCardCategory.NeedsImprovement, "Improve CI"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.AuthorId.Should().BeNull();
@@ -198,20 +147,18 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task CastVote_VotingSession_Succeeds()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithStatus(RetroSessionStatus.Voting)
-            .Build();
-        var card = new RetroCard { SessionId = session.Id, Session = session, Content = "Card", Votes = [] };
+        var session = await SeedSessionAsync(RetroSessionStatus.Voting);
+        var card = new RetroCard
+        {
+            SessionId = session.Id,
+            AuthorId = SeedUserId,
+            Category = RetroCardCategory.WentWell,
+            Content = "Card"
+        };
+        DbContext.Set<RetroCard>().Add(card);
+        await DbContext.SaveChangesAsync();
 
-        _retroRepo.GetCardByIdAsync(card.Id, Arg.Any<CancellationToken>()).Returns(card);
-        _retroRepo.GetVoteAsync(card.Id, UserId, Arg.Any<CancellationToken>()).Returns((RetroVote?)null);
-        _retroRepo.GetTotalVoteCountForUserInSessionAsync(session.Id, UserId, Arg.Any<CancellationToken>()).Returns(0);
-        _retroRepo.AddVoteAsync(Arg.Any<RetroVote>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<RetroVote>());
-
-        var handler = new CastRetroVoteHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CastRetroVoteCommand(card.Id, 1), CancellationToken.None);
+        var result = await Sender.Send(new CastRetroVoteCommand(card.Id, 1));
 
         result.IsSuccess.Should().BeTrue();
     }
@@ -219,18 +166,36 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task CastVote_ExceedsMaxPerSession_ReturnsFailure()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithStatus(RetroSessionStatus.Voting)
-            .Build();
-        var card = new RetroCard { SessionId = session.Id, Session = session, Content = "Card", Votes = [] };
+        var session = await SeedSessionAsync(RetroSessionStatus.Voting);
+        var cards = Enumerable.Range(1, 5).Select(_ => new RetroCard
+        {
+            SessionId = session.Id,
+            AuthorId = SeedUserId,
+            Category = RetroCardCategory.WentWell,
+            Content = "Card"
+        }).ToList();
+        DbContext.Set<RetroCard>().AddRange(cards);
+        await DbContext.SaveChangesAsync();
 
-        _retroRepo.GetCardByIdAsync(card.Id, Arg.Any<CancellationToken>()).Returns(card);
-        _retroRepo.GetVoteAsync(card.Id, UserId, Arg.Any<CancellationToken>()).Returns((RetroVote?)null);
-        _retroRepo.GetTotalVoteCountForUserInSessionAsync(session.Id, UserId, Arg.Any<CancellationToken>()).Returns(5);
+        // Cast 5 votes (assumed max)
+        foreach (var c in cards)
+        {
+            DbContext.Set<RetroVote>().Add(new RetroVote { CardId = c.Id, VoterId = SeedUserId, VoteCount = 1 });
+        }
+        await DbContext.SaveChangesAsync();
 
-        var handler = new CastRetroVoteHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CastRetroVoteCommand(card.Id, 1), CancellationToken.None);
+        // newCard author must be a real user to satisfy FK
+        var newCard = new RetroCard
+        {
+            SessionId = session.Id,
+            AuthorId = SeedUserId,
+            Category = RetroCardCategory.NeedsImprovement,
+            Content = "Another card"
+        };
+        DbContext.Set<RetroCard>().Add(newCard);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new CastRetroVoteCommand(newCard.Id, 1));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("maximum");
@@ -239,18 +204,21 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task CastVote_DuplicateVote_ReturnsFailure()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithStatus(RetroSessionStatus.Voting)
-            .Build();
-        var card = new RetroCard { SessionId = session.Id, Session = session, Content = "Card", Votes = [] };
+        var session = await SeedSessionAsync(RetroSessionStatus.Voting);
+        var card = new RetroCard
+        {
+            SessionId = session.Id,
+            AuthorId = SeedUserId,
+            Category = RetroCardCategory.WentWell,
+            Content = "Card"
+        };
+        DbContext.Set<RetroCard>().Add(card);
+        await DbContext.SaveChangesAsync();
 
-        _retroRepo.GetCardByIdAsync(card.Id, Arg.Any<CancellationToken>()).Returns(card);
-        _retroRepo.GetVoteAsync(card.Id, UserId, Arg.Any<CancellationToken>())
-            .Returns(new RetroVote { CardId = card.Id, VoterId = UserId });
+        DbContext.Set<RetroVote>().Add(new RetroVote { CardId = card.Id, VoterId = SeedUserId, VoteCount = 1 });
+        await DbContext.SaveChangesAsync();
 
-        var handler = new CastRetroVoteHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CastRetroVoteCommand(card.Id, 1), CancellationToken.None);
+        var result = await Sender.Send(new CastRetroVoteCommand(card.Id, 1));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("already voted");
@@ -259,17 +227,18 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task CastVote_NotVotingPhase_ReturnsFailure()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithStatus(RetroSessionStatus.Open)
-            .Build();
-        var card = new RetroCard { SessionId = session.Id, Session = session, Content = "Card", Votes = [] };
+        var session = await SeedSessionAsync(RetroSessionStatus.Open);
+        var card = new RetroCard
+        {
+            SessionId = session.Id,
+            AuthorId = SeedUserId,
+            Category = RetroCardCategory.WentWell,
+            Content = "Card"
+        };
+        DbContext.Set<RetroCard>().Add(card);
+        await DbContext.SaveChangesAsync();
 
-        _retroRepo.GetCardByIdAsync(card.Id, Arg.Any<CancellationToken>()).Returns(card);
-        _retroRepo.GetVoteAsync(card.Id, UserId, Arg.Any<CancellationToken>()).Returns((RetroVote?)null);
-
-        var handler = new CastRetroVoteHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CastRetroVoteCommand(card.Id, 1), CancellationToken.None);
+        var result = await Sender.Send(new CastRetroVoteCommand(card.Id, 1));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Voting");
@@ -280,8 +249,7 @@ public sealed class RetroLifecycleTests
     [InlineData((short)3)]
     public async Task CastVote_InvalidVoteCount_ReturnsFailure(short voteCount)
     {
-        var handler = new CastRetroVoteHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CastRetroVoteCommand(Guid.NewGuid(), voteCount), CancellationToken.None);
+        var result = await Sender.Send(new CastRetroVoteCommand(Guid.NewGuid(), voteCount));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("VoteCount");
@@ -292,19 +260,18 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task MarkDiscussed_DiscussingPhase_Succeeds()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(RetroSessionStatus.Discussing)
-            .Build();
-        var card = new RetroCard { SessionId = session.Id, Session = session, Content = "Card", Votes = [] };
+        var session = await SeedSessionAsync(RetroSessionStatus.Discussing);
+        var card = new RetroCard
+        {
+            SessionId = session.Id,
+            AuthorId = SeedUserId,
+            Category = RetroCardCategory.WentWell,
+            Content = "Card"
+        };
+        DbContext.Set<RetroCard>().Add(card);
+        await DbContext.SaveChangesAsync();
 
-        _retroRepo.GetCardByIdAsync(card.Id, Arg.Any<CancellationToken>()).Returns(card);
-        _retroRepo.UpdateCardAsync(Arg.Any<RetroCard>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<RetroCard>());
-
-        var handler = new MarkCardDiscussedHandler(_retroRepo, _currentUser, _permissions);
-        var result = await handler.Handle(new MarkCardDiscussedCommand(card.Id), CancellationToken.None);
+        var result = await Sender.Send(new MarkCardDiscussedCommand(card.Id));
 
         result.IsSuccess.Should().BeTrue();
         card.IsDiscussed.Should().BeTrue();
@@ -313,17 +280,18 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task MarkDiscussed_NotDiscussingPhase_ReturnsFailure()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(RetroSessionStatus.Voting)
-            .Build();
-        var card = new RetroCard { SessionId = session.Id, Session = session, Content = "Card", Votes = [] };
+        var session = await SeedSessionAsync(RetroSessionStatus.Voting);
+        var card = new RetroCard
+        {
+            SessionId = session.Id,
+            AuthorId = SeedUserId,
+            Category = RetroCardCategory.WentWell,
+            Content = "Card"
+        };
+        DbContext.Set<RetroCard>().Add(card);
+        await DbContext.SaveChangesAsync();
 
-        _retroRepo.GetCardByIdAsync(card.Id, Arg.Any<CancellationToken>()).Returns(card);
-
-        var handler = new MarkCardDiscussedHandler(_retroRepo, _currentUser, _permissions);
-        var result = await handler.Handle(new MarkCardDiscussedCommand(card.Id), CancellationToken.None);
+        var result = await Sender.Send(new MarkCardDiscussedCommand(card.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Discussing");
@@ -334,21 +302,14 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task Close_DiscussingSession_GeneratesSummaryAndCloses()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(RetroSessionStatus.Discussing)
-            .Build();
-        session.Cards = [
-            new RetroCard { Category = RetroCardCategory.WentWell, Content = "Good", Votes = [] },
-            new RetroCard { Category = RetroCardCategory.NeedsImprovement, Content = "Bad", Votes = [] }
-        ];
-        session.ActionItems = [];
+        var session = await SeedSessionAsync(RetroSessionStatus.Discussing);
+        DbContext.Set<RetroCard>().AddRange(
+            new RetroCard { SessionId = session.Id, AuthorId = SeedUserId, Category = RetroCardCategory.WentWell, Content = "Good" },
+            new RetroCard { SessionId = session.Id, AuthorId = SeedUserId, Category = RetroCardCategory.NeedsImprovement, Content = "Bad" }
+        );
+        await DbContext.SaveChangesAsync();
 
-        _retroRepo.GetByIdWithDetailsAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-
-        var handler = new CloseRetroSessionHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CloseRetroSessionCommand(session.Id), CancellationToken.None);
+        var result = await Sender.Send(new CloseRetroSessionCommand(session.Id));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be(RetroSessionStatus.Closed);
@@ -358,18 +319,9 @@ public sealed class RetroLifecycleTests
     [Fact]
     public async Task Close_NotDiscussingSession_ReturnsFailure()
     {
-        var session = RetroSessionBuilder.New()
-            .WithProject(ProjectId)
-            .WithFacilitator(UserId)
-            .WithStatus(RetroSessionStatus.Voting)
-            .Build();
-        session.Cards = [];
-        session.ActionItems = [];
+        var session = await SeedSessionAsync(RetroSessionStatus.Voting);
 
-        _retroRepo.GetByIdWithDetailsAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-
-        var handler = new CloseRetroSessionHandler(_retroRepo, _currentUser, _permissions, _publisher);
-        var result = await handler.Handle(new CloseRetroSessionCommand(session.Id), CancellationToken.None);
+        var result = await Sender.Send(new CloseRetroSessionCommand(session.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Discussing");

@@ -1,58 +1,52 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Features.Notifications.MarkAsRead;
-using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Notifications;
 
-public sealed class MarkAsReadTests
+[Collection("Social")]
+public sealed class MarkAsReadTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IInAppNotificationRepository _notifRepo = Substitute.For<IInAppNotificationRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public MarkAsReadTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-    }
-
-    private MarkAsReadHandler CreateHandler() => new(_notifRepo, _currentUser);
-
     [Fact]
     public async Task Handle_OwnNotification_MarksAsRead()
     {
-        var notification = InAppNotificationBuilder.New().WithRecipient(ActorId).Build();
-        _notifRepo.GetByIdAsync(notification.Id, Arg.Any<CancellationToken>()).Returns(notification);
+        var notification = InAppNotificationBuilder.New().WithRecipient(SeedUserId).Build();
+        DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>().Add(notification);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new MarkAsReadCommand(notification.Id), CancellationToken.None);
+        var result = await Sender.Send(new MarkAsReadCommand(notification.Id));
 
         result.IsSuccess.Should().BeTrue();
-        await _notifRepo.Received(1).MarkAsReadAsync(notification.Id, ActorId, Arg.Any<CancellationToken>());
+        DbContext.ChangeTracker.Clear();
+        var persisted = await DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>()
+            .SingleAsync(n => n.Id == notification.Id);
+        persisted.IsRead.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_OtherUsersNotification_ReturnsAccessDenied()
     {
-        var otherUserId = Guid.NewGuid();
-        var notification = InAppNotificationBuilder.New().WithRecipient(otherUserId).Build();
-        _notifRepo.GetByIdAsync(notification.Id, Arg.Any<CancellationToken>()).Returns(notification);
+        var otherUser = UserBuilder.New().WithEmail("markread-other@example.com").Build();
+        DbContext.Users.Add(otherUser);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new MarkAsReadCommand(notification.Id), CancellationToken.None);
+        var notification = InAppNotificationBuilder.New().WithRecipient(otherUser.Id).Build();
+        DbContext.Set<TeamFlow.Domain.Entities.InAppNotification>().Add(notification);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new MarkAsReadCommand(notification.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");
-        await _notifRepo.DidNotReceive().MarkAsReadAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_NotificationNotFound_ReturnsNotFound()
     {
-        _notifRepo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((InAppNotification?)null);
-
-        var result = await CreateHandler().Handle(new MarkAsReadCommand(Guid.NewGuid()), CancellationToken.None);
+        var result = await Sender.Send(new MarkAsReadCommand(Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");

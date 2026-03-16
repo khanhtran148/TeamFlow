@@ -1,47 +1,25 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using TeamFlow.Application.Features.WorkItems.AddLink;
 using TeamFlow.Application.Features.Backlog.GetBacklog;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Backlog;
 
-public sealed class GetBacklogTests
+[Collection("WorkItems")]
+public sealed class GetBacklogTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly IWorkItemLinkRepository _linkRepo = Substitute.For<IWorkItemLinkRepository>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    public GetBacklogTests()
-    {
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-        _linkRepo.GetBlockedItemIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
-            .Returns(new HashSet<Guid>());
-    }
-
-    private GetBacklogHandler CreateHandler() =>
-        new(_workItemRepo, _linkRepo, _permissions, _currentUser);
-
     [Fact]
     public async Task Handle_ReturnsPagedItems()
     {
-        var projectId = Guid.NewGuid();
-        var items = new List<WorkItem>
-        {
-            WorkItemBuilder.New().WithProject(projectId).WithType(WorkItemType.Epic).Build(),
-            WorkItemBuilder.New().WithProject(projectId).WithType(WorkItemType.UserStory).Build()
-        };
-        _workItemRepo.GetBacklogPagedAsync(
-            projectId, null, null, null, null, null, null, null, null, null, 1, 20,
-            Arg.Any<CancellationToken>())
-            .Returns((items, 2));
+        var project = await SeedProjectAsync();
+        await SeedWorkItemAsync(project.Id, b => b.WithType(WorkItemType.Epic));
+        await SeedWorkItemAsync(project.Id, b => b.WithType(WorkItemType.UserStory));
 
-        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, null, 1, 20);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var query = new GetBacklogQuery(project.Id, null, null, null, null, null, null, null, null, null, 1, 20);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().HaveCount(2);
@@ -51,60 +29,54 @@ public sealed class GetBacklogTests
     [Fact]
     public async Task Handle_BlockedItem_FlaggedCorrectly()
     {
-        var projectId = Guid.NewGuid();
-        var item = WorkItemBuilder.New().WithProject(projectId).Build();
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var blocker = await SeedWorkItemAsync(project.Id, b => b.AsTask().WithStatus(WorkItemStatus.InProgress));
 
-        _workItemRepo.GetBacklogPagedAsync(
-            projectId, null, null, null, null, null, null, null, null, null, 1, 20,
-            Arg.Any<CancellationToken>())
-            .Returns((new[] { item }, 1));
-        _linkRepo.GetBlockedItemIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
-            .Returns(new HashSet<Guid> { item.Id });
+        // blocker Blocks item
+        await Sender.Send(new AddWorkItemLinkCommand(blocker.Id, item.Id, LinkType.Blocks));
+        DbContext.ChangeTracker.Clear();
 
-        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, null, 1, 20);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var query = new GetBacklogQuery(project.Id, null, null, null, null, null, null, null, null, null, 1, 20);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Items.First().IsBlocked.Should().BeTrue();
+        var blockedItem = result.Value.Items.FirstOrDefault(i => i.Id == item.Id);
+        blockedItem.Should().NotBeNull();
+        blockedItem!.IsBlocked.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_NotBlockedItem_NotFlagged()
     {
-        var projectId = Guid.NewGuid();
-        var item = WorkItemBuilder.New().WithProject(projectId).Build();
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        _workItemRepo.GetBacklogPagedAsync(
-            projectId, null, null, null, null, null, null, null, null, null, 1, 20,
-            Arg.Any<CancellationToken>())
-            .Returns((new[] { item }, 1));
-        // Default: empty set (no blocked items)
-
-        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, null, 1, 20);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var query = new GetBacklogQuery(project.Id, null, null, null, null, null, null, null, null, null, 1, 20);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.First().IsBlocked.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Handle_IsReadyFilter_PassedToRepository()
+    public async Task Handle_IsReadyFilter_ReturnsOnlyReadyItems()
     {
-        var projectId = Guid.NewGuid();
-        var readyItem = WorkItemBuilder.New().WithProject(projectId).Build();
+        var project = await SeedProjectAsync();
+        var readyItem = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var notReadyItem = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        _workItemRepo.GetBacklogPagedAsync(
-            projectId, null, null, null, null, null, null, null, null, true, 1, 20,
-            Arg.Any<CancellationToken>())
-            .Returns((new[] { readyItem }, 1));
+        // Mark one as ready
+        readyItem.IsReadyForSprint = true;
+        DbContext.WorkItems.Update(readyItem);
+        await DbContext.SaveChangesAsync();
+        DbContext.ChangeTracker.Clear();
 
-        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, true, 1, 20);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var query = new GetBacklogQuery(project.Id, null, null, null, null, null, null, null, null, true, 1, 20);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().HaveCount(1);
-        await _workItemRepo.Received(1).GetBacklogPagedAsync(
-            projectId, null, null, null, null, null, null, null, null, true, 1, 20,
-            Arg.Any<CancellationToken>());
+        result.Value.Items.First().Id.Should().Be(readyItem.Id);
     }
 }

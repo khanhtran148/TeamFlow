@@ -1,47 +1,43 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
-using TeamFlow.Application.Common.Models;
+using TeamFlow.Application.Features.WorkItems.ChangeStatus;
 using TeamFlow.Application.Features.WorkItems.GetHistory;
+using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.WorkItems;
 
-public sealed class GetWorkItemHistoryTests
+[Collection("WorkItems")]
+public sealed class GetWorkItemHistoryTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IWorkItemHistoryRepository _historyRepo = Substitute.For<IWorkItemHistoryRepository>();
-
-    private GetWorkItemHistoryHandler CreateHandler() => new(_historyRepo);
-
     [Fact]
     public async Task Handle_ValidQuery_ReturnsPagedHistory()
     {
-        var workItemId = Guid.NewGuid();
-        var historyItems = new[]
-        {
-            new WorkItemHistoryDto(Guid.NewGuid(), Guid.NewGuid(), "John", "User", "StatusChanged", "Status", "ToDo", "InProgress", DateTime.UtcNow)
-        };
-        _historyRepo.GetByWorkItemAsync(workItemId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns(new PagedResult<WorkItemHistoryDto>(historyItems, 1, 1, 20));
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.WithStatus(WorkItemStatus.ToDo));
 
-        var result = await CreateHandler().Handle(
-            new GetWorkItemHistoryQuery(workItemId), CancellationToken.None);
+        // Generate some history by changing status
+        await Sender.Send(new ChangeWorkItemStatusCommand(item.Id, WorkItemStatus.InProgress));
+        DbContext.ChangeTracker.Clear();
+
+        var result = await Sender.Send(new GetWorkItemHistoryQuery(item.Id));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.TotalCount.Should().Be(1);
-        result.Value.Items.Should().ContainSingle();
+        result.Value.TotalCount.Should().BeGreaterThan(0);
+        result.Value.Items.Should().NotBeEmpty();
     }
 
     [Fact]
     public async Task Handle_NoHistory_ReturnsEmptyPage()
     {
-        var workItemId = Guid.NewGuid();
-        _historyRepo.GetByWorkItemAsync(workItemId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns(new PagedResult<WorkItemHistoryDto>([], 0, 1, 20));
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        var result = await CreateHandler().Handle(
-            new GetWorkItemHistoryQuery(workItemId), CancellationToken.None);
+        var result = await Sender.Send(new GetWorkItemHistoryQuery(item.Id));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TotalCount.Should().Be(0);
+        result.Value.Items.Should().BeEmpty();
     }
 }

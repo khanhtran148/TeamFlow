@@ -10,7 +10,7 @@ description: Master index of all TeamFlow documentation
 |---|---|
 | [product/vision.md](product/vision.md) | Product vision, core principles, technology decisions |
 | [product/roles-permissions.md](product/roles-permissions.md) | 6 roles, permission matrix, 3-level resolution |
-| [product/features.md](product/features.md) | Feature inventory — work items, linking, release, retro |
+| [product/features.md](product/features.md) | Feature inventory — work items, linking, release, retro, user profile, admin bootstrap |
 | [product/roadmap.md](product/roadmap.md) | AI roadmap, 6-month / 1-year / 2-year outlook |
 
 ## Architecture
@@ -19,7 +19,7 @@ description: Master index of all TeamFlow documentation
 | [architecture/data-model.md](architecture/data-model.md) | Database schema, AI-ready tables, retention strategy |
 | [architecture/events.md](architecture/events.md) | Domain event catalog, C# event classes, SignalR + RabbitMQ architecture |
 | [architecture/background-jobs.md](architecture/background-jobs.md) | Background job design and rollout per phase |
-| [architecture/api-contracts.md](architecture/api-contracts.md) | REST API endpoint reference — Auth, Organizations, Teams, Project Memberships, Projects, Sprints, Work Items, Releases, Backlog, Kanban |
+| [architecture/api-contracts.md](architecture/api-contracts.md) | REST API endpoint reference — Auth, Users (profile, activity), Organizations, Teams, Project Memberships, Projects, Sprints, Work Items, Releases, Backlog, Kanban |
 | [architecture/codebase-architecture.md](architecture/codebase-architecture.md) | Layer responsibilities, HTTP flow, auth flow, event flow, key interfaces, scheduled jobs, frontend structure |
 
 ## Process

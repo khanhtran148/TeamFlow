@@ -39,11 +39,15 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
     public async Task<CumulativeFlowDto> GetCumulativeFlowDataAsync(
         Guid projectId, DateOnly fromDate, DateOnly toDate, CancellationToken ct = default)
     {
-        var burndownPoints = await context.BurndownDataPoints
+        var rawPoints = await context.BurndownDataPoints
             .AsNoTracking()
             .Where(b => b.Sprint!.ProjectId == projectId
                 && b.RecordedDate >= fromDate
                 && b.RecordedDate <= toDate)
+            .Select(b => new { b.RecordedDate, b.RemainingPoints, b.CompletedPoints })
+            .ToListAsync(ct);
+
+        var burndownPoints = rawPoints
             .GroupBy(b => b.RecordedDate)
             .Select(g => new CumulativeFlowPointDto(
                 g.Key,
@@ -53,7 +57,7 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
                 g.Sum(b => b.CompletedPoints)
             ))
             .OrderBy(p => p.Date)
-            .ToListAsync(ct);
+            .ToList();
 
         return new CumulativeFlowDto(burndownPoints);
     }
@@ -115,19 +119,29 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
     public async Task<WorkloadHeatmapDto> GetWorkloadDataAsync(
         Guid projectId, CancellationToken ct = default)
     {
-        var members = await context.WorkItems
+        var rawItems = await context.WorkItems
             .AsNoTracking()
             .Where(w => w.ProjectId == projectId && w.AssigneeId.HasValue)
-            .GroupBy(w => new { w.AssigneeId, w.Assignee!.Name })
+            .Select(w => new
+            {
+                w.AssigneeId,
+                AssigneeName = w.Assignee!.Name,
+                w.Status,
+                w.EstimationValue
+            })
+            .ToListAsync(ct);
+
+        var members = rawItems
+            .GroupBy(w => new { w.AssigneeId, w.AssigneeName })
             .Select(g => new WorkloadMemberDto(
                 g.Key.AssigneeId!.Value,
-                g.Key.Name,
+                g.Key.AssigneeName,
                 g.Count(),
                 g.Count(w => w.Status == WorkItemStatus.InProgress),
                 g.Sum(w => w.EstimationValue ?? 0)
             ))
             .OrderByDescending(m => m.AssignedCount)
-            .ToListAsync(ct);
+            .ToList();
 
         return new WorkloadHeatmapDto(members);
     }
