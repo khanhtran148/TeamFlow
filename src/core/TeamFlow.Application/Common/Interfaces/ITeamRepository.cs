@@ -10,4 +10,6 @@ public interface ITeamRepository
     Task<Team> AddAsync(Team team, CancellationToken ct = default);
     Task<Team> UpdateAsync(Team team, CancellationToken ct = default);
     Task DeleteAsync(Team team, CancellationToken ct = default);
+    Task AddMemberAsync(TeamMember member, CancellationToken ct = default);
+    Task RemoveMemberAsync(TeamMember member, CancellationToken ct = default);
 }

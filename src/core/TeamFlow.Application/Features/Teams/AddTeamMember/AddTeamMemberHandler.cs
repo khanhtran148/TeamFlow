@@ -23,14 +23,14 @@ public sealed class AddTeamMemberHandler(
         if (team.Members.Any(m => m.UserId == request.UserId))
             return Result.Failure("User is already a member of this team");
 
-        team.Members.Add(new TeamMember
+        var member = new TeamMember
         {
             TeamId = team.Id,
             UserId = request.UserId,
             Role = request.Role
-        });
+        };
 
-        await teamRepository.UpdateAsync(team, ct);
+        await teamRepository.AddMemberAsync(member, ct);
 
         return Result.Success();
     }

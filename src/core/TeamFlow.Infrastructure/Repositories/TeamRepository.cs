@@ -55,4 +55,16 @@ public sealed class TeamRepository(TeamFlowDbContext context) : ITeamRepository
         context.Teams.Remove(team);
         await context.SaveChangesAsync(ct);
     }
+
+    public async Task AddMemberAsync(TeamMember member, CancellationToken ct = default)
+    {
+        context.TeamMembers.Add(member);
+        await context.SaveChangesAsync(ct);
+    }
+
+    public async Task RemoveMemberAsync(TeamMember member, CancellationToken ct = default)
+    {
+        context.TeamMembers.Remove(member);
+        await context.SaveChangesAsync(ct);
+    }
 }
