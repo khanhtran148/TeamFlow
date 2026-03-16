@@ -45,4 +45,10 @@ public sealed class UserRepository(TeamFlowDbContext context) : IUserRepository
         context.Users.Update(user);
         await context.SaveChangesAsync(ct);
     }
+
+    public async Task<IEnumerable<User>> ListAllAsync(CancellationToken ct = default)
+        => await context.Users
+            .AsNoTracking()
+            .OrderBy(u => u.Email)
+            .ToListAsync(ct);
 }

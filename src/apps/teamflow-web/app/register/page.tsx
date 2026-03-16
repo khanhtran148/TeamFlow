@@ -33,7 +33,7 @@ export default function RegisterPage() {
       expiresAt: response.expiresAt,
     });
 
-    router.push("/projects");
+    router.push(user.systemRole === "SystemAdmin" ? "/admin" : "/onboarding");
   }
 
   return (

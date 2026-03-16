@@ -9,11 +9,10 @@ import type { ApiError } from "@/lib/api/client";
 interface CreateProjectDialogProps {
   open: boolean;
   onClose: () => void;
+  defaultOrgId?: string;
 }
 
-const DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000001";
-
-export function CreateProjectDialog({ open, onClose }: CreateProjectDialogProps) {
+export function CreateProjectDialog({ open, onClose, defaultOrgId }: CreateProjectDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [nameError, setNameError] = useState("");
@@ -43,7 +42,7 @@ export function CreateProjectDialog({ open, onClose }: CreateProjectDialogProps)
     setNameError("");
     createProject(
       {
-        orgId: DEFAULT_ORG_ID,
+        orgId: defaultOrgId ?? "",
         name: trimmedName,
         description: description.trim() || undefined,
       },

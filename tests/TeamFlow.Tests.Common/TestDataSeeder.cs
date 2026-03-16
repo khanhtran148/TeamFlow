@@ -6,7 +6,8 @@ namespace TeamFlow.Tests.Common;
 
 /// <summary>
 /// Centralizes reference data seeding for integration tests.
-/// Seeds the well-known Organization and User required by all test bases.
+/// Seeds the well-known Organization (with slug) and User required by all test bases.
+/// Does NOT seed OrganizationMember — tests manage their own membership state.
 /// </summary>
 public static class TestDataSeeder
 {
@@ -14,7 +15,7 @@ public static class TestDataSeeder
     {
         if (!await ctx.Set<Organization>().AnyAsync(o => o.Id == orgId))
         {
-            var org = new Organization { Name = "Test Org" };
+            var org = new Organization { Name = "Test Org", Slug = "test-org" };
             ctx.Entry(org).Property(nameof(Organization.Id)).CurrentValue = orgId;
             ctx.Set<Organization>().Add(org);
         }

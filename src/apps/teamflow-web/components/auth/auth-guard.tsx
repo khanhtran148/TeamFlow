@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
-const PUBLIC_PATHS = ["/login", "/register"];
+const PUBLIC_PATHS = ["/login", "/register", "/invite/"];
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -40,7 +40,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
 
     if (isAuthenticated && isPublic) {
-      router.replace("/projects");
+      router.replace("/onboarding");
     }
   }, [checked, isAuthenticated, pathname, router]);
 

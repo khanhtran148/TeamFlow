@@ -17,6 +17,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
         builder.Property(u => u.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
         builder.Property(u => u.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz");
+        builder.Property(u => u.SystemRole).HasColumnName("system_role").HasDefaultValue(TeamFlow.Domain.Enums.SystemRole.User);
 
         builder.HasIndex(u => u.Email).IsUnique();
     }

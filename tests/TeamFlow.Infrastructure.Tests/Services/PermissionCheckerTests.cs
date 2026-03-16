@@ -57,9 +57,16 @@ public sealed class PermissionCheckerTests : IntegrationTestBase
         DbContext.Entry(project).Property(nameof(Project.Id)).CurrentValue = ProjectId;
         DbContext.Projects.Add(project);
 
-        // OrgAdmin has Org_Admin role on a project in the same org
+        // OrgAdmin has Org_Admin role on a project in the same org (legacy, kept for compatibility)
         DbContext.ProjectMemberships.Add(ProjectMembershipBuilder.New()
             .WithProject(ProjectId).WithMember(OrgAdminUserId).WithRole(ProjectRole.OrgAdmin).Build());
+
+        // OrgAdmin is also an Owner in the OrganizationMember table (new system)
+        DbContext.OrganizationMembers.Add(OrganizationMemberBuilder.New()
+            .WithOrganization(SeedOrgId)
+            .WithUser(OrgAdminUserId)
+            .WithRole(OrgRole.Owner)
+            .Build());
 
         // Dev user has individual Developer role
         DbContext.ProjectMemberships.Add(ProjectMembershipBuilder.New()
@@ -196,6 +203,100 @@ public sealed class PermissionCheckerTests : IntegrationTestBase
         var result = await Checker.HasPermissionAsync(
             DevUserId, Guid.NewGuid(), Permission.WorkItem_View);
 
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task OrgMember_WithOwnerRole_IsOrgAdmin()
+    {
+        await EnsureSeededAsync();
+
+        // Add OrgMember entry for the OrgAdmin user with Owner role
+        var ownerUserId = Guid.NewGuid();
+        var user = UserBuilder.New().WithEmail("orgowner@test.com").Build();
+        DbContext.Entry(user).Property(nameof(User.Id)).CurrentValue = ownerUserId;
+        DbContext.Users.Add(user);
+
+        DbContext.OrganizationMembers.Add(
+            OrganizationMemberBuilder.New()
+                .WithOrganization(SeedOrgId)
+                .WithUser(ownerUserId)
+                .WithRole(OrgRole.Owner)
+                .Build());
+        await DbContext.SaveChangesAsync();
+
+        var result = await Checker.HasPermissionAsync(
+            ownerUserId, SeedOrgId, Permission.Org_Admin);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task OrgMember_WithAdminRole_IsOrgAdmin()
+    {
+        await EnsureSeededAsync();
+
+        var adminUserId = Guid.NewGuid();
+        var user = UserBuilder.New().WithEmail("orgadmin2@test.com").Build();
+        DbContext.Entry(user).Property(nameof(User.Id)).CurrentValue = adminUserId;
+        DbContext.Users.Add(user);
+
+        DbContext.OrganizationMembers.Add(
+            OrganizationMemberBuilder.New()
+                .WithOrganization(SeedOrgId)
+                .WithUser(adminUserId)
+                .WithRole(OrgRole.Admin)
+                .Build());
+        await DbContext.SaveChangesAsync();
+
+        var result = await Checker.HasPermissionAsync(
+            adminUserId, SeedOrgId, Permission.Org_Admin);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task OrgMember_WithMemberRole_IsNotOrgAdmin()
+    {
+        await EnsureSeededAsync();
+
+        var memberUserId = Guid.NewGuid();
+        var user = UserBuilder.New().WithEmail("orgmember@test.com").Build();
+        DbContext.Entry(user).Property(nameof(User.Id)).CurrentValue = memberUserId;
+        DbContext.Users.Add(user);
+
+        DbContext.OrganizationMembers.Add(
+            OrganizationMemberBuilder.New()
+                .WithOrganization(SeedOrgId)
+                .WithUser(memberUserId)
+                .WithRole(OrgRole.Member)
+                .Build());
+        await DbContext.SaveChangesAsync();
+
+        var result = await Checker.HasPermissionAsync(
+            memberUserId, SeedOrgId, Permission.Org_Admin);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task NoOrganizationMember_IsNotOrgAdmin_EvenWithNoAdminsExisting()
+    {
+        // This tests that the bootstrap hack is gone —
+        // having no org members should NOT grant access to everyone.
+        await EnsureSeededAsync();
+
+        // Create a fresh org with NO members
+        var freshOrgId = Guid.NewGuid();
+        var freshOrg = OrganizationBuilder.New().WithName("Fresh Org").WithSlug("fresh-org").Build();
+        DbContext.Entry(freshOrg).Property(nameof(Organization.Id)).CurrentValue = freshOrgId;
+        DbContext.Organizations.Add(freshOrg);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Checker.HasPermissionAsync(
+            NoMemberUserId, freshOrgId, Permission.Org_Admin);
+
+        // Bootstrap hack removed: should be false, not true
         result.Should().BeFalse();
     }
 }

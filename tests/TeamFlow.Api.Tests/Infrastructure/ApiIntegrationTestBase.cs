@@ -12,6 +12,7 @@ using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
 using TeamFlow.Infrastructure.Persistence;
 using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Api.Tests.Infrastructure;
 
@@ -141,22 +142,45 @@ public abstract class ApiIntegrationTestBase : IAsyncLifetime
         };
         db.Set<ProjectMembership>().Add(membership);
 
-        // When not OrgAdmin, seed an OrgAdmin anchor so PermissionChecker
-        // bootstrap logic ("no admin exists => allow all") is disabled.
+        // When not OrgAdmin, seed SeedUser2 as an OrgAdmin via OrganizationMember so the
+        // PermissionChecker correctly denies non-admin operations.
         if (role != ProjectRole.OrgAdmin)
         {
-            var adminMembership = new ProjectMembership
+            if (!await db.Set<OrganizationMember>().AnyAsync(m =>
+                    m.OrganizationId == SeedOrgId && m.UserId == SeedUser2Id))
             {
-                ProjectId = project.Id,
-                MemberId = SeedUser2Id,
-                MemberType = "User",
-                Role = ProjectRole.OrgAdmin
-            };
-            db.Set<ProjectMembership>().Add(adminMembership);
+                db.Set<OrganizationMember>().Add(
+                    OrganizationMemberBuilder.New()
+                        .WithOrganization(SeedOrgId)
+                        .WithUser(SeedUser2Id)
+                        .WithRole(OrgRole.Admin)
+                        .Build());
+            }
         }
 
         await db.SaveChangesAsync();
         return project.Id;
+    }
+
+    /// <summary>
+    /// Seeds an OrganizationMember record for the given user in the given org.
+    /// Use this when a test needs the user to have org-level permissions.
+    /// </summary>
+    protected async Task SeedOrgMemberAsync(Guid userId, Guid orgId, OrgRole role = OrgRole.Owner)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
+
+        if (!await db.Set<OrganizationMember>().AnyAsync(m => m.OrganizationId == orgId && m.UserId == userId))
+        {
+            db.Set<OrganizationMember>().Add(
+                OrganizationMemberBuilder.New()
+                    .WithOrganization(orgId)
+                    .WithUser(userId)
+                    .WithRole(role)
+                    .Build());
+            await db.SaveChangesAsync();
+        }
     }
 
     /// <summary>

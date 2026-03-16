@@ -4,7 +4,7 @@ using TeamFlow.Domain.Entities;
 
 namespace TeamFlow.Infrastructure.Persistence.Configurations;
 
-public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
+public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
 {
     public void Configure(EntityTypeBuilder<Organization> builder)
     {
@@ -13,6 +13,15 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
         builder.HasKey(o => o.Id);
         builder.Property(o => o.Id).HasColumnName("id");
         builder.Property(o => o.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
+        builder.Property(o => o.Slug).HasColumnName("slug").HasMaxLength(50).IsRequired();
+        builder.Property(o => o.CreatedByUserId).HasColumnName("created_by_user_id");
         builder.Property(o => o.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
+        builder.Property(o => o.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz");
+
+        builder.HasIndex(o => o.Slug).IsUnique();
+
+        builder.HasMany(o => o.Members)
+            .WithOne(m => m.Organization)
+            .HasForeignKey(m => m.OrganizationId);
     }
 }

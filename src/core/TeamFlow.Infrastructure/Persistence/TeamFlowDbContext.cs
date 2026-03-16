@@ -12,6 +12,7 @@ public class TeamFlowDbContext : DbContext
     // Core
     public DbSet<User> Users => Set<User>();
     public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<Project> Projects => Set<Project>();
@@ -63,6 +64,9 @@ public class TeamFlowDbContext : DbContext
     public DbSet<TeamVelocityHistory> TeamVelocityHistories => Set<TeamVelocityHistory>();
     public DbSet<WorkItemEmbedding> WorkItemEmbeddings => Set<WorkItemEmbedding>();
     public DbSet<AiInteraction> AiInteractions => Set<AiInteraction>();
+
+    // Invitations
+    public DbSet<Invitation> Invitations => Set<Invitation>();
 
     // Infrastructure
     public DbSet<JobExecutionMetric> JobExecutionMetrics => Set<JobExecutionMetric>();

@@ -1,4 +1,5 @@
 using TeamFlow.Application.Common.Interfaces;
+using TeamFlow.Domain.Enums;
 
 namespace TeamFlow.Api.Services;
 
@@ -14,4 +15,5 @@ public sealed class FakeCurrentUser : ICurrentUser
     public string Email => "seed@teamflow.dev";
     public string Name => "Seed User";
     public bool IsAuthenticated => true;
+    public SystemRole SystemRole => SystemRole.User;
 }

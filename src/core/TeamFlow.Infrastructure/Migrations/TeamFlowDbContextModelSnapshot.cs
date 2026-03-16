@@ -385,6 +385,76 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.ToTable("in_app_notifications", (string)null);
                 });
 
+            modelBuilder.Entity("TeamFlow.Domain.Entities.Invitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<Guid?>("AcceptedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("accepted_by_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("InvitedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invited_by_user_id");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("role");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcceptedByUserId");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("InvitedByUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "Status");
+
+                    b.ToTable("invitations", (string)null);
+                });
+
             modelBuilder.Entity("TeamFlow.Domain.Entities.JobExecutionMetric", b =>
                 {
                     b.Property<Guid>("Id")
@@ -497,7 +567,8 @@ namespace TeamFlow.Infrastructure.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -505,9 +576,56 @@ namespace TeamFlow.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("slug");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
                     b.ToTable("organizations", (string)null);
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.OrganizationMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("joined_at");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("role");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("OrganizationId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("organization_members", (string)null);
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.PlanningPokerSession", b =>
@@ -1364,6 +1482,12 @@ namespace TeamFlow.Infrastructure.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("password_hash");
 
+                    b.Property<int>("SystemRole")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("system_role");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("updated_at");
@@ -1748,6 +1872,32 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.Navigation("Recipient");
                 });
 
+            modelBuilder.Entity("TeamFlow.Domain.Entities.Invitation", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.User", "AcceptedBy")
+                        .WithMany()
+                        .HasForeignKey("AcceptedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TeamFlow.Domain.Entities.User", "InvitedBy")
+                        .WithMany()
+                        .HasForeignKey("InvitedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TeamFlow.Domain.Entities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AcceptedBy");
+
+                    b.Navigation("InvitedBy");
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("TeamFlow.Domain.Entities.NotificationPreference", b =>
                 {
                     b.HasOne("TeamFlow.Domain.Entities.User", "User")
@@ -1755,6 +1905,25 @@ namespace TeamFlow.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.OrganizationMember", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.Organization", "Organization")
+                        .WithMany("Members")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TeamFlow.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
 
                     b.Navigation("User");
                 });
@@ -1781,8 +1950,7 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.HasOne("TeamFlow.Domain.Entities.WorkItem", "WorkItem")
                         .WithMany()
                         .HasForeignKey("WorkItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("ConfirmedBy");
 
@@ -2190,6 +2358,8 @@ namespace TeamFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.Organization", b =>
                 {
+                    b.Navigation("Members");
+
                     b.Navigation("Projects");
 
                     b.Navigation("Teams");

@@ -17,6 +17,7 @@ public sealed class ListOrganizationsHandler(
         var dtos = organizations.Select(o => new OrganizationDto(
             o.Id,
             o.Name,
+            o.Slug,
             o.CreatedAt));
 
         return Result.Success(dtos);

@@ -9,6 +9,7 @@ public sealed class TestCurrentUser : ICurrentUser
     public string Email => "test@teamflow.dev";
     public string Name => "Test User";
     public bool IsAuthenticated => true;
+    public SystemRole SystemRole => SystemRole.User;
 }
 
 public sealed class AlwaysAllowTestPermissionChecker : IPermissionChecker

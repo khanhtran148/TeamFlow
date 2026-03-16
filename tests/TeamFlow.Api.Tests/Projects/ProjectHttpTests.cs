@@ -14,6 +14,8 @@ public sealed class ProjectHttpTests(PostgresFixture postgres) : ApiIntegrationT
     [Fact]
     public async Task Create_WithValidBody_Returns201()
     {
+        // SeedUserId must be an Org Owner/Admin to create projects
+        await SeedOrgMemberAsync(SeedUserId, SeedOrgId, OrgRole.Owner);
         var client = CreateAuthenticatedClient(ProjectRole.OrgAdmin);
 
         var response = await client.PostAsJsonAsync(
@@ -43,6 +45,8 @@ public sealed class ProjectHttpTests(PostgresFixture postgres) : ApiIntegrationT
     [Fact]
     public async Task GetById_AfterCreate_Returns200WithProject()
     {
+        // SeedUserId must be an Org Owner/Admin to create projects
+        await SeedOrgMemberAsync(SeedUserId, SeedOrgId, OrgRole.Owner);
         var client = CreateAuthenticatedClient(ProjectRole.OrgAdmin);
 
         var createResponse = await client.PostAsJsonAsync(

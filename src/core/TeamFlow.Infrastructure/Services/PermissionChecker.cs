@@ -43,8 +43,8 @@ public sealed class PermissionChecker(TeamFlowDbContext context) : IPermissionCh
         if (projectOrgId is null)
             return null;
 
-        // Check org admin first
-        if (await IsOrgAdminAsync(userId, projectOrgId.Value, ct))
+        // Check org admin first — pass resolved orgId directly to avoid redundant lookup
+        if (await IsOrgAdminByOrgIdAsync(userId, projectOrgId.Value, ct))
             return ProjectRole.OrgAdmin;
 
         // Fetch individual + team memberships for this project in one query
@@ -76,55 +76,47 @@ public sealed class PermissionChecker(TeamFlowDbContext context) : IPermissionCh
     }
 
     /// <summary>
-    /// Checks if the user is an OrgAdmin. The orgOrProjectId can be either an OrgId
-    /// (for org-level operations like CreateProject) or resolved from a project.
+    /// Checks if the user is an OrgAdmin via OrganizationMember table.
+    /// The orgOrProjectId can be either an OrgId or a ProjectId — tries org first, falls back to project lookup.
     /// </summary>
     private async Task<bool> IsOrgAdminAsync(
         Guid userId, Guid orgOrProjectId, CancellationToken ct)
     {
-        // Determine if this is an OrgId or ProjectId
-        var orgId = orgOrProjectId;
-        var isOrg = await context.Organizations
+        // Try as OrgId first (single query combining org check + membership)
+        var isAdminByOrg = await context.OrganizationMembers
             .AsNoTracking()
-            .AnyAsync(o => o.Id == orgId, ct);
+            .AnyAsync(m =>
+                m.OrganizationId == orgOrProjectId &&
+                m.UserId == userId &&
+                (m.Role == OrgRole.Owner || m.Role == OrgRole.Admin), ct);
 
-        if (!isOrg)
-        {
-            // Maybe it's a ProjectId — resolve the OrgId
-            var projectOrgId = await context.Projects
-                .AsNoTracking()
-                .Where(p => p.Id == orgOrProjectId)
-                .Select(p => (Guid?)p.OrgId)
-                .FirstOrDefaultAsync(ct);
-
-            if (projectOrgId is null)
-                return false;
-
-            orgId = projectOrgId.Value;
-        }
-
-        // Check if user has OrgAdmin role on any project in this org
-        var hasAdminMembership = await context.ProjectMemberships
-            .AsNoTracking()
-            .AnyAsync(pm =>
-                pm.MemberType == "User" &&
-                pm.MemberId == userId &&
-                pm.Role == ProjectRole.OrgAdmin &&
-                pm.Project!.OrgId == orgId, ct);
-
-        if (hasAdminMembership)
+        if (isAdminByOrg)
             return true;
 
-        // Bootstrap: if NO OrgAdmin exists for this org at all,
-        // allow the operation so the first user can create the first project.
-        // Once an OrgAdmin membership is created, this path is never taken again.
-        var anyAdminExists = await context.ProjectMemberships
+        // If no match, it might be a ProjectId — resolve to OrgId
+        var projectOrgId = await context.Projects
             .AsNoTracking()
-            .AnyAsync(pm =>
-                pm.MemberType == "User" &&
-                pm.Role == ProjectRole.OrgAdmin &&
-                pm.Project!.OrgId == orgId, ct);
+            .Where(p => p.Id == orgOrProjectId)
+            .Select(p => (Guid?)p.OrgId)
+            .FirstOrDefaultAsync(ct);
 
-        return !anyAdminExists;
+        if (projectOrgId is null)
+            return false;
+
+        return await IsOrgAdminByOrgIdAsync(userId, projectOrgId.Value, ct);
+    }
+
+    /// <summary>
+    /// Checks org admin when the OrgId is already known (avoids redundant lookups).
+    /// </summary>
+    private async Task<bool> IsOrgAdminByOrgIdAsync(
+        Guid userId, Guid orgId, CancellationToken ct)
+    {
+        return await context.OrganizationMembers
+            .AsNoTracking()
+            .AnyAsync(m =>
+                m.OrganizationId == orgId &&
+                m.UserId == userId &&
+                (m.Role == OrgRole.Owner || m.Role == OrgRole.Admin), ct);
     }
 }

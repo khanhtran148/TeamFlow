@@ -10,6 +10,7 @@ using TeamFlow.Api.Services;
 using TeamFlow.Application;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Infrastructure;
+using TeamFlow.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +25,9 @@ builder.Services.AddScoped<ICurrentUser, JwtCurrentUser>();
 
 // ─── Broadcast (SignalR) ──────────────────────────────────────────────────
 builder.Services.AddScoped<IBroadcastService, SignalRBroadcastService>();
+
+// ─── Admin Seed ────────────────────────────────────────────────────────────
+builder.Services.AddHostedService<AdminSeedService>();
 
 // ─── API Versioning ────────────────────────────────────────────────────────
 builder.Services.AddApiVersioning(options =>
@@ -192,18 +196,11 @@ builder.Services.AddProblemDetails();
 // ─── Build ────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
-// ─── Database Migration & Seed ────────────────────────────────────────────
+// ─── Database Migration ────────────────────────────────────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<TeamFlow.Infrastructure.Persistence.TeamFlowDbContext>();
     await db.Database.MigrateAsync();
-
-    // Seed default organization if none exists
-    if (!await db.Organizations.AnyAsync())
-    {
-        db.Organizations.Add(new TeamFlow.Domain.Entities.Organization { Name = "Default Organization" });
-        await db.SaveChangesAsync();
-    }
 }
 
 // ─── Middleware Pipeline ───────────────────────────────────────────────────
