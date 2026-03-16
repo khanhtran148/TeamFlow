@@ -45,6 +45,17 @@ public class TeamFlowDbContext : DbContext
     // Notifications
     public DbSet<InAppNotification> InAppNotifications => Set<InAppNotification>();
 
+    // Search
+    public DbSet<SavedFilter> SavedFilters => Set<SavedFilter>();
+
+    // Phase 5: Notification preferences & email outbox
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+    public DbSet<EmailOutbox> EmailOutboxes => Set<EmailOutbox>();
+
+    // Phase 5: Reports
+    public DbSet<SprintReport> SprintReports => Set<SprintReport>();
+    public DbSet<TeamHealthSummary> TeamHealthSummaries => Set<TeamHealthSummary>();
+
     // AI-Ready
     public DbSet<DomainEvent> DomainEvents => Set<DomainEvent>();
     public DbSet<SprintSnapshot> SprintSnapshots => Set<SprintSnapshot>();

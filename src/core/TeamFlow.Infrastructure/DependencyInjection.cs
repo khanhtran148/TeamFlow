@@ -48,6 +48,19 @@ public static class DependencyInjection
         services.AddScoped<IPlanningPokerSessionRepository, PlanningPokerSessionRepository>();
         services.AddScoped<IInAppNotificationRepository, InAppNotificationRepository>();
 
+        // Phase 5 repositories
+        services.AddScoped<ISavedFilterRepository, SavedFilterRepository>();
+        services.AddScoped<IDashboardRepository, DashboardRepository>();
+        services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
+        services.AddScoped<IEmailOutboxRepository, EmailOutboxRepository>();
+
+        services.AddScoped<ISprintReportRepository, SprintReportRepository>();
+        services.AddScoped<ITeamHealthSummaryRepository, TeamHealthSummaryRepository>();
+
+        // Phase 5 services
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
+
         // Services
         services.AddScoped<IHistoryService, HistoryService>();
         services.AddScoped<IAuthService, AuthService>();

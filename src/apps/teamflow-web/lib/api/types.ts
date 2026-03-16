@@ -617,3 +617,144 @@ export interface InAppNotificationDto {
   isRead: boolean;
   createdAt: string;
 }
+
+export interface NotificationPreferenceDto {
+  notificationType: string;
+  emailEnabled: boolean;
+  inAppEnabled: boolean;
+}
+
+export interface UnreadCountDto {
+  count: number;
+}
+
+// ---- Saved Filter DTOs ----
+
+export interface SavedFilterDto {
+  id: string;
+  name: string;
+  filterJson: Record<string, unknown>;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface SaveFilterBody {
+  name: string;
+  filterJson: Record<string, unknown>;
+  isDefault: boolean;
+}
+
+export interface UpdateSavedFilterBody {
+  name?: string;
+  filterJson?: Record<string, unknown>;
+  isDefault?: boolean;
+}
+
+// ---- Search Params ----
+
+export interface SearchParams {
+  projectId: string;
+  q?: string;
+  status?: WorkItemStatus[];
+  priority?: Priority[];
+  type?: WorkItemType[];
+  assigneeId?: string;
+  sprintId?: string;
+  releaseId?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// ---- Dashboard DTOs ----
+
+export interface DashboardSummaryDto {
+  activeSprintId: string | null;
+  activeSprintName: string | null;
+  totalItems: number;
+  openItems: number;
+  completionPct: number;
+  overdueReleases: number;
+  staleItems: number;
+  velocity3SprintAvg: number;
+}
+
+export interface VelocitySprintDto {
+  sprintId: string;
+  sprintName: string;
+  plannedPoints: number;
+  completedPoints: number;
+  velocity: number;
+  avg3Sprint: number;
+  avg6Sprint: number;
+}
+
+export interface VelocityChartDto {
+  sprints: VelocitySprintDto[];
+}
+
+export interface CumulativeFlowPointDto {
+  date: string;
+  toDo: number;
+  inProgress: number;
+  inReview: number;
+  done: number;
+}
+
+export interface CumulativeFlowDto {
+  dataPoints: CumulativeFlowPointDto[];
+}
+
+export interface CycleTimeByTypeDto {
+  itemType: string;
+  avgDays: number;
+  medianDays: number;
+  p90Days: number;
+  sampleSize: number;
+}
+
+export interface CycleTimeDto {
+  byType: CycleTimeByTypeDto[];
+}
+
+export interface WorkloadMemberDto {
+  userId: string;
+  name: string;
+  assignedCount: number;
+  inProgressCount: number;
+  pointsAssigned: number;
+}
+
+export interface WorkloadHeatmapDto {
+  members: WorkloadMemberDto[];
+}
+
+export interface ReleaseProgressDto {
+  doneCount: number;
+  inProgressCount: number;
+  todoCount: number;
+  donePoints: number;
+  totalPoints: number;
+  completionPct: number;
+}
+
+// ---- Report DTOs ----
+
+export interface SprintReportDto {
+  id: string;
+  sprintId: string;
+  projectId: string;
+  reportData: Record<string, unknown>;
+  generatedAt: string;
+  generatedBy: string;
+}
+
+export interface TeamHealthSummaryDto {
+  id: string;
+  projectId: string;
+  periodStart: string;
+  periodEnd: string;
+  summaryData: Record<string, unknown>;
+  generatedAt: string;
+}
