@@ -1,5 +1,6 @@
 using CSharpFunctionalExtensions;
 using MediatR;
+using TeamFlow.Application.Common.Errors;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Events;
 
@@ -18,17 +19,17 @@ public sealed class AssignItemToReleaseHandler(
     {
         var release = await releaseRepository.GetByIdAsync(request.ReleaseId, ct);
         if (release is null)
-            return Result.Failure("Release not found");
+            return DomainError.NotFound("Release not found");
 
         if (!await permissions.HasPermissionAsync(currentUser.Id, release.ProjectId, Permission.Release_Edit, ct))
-            return Result.Failure("Access denied");
+            return DomainError.Forbidden();
 
         var workItem = await workItemRepository.GetByIdAsync(request.WorkItemId, ct);
         if (workItem is null)
-            return Result.Failure("Work item not found");
+            return DomainError.NotFound("Work item not found");
 
         if (workItem.ReleaseId.HasValue && workItem.ReleaseId.Value != request.ReleaseId)
-            return Result.Failure("Work item is already assigned to another release. Unassign it first.");
+            return DomainError.Conflict("Work item is already assigned to another release. Unassign it first.");
 
         var oldReleaseId = workItem.ReleaseId;
         workItem.ReleaseId = request.ReleaseId;

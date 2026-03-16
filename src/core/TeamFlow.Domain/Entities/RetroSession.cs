@@ -9,7 +9,7 @@ public class RetroSession
     public Guid? SprintId { get; set; }
     public Guid ProjectId { get; set; }
     public Guid FacilitatorId { get; set; }
-    public string AnonymityMode { get; set; } = "Public"; // Anonymous, Public
+    public string AnonymityMode { get; set; } = Enums.RetroAnonymityModes.Public;
     public RetroSessionStatus Status { get; set; } = RetroSessionStatus.Draft;
     public JsonDocument? AiSummary { get; set; }
     public DateTime CreatedAt { get; protected set; } = DateTime.UtcNow;

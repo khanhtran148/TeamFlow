@@ -36,6 +36,10 @@ public class WorkItemConfiguration : IEntityTypeConfiguration<WorkItem>
         // Backlog ordering
         builder.Property(w => w.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
 
+        // Refinement
+        builder.Property(w => w.IsReadyForSprint).HasColumnName("is_ready_for_sprint")
+            .IsRequired().HasDefaultValue(false);
+
         // Assignments
         builder.Property(w => w.AssigneeId).HasColumnName("assignee_id");
         builder.Property(w => w.SprintId).HasColumnName("sprint_id");

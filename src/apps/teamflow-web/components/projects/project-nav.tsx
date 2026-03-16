@@ -12,6 +12,7 @@ const NAV_TABS = [
   { label: "Board", href: (id: string) => `/projects/${id}/board` },
   { label: "Sprints", href: (id: string) => `/projects/${id}/sprints` },
   { label: "Releases", href: (id: string) => `/projects/${id}/releases` },
+  { label: "Retros", href: (id: string) => `/projects/${id}/retros` },
 ];
 
 export function ProjectNav({ projectId }: ProjectNavProps) {

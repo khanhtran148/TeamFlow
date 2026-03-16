@@ -1,5 +1,6 @@
 using CSharpFunctionalExtensions;
 using MediatR;
+using TeamFlow.Application.Common.Errors;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Releases;
 using TeamFlow.Domain.Entities;
@@ -16,13 +17,13 @@ public sealed class UpdateReleaseHandler(
     {
         var release = await releaseRepository.GetByIdAsync(request.ReleaseId, ct);
         if (release is null)
-            return Result.Failure<ReleaseDto>("Release not found");
+            return DomainError.NotFound<ReleaseDto>("Release not found");
 
         if (!await permissions.HasPermissionAsync(currentUser.Id, release.ProjectId, Permission.Release_Edit, ct))
-            return Result.Failure<ReleaseDto>("Access denied");
+            return DomainError.Forbidden<ReleaseDto>();
 
         if (release.NotesLocked)
-            return Result.Failure<ReleaseDto>("Release notes are locked and cannot be updated");
+            return DomainError.Validation<ReleaseDto>("Release notes are locked and cannot be updated");
 
         release.Name = request.Name;
         release.Description = request.Description;

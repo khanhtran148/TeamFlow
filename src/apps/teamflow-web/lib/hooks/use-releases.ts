@@ -12,13 +12,20 @@ import {
   deleteRelease,
   assignItem,
   unassignItem,
+  getReleaseDetail,
+  updateReleaseNotes,
+  shipRelease,
 } from "@/lib/api/releases";
 import type {
   ReleaseDto,
+  ReleaseDetailDto,
+  ShipReleaseResultDto,
   PaginatedResponse,
   GetReleasesParams,
   CreateReleaseBody,
   UpdateReleaseBody,
+  UpdateReleaseNotesBody,
+  ShipReleaseBody,
 } from "@/lib/api/types";
 
 // ---- Query keys ----
@@ -27,6 +34,7 @@ export const releaseKeys = {
   all: (projectId: string) => ["releases", projectId] as const,
   list: (params: GetReleasesParams) => ["releases", params.projectId, "list", params] as const,
   detail: (id: string) => ["releases", "detail", id] as const,
+  fullDetail: (id: string) => ["releases", "full-detail", id] as const,
 };
 
 // ---- Queries ----
@@ -119,6 +127,47 @@ export function useUnassignItem(projectId: string) {
       queryClient.invalidateQueries({ queryKey: releaseKeys.all(projectId) });
       queryClient.invalidateQueries({ queryKey: releaseKeys.detail(releaseId) });
       queryClient.invalidateQueries({ queryKey: ["backlog", projectId] });
+    },
+  });
+}
+
+// ---- Release Detail Queries & Mutations ----
+
+export function useReleaseDetail(
+  id: string,
+  options?: Partial<UseQueryOptions<ReleaseDetailDto>>,
+) {
+  return useQuery({
+    queryKey: releaseKeys.fullDetail(id),
+    queryFn: () => getReleaseDetail(id),
+    enabled: !!id,
+    ...options,
+  });
+}
+
+export function useUpdateReleaseNotes(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateReleaseNotesBody }) =>
+      updateReleaseNotes(id, data),
+    onSuccess: (_result, { id }) => {
+      queryClient.invalidateQueries({ queryKey: releaseKeys.fullDetail(id) });
+      queryClient.invalidateQueries({ queryKey: releaseKeys.detail(id) });
+    },
+  });
+}
+
+export function useShipRelease(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ShipReleaseBody }) =>
+      shipRelease(id, data),
+    onSuccess: (_result, { id }) => {
+      queryClient.invalidateQueries({ queryKey: releaseKeys.all(projectId) });
+      queryClient.invalidateQueries({ queryKey: releaseKeys.fullDetail(id) });
+      queryClient.invalidateQueries({ queryKey: releaseKeys.detail(id) });
     },
   });
 }

@@ -1,5 +1,6 @@
 using CSharpFunctionalExtensions;
 using MediatR;
+using TeamFlow.Application.Common.Errors;
 using TeamFlow.Application.Common.Interfaces;
 
 namespace TeamFlow.Application.Features.Releases.UnassignItem;
@@ -16,17 +17,17 @@ public sealed class UnassignItemFromReleaseHandler(
     {
         var release = await releaseRepository.GetByIdAsync(request.ReleaseId, ct);
         if (release is null)
-            return Result.Failure("Release not found");
+            return DomainError.NotFound("Release not found");
 
         if (!await permissions.HasPermissionAsync(currentUser.Id, release.ProjectId, Permission.Release_Edit, ct))
-            return Result.Failure("Access denied");
+            return DomainError.Forbidden();
 
         var workItem = await workItemRepository.GetByIdAsync(request.WorkItemId, ct);
         if (workItem is null)
-            return Result.Failure("Work item not found");
+            return DomainError.NotFound("Work item not found");
 
         if (workItem.ReleaseId != request.ReleaseId)
-            return Result.Failure("Work item is not assigned to this release");
+            return DomainError.Validation("Work item is not assigned to this release");
 
         workItem.ReleaseId = null;
 

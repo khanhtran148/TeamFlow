@@ -22,6 +22,8 @@ interface ProjectLayoutClientProps {
 function resolveActiveTab(pathname: string, projectId: string): string {
   if (pathname.includes(`/projects/${projectId}/board`)) return "Board";
   if (pathname.includes(`/projects/${projectId}/releases`)) return "Releases";
+  if (pathname.includes(`/projects/${projectId}/retros`)) return "Retros";
+  if (pathname.includes(`/projects/${projectId}/sprints`)) return "Sprints";
   return "Backlog";
 }
 

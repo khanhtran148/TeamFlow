@@ -12,6 +12,7 @@ public class Release
     public ReleaseStatus Status { get; set; } = ReleaseStatus.Unreleased;
     public DateTime? ReleasedAt { get; set; }
     public Guid? ReleasedById { get; set; }
+    public string? ReleaseNotes { get; set; }
     public bool NotesLocked { get; set; } = false;
     public DateTime CreatedAt { get; protected set; } = DateTime.UtcNow;
 

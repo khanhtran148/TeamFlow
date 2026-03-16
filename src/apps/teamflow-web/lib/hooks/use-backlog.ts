@@ -4,12 +4,19 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import { getBacklog, reorderBacklog } from "@/lib/api/backlog";
+import {
+  getBacklog,
+  reorderBacklog,
+  toggleReadyForSprint,
+  bulkUpdatePriority,
+} from "@/lib/api/backlog";
 import type {
   BacklogItemDto,
   PaginatedResponse,
   GetBacklogParams,
   ReorderBacklogBody,
+  ToggleReadyBody,
+  BulkUpdatePriorityBody,
 } from "@/lib/api/types";
 
 // ---- Query keys ----
@@ -44,6 +51,38 @@ export function useReorderBacklog() {
     onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({
         queryKey: backlogKeys.all(variables.projectId),
+      });
+    },
+  });
+}
+
+export function useToggleReadyForSprint(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      workItemId,
+      data,
+    }: {
+      workItemId: string;
+      data: ToggleReadyBody;
+    }) => toggleReadyForSprint(workItemId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: backlogKeys.all(projectId),
+      });
+    },
+  });
+}
+
+export function useBulkUpdatePriority(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: BulkUpdatePriorityBody) => bulkUpdatePriority(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: backlogKeys.all(projectId),
       });
     },
   });

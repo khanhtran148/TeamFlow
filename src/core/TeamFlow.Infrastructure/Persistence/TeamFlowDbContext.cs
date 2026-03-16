@@ -35,6 +35,16 @@ public class TeamFlowDbContext : DbContext
     public DbSet<RetroVote> RetroVotes => Set<RetroVote>();
     public DbSet<RetroActionItem> RetroActionItems => Set<RetroActionItem>();
 
+    // Comments
+    public DbSet<Comment> Comments => Set<Comment>();
+
+    // Planning Poker
+    public DbSet<PlanningPokerSession> PlanningPokerSessions => Set<PlanningPokerSession>();
+    public DbSet<PlanningPokerVote> PlanningPokerVotes => Set<PlanningPokerVote>();
+
+    // Notifications
+    public DbSet<InAppNotification> InAppNotifications => Set<InAppNotification>();
+
     // AI-Ready
     public DbSet<DomainEvent> DomainEvents => Set<DomainEvent>();
     public DbSet<SprintSnapshot> SprintSnapshots => Set<SprintSnapshot>();

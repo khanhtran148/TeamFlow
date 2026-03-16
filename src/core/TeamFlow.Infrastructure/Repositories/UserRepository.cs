@@ -13,6 +13,14 @@ public sealed class UserRepository(TeamFlowDbContext context) : IUserRepository
     public async Task<User?> GetByEmailAsync(string email, CancellationToken ct = default)
         => await context.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
 
+    public async Task<IEnumerable<User>> GetByDisplayNamesAsync(IEnumerable<string> displayNames, CancellationToken ct = default)
+    {
+        var names = displayNames.ToList();
+        return await context.Users
+            .Where(u => names.Contains(u.Name))
+            .ToListAsync(ct);
+    }
+
     public async Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default)
         => await context.Users.AnyAsync(u => u.Email == email, ct);
 

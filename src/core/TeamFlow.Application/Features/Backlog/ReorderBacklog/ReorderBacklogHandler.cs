@@ -1,5 +1,6 @@
 using CSharpFunctionalExtensions;
 using MediatR;
+using TeamFlow.Application.Common.Errors;
 using TeamFlow.Application.Common.Interfaces;
 
 namespace TeamFlow.Application.Features.Backlog.ReorderBacklog;
@@ -13,7 +14,7 @@ public sealed class ReorderBacklogHandler(
     public async Task<Result> Handle(ReorderBacklogCommand request, CancellationToken ct)
     {
         if (!await permissions.HasPermissionAsync(currentUser.Id, request.ProjectId, Permission.WorkItem_Edit, ct))
-            return Result.Failure("Access denied");
+            return DomainError.Forbidden();
 
         foreach (var item in request.Items)
         {

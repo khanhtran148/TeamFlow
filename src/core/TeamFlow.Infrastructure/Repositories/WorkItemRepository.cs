@@ -15,6 +15,17 @@ public sealed class WorkItemRepository(TeamFlowDbContext context) : IWorkItemRep
             .Include(w => w.Release)
             .FirstOrDefaultAsync(w => w.Id == id, ct);
 
+    public async Task<IReadOnlyList<WorkItem>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default)
+    {
+        var idList = ids.ToList();
+        return await context.WorkItems
+            .Include(w => w.Assignee)
+            .Include(w => w.Sprint)
+            .Include(w => w.Release)
+            .Where(w => idList.Contains(w.Id))
+            .ToListAsync(ct);
+    }
+
     public async Task<WorkItem?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct = default)
         => await context.WorkItems
             .Include(w => w.Assignee)
@@ -144,6 +155,7 @@ public sealed class WorkItemRepository(TeamFlowDbContext context) : IWorkItemRep
         Guid? releaseId,
         bool? unscheduled,
         string? search,
+        bool? isReady,
         int page,
         int pageSize,
         CancellationToken ct = default)
@@ -178,6 +190,9 @@ public sealed class WorkItemRepository(TeamFlowDbContext context) : IWorkItemRep
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(w => w.Title.Contains(search));
 
+        if (isReady.HasValue)
+            query = query.Where(w => w.IsReadyForSprint == isReady.Value);
+
         var totalCount = await query.CountAsync(ct);
 
         var items = await query
@@ -189,6 +204,18 @@ public sealed class WorkItemRepository(TeamFlowDbContext context) : IWorkItemRep
 
         return (items, totalCount);
     }
+
+    public async Task<IEnumerable<WorkItem>> GetByReleaseIdAsync(Guid releaseId, CancellationToken ct = default)
+        => await context.WorkItems
+            .AsNoTracking()
+            .Include(w => w.Assignee)
+            .Include(w => w.Release)
+            .Include(w => w.Parent)
+            .Include(w => w.Sprint)
+            .Where(w => w.ReleaseId == releaseId)
+            .OrderBy(w => w.Type)
+            .ThenBy(w => w.CreatedAt)
+            .ToListAsync(ct);
 
     public async Task<IEnumerable<WorkItem>> GetKanbanItemsAsync(
         Guid projectId,

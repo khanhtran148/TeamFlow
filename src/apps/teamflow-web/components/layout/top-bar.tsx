@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
+import { NotificationBell } from "./notification-bell";
 
 interface TopBarProps {
   breadcrumb?: ReactNode;
@@ -61,6 +62,7 @@ export function TopBar({ breadcrumb, actions }: TopBarProps) {
         }}
       >
         {actions}
+        <NotificationBell />
         <ThemeToggle />
         <UserMenu />
       </div>

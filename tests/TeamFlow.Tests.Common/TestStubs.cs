@@ -26,6 +26,7 @@ public sealed class NullBroadcastService : IBroadcastService
     public Task BroadcastToSprintAsync(Guid sprintId, string eventName, object payload, CancellationToken ct = default) => Task.CompletedTask;
     public Task BroadcastToUserAsync(Guid userId, string eventName, object payload, CancellationToken ct = default) => Task.CompletedTask;
     public Task BroadcastToRetroSessionAsync(Guid sessionId, string eventName, object payload, CancellationToken ct = default) => Task.CompletedTask;
+    public Task BroadcastToWorkItemAsync(Guid workItemId, string eventName, object payload, CancellationToken ct = default) => Task.CompletedTask;
 }
 
 public sealed class TestHistoryService : IHistoryService

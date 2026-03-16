@@ -275,6 +275,7 @@ export interface GetBacklogParams {
   releaseId?: string;
   unscheduled?: boolean;
   search?: string;
+  isReady?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -373,4 +374,246 @@ export interface GetSprintsParams {
   projectId: string;
   page?: number;
   pageSize?: number;
+}
+
+// ---- Comment DTOs ----
+
+export interface CommentDto {
+  id: string;
+  workItemId: string;
+  authorId: string;
+  authorName: string;
+  parentCommentId: string | null;
+  content: string;
+  editedAt: string | null;
+  createdAt: string;
+  replies: CommentDto[];
+}
+
+export interface GetCommentsResponse {
+  items: CommentDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface CreateCommentBody {
+  content: string;
+  parentCommentId?: string;
+}
+
+export interface UpdateCommentBody {
+  content: string;
+}
+
+// ---- Retro Enums ----
+
+export type RetroSessionStatus = "Draft" | "Open" | "Voting" | "Discussing" | "Closed";
+export type RetroCardCategory = "WentWell" | "NeedsImprovement" | "ActionItem";
+
+// ---- Retro DTOs ----
+
+export interface RetroSessionDto {
+  id: string;
+  projectId: string;
+  sprintId: string | null;
+  facilitatorId: string;
+  facilitatorName: string;
+  anonymityMode: string;
+  status: RetroSessionStatus;
+  aiSummary: Record<string, unknown> | null;
+  cards: RetroCardDto[];
+  actionItems: RetroActionItemDto[];
+  createdAt: string;
+}
+
+export interface RetroCardDto {
+  id: string;
+  authorId: string | null;
+  authorName: string | null;
+  category: RetroCardCategory;
+  content: string;
+  isDiscussed: boolean;
+  totalVotes: number;
+  createdAt: string;
+}
+
+export interface RetroActionItemDto {
+  id: string;
+  cardId: string | null;
+  title: string;
+  description: string | null;
+  assigneeId: string | null;
+  assigneeName: string | null;
+  dueDate: string | null;
+  linkedTaskId: string | null;
+  createdAt: string;
+}
+
+export interface RetroSessionSummaryDto {
+  id: string;
+  projectId: string;
+  sprintId: string | null;
+  facilitatorName: string;
+  anonymityMode: string;
+  status: RetroSessionStatus;
+  cardCount: number;
+  actionItemCount: number;
+  createdAt: string;
+}
+
+export interface ListRetroSessionsResponse {
+  items: RetroSessionSummaryDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface CreateRetroSessionBody {
+  projectId: string;
+  sprintId?: string;
+  anonymityMode: string;
+}
+
+export interface SubmitRetroCardBody {
+  category: RetroCardCategory;
+  content: string;
+}
+
+export interface CastRetroVoteBody {
+  voteCount: number;
+}
+
+export interface TransitionRetroBody {
+  targetStatus: RetroSessionStatus;
+}
+
+export interface CreateRetroActionItemBody {
+  sessionId: string;
+  cardId?: string;
+  title: string;
+  description?: string;
+  assigneeId?: string;
+  dueDate?: string;
+  linkToBacklog?: boolean;
+}
+
+// ---- Planning Poker DTOs ----
+
+export interface PokerSessionDto {
+  id: string;
+  workItemId: string;
+  projectId: string;
+  facilitatorId: string;
+  facilitatorName: string;
+  isRevealed: boolean;
+  finalEstimate: number | null;
+  confirmedById: string | null;
+  voteCount: number;
+  votes: PokerVoteDto[];
+  createdAt: string;
+  closedAt: string | null;
+}
+
+export interface PokerVoteDto {
+  id: string;
+  voterId: string;
+  voterName: string;
+  value: number | null;
+}
+
+export interface CreatePokerSessionBody {
+  workItemId: string;
+}
+
+export interface CastPokerVoteBody {
+  value: number;
+}
+
+export interface ConfirmPokerEstimateBody {
+  finalEstimate: number;
+}
+
+// ---- Release Detail DTOs ----
+
+export interface ReleaseDetailDto {
+  id: string;
+  name: string;
+  description: string | null;
+  releaseNotes: string | null;
+  releaseDate: string | null;
+  status: ReleaseStatus;
+  notesLocked: boolean;
+  isOverdue: boolean;
+  progress: ReleaseProgressDto;
+  byEpic: ReleaseGroupDto[];
+  byAssignee: ReleaseGroupDto[];
+  bySprint: ReleaseGroupDto[];
+  createdAt: string;
+}
+
+export interface ReleaseProgressDto {
+  totalItems: number;
+  doneItems: number;
+  inProgressItems: number;
+  toDoItems: number;
+  totalPoints: number;
+  donePoints: number;
+  inProgressPoints: number;
+  toDoPoints: number;
+}
+
+export interface ReleaseGroupDto {
+  groupName: string;
+  groupId: string | null;
+  itemCount: number;
+  doneCount: number;
+}
+
+export interface ShipReleaseResultDto {
+  shipped: boolean;
+  incompleteItems: IncompleteItemDto[] | null;
+}
+
+export interface IncompleteItemDto {
+  id: string;
+  title: string;
+  status: WorkItemStatus;
+}
+
+export interface UpdateReleaseNotesBody {
+  notes: string;
+}
+
+export interface ShipReleaseBody {
+  confirmOpenItems: boolean;
+}
+
+// ---- Backlog Refinement ----
+
+export interface ToggleReadyBody {
+  isReady: boolean;
+}
+
+export interface PriorityUpdate {
+  workItemId: string;
+  priority: Priority;
+}
+
+export interface BulkUpdatePriorityBody {
+  items: PriorityUpdate[];
+}
+
+// ---- Notification DTOs ----
+
+export interface InAppNotificationDto {
+  id: string;
+  recipientId: string;
+  type: string;
+  title: string;
+  body: string | null;
+  referenceId: string | null;
+  referenceType: string | null;
+  isRead: boolean;
+  createdAt: string;
 }

@@ -42,6 +42,12 @@ public static class DependencyInjection
         services.AddScoped<ISprintSnapshotRepository, SprintSnapshotRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 
+        // Phase 4 repositories
+        services.AddScoped<ICommentRepository, CommentRepository>();
+        services.AddScoped<IRetroSessionRepository, RetroSessionRepository>();
+        services.AddScoped<IPlanningPokerSessionRepository, PlanningPokerSessionRepository>();
+        services.AddScoped<IInAppNotificationRepository, InAppNotificationRepository>();
+
         // Services
         services.AddScoped<IHistoryService, HistoryService>();
         services.AddScoped<IAuthService, AuthService>();

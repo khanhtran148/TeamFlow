@@ -15,6 +15,7 @@ using TeamFlow.Application.Features.WorkItems.RemoveLink;
 using TeamFlow.Application.Features.WorkItems.GetHistory;
 using TeamFlow.Application.Features.WorkItems.UnassignWorkItem;
 using TeamFlow.Application.Features.WorkItems.UpdateWorkItem;
+using TeamFlow.Application.Features.Backlog.MarkReadyForSprint;
 using TeamFlow.Domain.Enums;
 
 namespace TeamFlow.Api.Controllers;
@@ -136,8 +137,16 @@ public sealed class WorkItemsController : ApiControllerBase
         var result = await Sender.Send(new CheckBlockersQuery(id), ct);
         return HandleResult(result);
     }
+    [HttpPost("{id:guid}/ready")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ToggleReady(Guid id, [FromBody] ToggleReadyBody body, CancellationToken ct)
+    {
+        var result = await Sender.Send(new MarkReadyForSprintCommand(id, body.IsReady), ct);
+        return HandleResult(result);
+    }
 }
 
+public sealed record ToggleReadyBody(bool IsReady);
 public sealed record UpdateWorkItemBody(string Title, string? Description, Priority? Priority, decimal? EstimationValue, string? AcceptanceCriteria);
 public sealed record ChangeStatusBody(WorkItemStatus Status);
 public sealed record MoveWorkItemBody(Guid? NewParentId);

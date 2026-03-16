@@ -17,4 +17,7 @@ public sealed class SignalRBroadcastService(IHubContext<TeamFlowHub> hubContext)
 
     public async Task BroadcastToRetroSessionAsync(Guid sessionId, string eventName, object payload, CancellationToken ct = default)
         => await hubContext.Clients.Group($"retro:{sessionId}").SendAsync(eventName, payload, ct);
+
+    public async Task BroadcastToWorkItemAsync(Guid workItemId, string eventName, object payload, CancellationToken ct = default)
+        => await hubContext.Clients.Group($"workitem:{workItemId}").SendAsync(eventName, payload, ct);
 }

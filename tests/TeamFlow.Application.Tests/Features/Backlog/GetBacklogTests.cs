@@ -36,11 +36,11 @@ public sealed class GetBacklogTests
             WorkItemBuilder.New().WithProject(projectId).WithType(WorkItemType.UserStory).Build()
         };
         _workItemRepo.GetBacklogPagedAsync(
-            projectId, null, null, null, null, null, null, null, null, 1, 20,
+            projectId, null, null, null, null, null, null, null, null, null, 1, 20,
             Arg.Any<CancellationToken>())
             .Returns((items, 2));
 
-        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, 1, 20);
+        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, null, 1, 20);
         var result = await CreateHandler().Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -55,13 +55,13 @@ public sealed class GetBacklogTests
         var item = WorkItemBuilder.New().WithProject(projectId).Build();
 
         _workItemRepo.GetBacklogPagedAsync(
-            projectId, null, null, null, null, null, null, null, null, 1, 20,
+            projectId, null, null, null, null, null, null, null, null, null, 1, 20,
             Arg.Any<CancellationToken>())
             .Returns((new[] { item }, 1));
         _linkRepo.GetBlockedItemIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new HashSet<Guid> { item.Id });
 
-        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, 1, 20);
+        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, null, 1, 20);
         var result = await CreateHandler().Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -75,15 +75,36 @@ public sealed class GetBacklogTests
         var item = WorkItemBuilder.New().WithProject(projectId).Build();
 
         _workItemRepo.GetBacklogPagedAsync(
-            projectId, null, null, null, null, null, null, null, null, 1, 20,
+            projectId, null, null, null, null, null, null, null, null, null, 1, 20,
             Arg.Any<CancellationToken>())
             .Returns((new[] { item }, 1));
         // Default: empty set (no blocked items)
 
-        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, 1, 20);
+        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, null, 1, 20);
         var result = await CreateHandler().Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.First().IsBlocked.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_IsReadyFilter_PassedToRepository()
+    {
+        var projectId = Guid.NewGuid();
+        var readyItem = WorkItemBuilder.New().WithProject(projectId).Build();
+
+        _workItemRepo.GetBacklogPagedAsync(
+            projectId, null, null, null, null, null, null, null, null, true, 1, 20,
+            Arg.Any<CancellationToken>())
+            .Returns((new[] { readyItem }, 1));
+
+        var query = new GetBacklogQuery(projectId, null, null, null, null, null, null, null, null, true, 1, 20);
+        var result = await CreateHandler().Handle(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().HaveCount(1);
+        await _workItemRepo.Received(1).GetBacklogPagedAsync(
+            projectId, null, null, null, null, null, null, null, null, true, 1, 20,
+            Arg.Any<CancellationToken>());
     }
 }

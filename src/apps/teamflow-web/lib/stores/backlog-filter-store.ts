@@ -8,6 +8,7 @@ export interface BacklogFilters {
   assigneeId: string;
   releaseId: string;
   blockedOnly: boolean;
+  readyOnly: boolean;
   viewMode: "grouped" | "flat";
 }
 
@@ -19,6 +20,7 @@ interface BacklogFilterStore {
   setAssigneeId: (assigneeId: string) => void;
   setReleaseId: (releaseId: string) => void;
   setBlockedOnly: (blockedOnly: boolean) => void;
+  setReadyOnly: (readyOnly: boolean) => void;
   setViewMode: (viewMode: "grouped" | "flat") => void;
   resetFilters: () => void;
 }
@@ -30,6 +32,7 @@ const DEFAULT_FILTERS: BacklogFilters = {
   assigneeId: "",
   releaseId: "",
   blockedOnly: false,
+  readyOnly: false,
   viewMode: "grouped",
 };
 
@@ -53,6 +56,9 @@ export const useBacklogFilterStore = create<BacklogFilterStore>((set) => ({
 
   setBlockedOnly: (blockedOnly) =>
     set((state) => ({ filters: { ...state.filters, blockedOnly } })),
+
+  setReadyOnly: (readyOnly) =>
+    set((state) => ({ filters: { ...state.filters, readyOnly } })),
 
   setViewMode: (viewMode) =>
     set((state) => ({ filters: { ...state.filters, viewMode } })),

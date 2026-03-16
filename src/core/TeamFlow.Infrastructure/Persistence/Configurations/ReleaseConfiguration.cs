@@ -20,6 +20,7 @@ public class ReleaseConfiguration : IEntityTypeConfiguration<Release>
             .HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(r => r.ReleasedAt).HasColumnName("released_at").HasColumnType("timestamptz");
         builder.Property(r => r.ReleasedById).HasColumnName("released_by_id");
+        builder.Property(r => r.ReleaseNotes).HasColumnName("release_notes");
         builder.Property(r => r.NotesLocked).HasColumnName("notes_locked").IsRequired();
         builder.Property(r => r.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
 

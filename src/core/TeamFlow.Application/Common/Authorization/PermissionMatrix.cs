@@ -38,6 +38,13 @@ public static class PermissionMatrix
             Permission.Retro_View,
             Permission.Retro_SubmitCard,
             Permission.Retro_Vote,
+            Permission.Comment_View,
+            Permission.Comment_Create,
+            Permission.Comment_EditOwn,
+            Permission.Comment_DeleteOwn,
+            Permission.Poker_View,
+            // PO: no Poker_Vote (observer only)
+            Permission.Notification_View,
         ],
 
         [ProjectRole.TechnicalLeader] =
@@ -62,6 +69,15 @@ public static class PermissionMatrix
             Permission.Retro_Facilitate,
             Permission.Retro_SubmitCard,
             Permission.Retro_Vote,
+            Permission.Comment_View,
+            Permission.Comment_Create,
+            Permission.Comment_EditOwn,
+            Permission.Comment_DeleteOwn,
+            Permission.Poker_View,
+            Permission.Poker_Facilitate,
+            Permission.Poker_Vote,
+            Permission.Poker_ConfirmEstimate,
+            Permission.Notification_View,
         ],
 
         [ProjectRole.TeamManager] =
@@ -86,6 +102,15 @@ public static class PermissionMatrix
             Permission.Retro_Facilitate,
             Permission.Retro_SubmitCard,
             Permission.Retro_Vote,
+            Permission.Comment_View,
+            Permission.Comment_Create,
+            Permission.Comment_EditOwn,
+            Permission.Comment_DeleteOwn,
+            Permission.Poker_View,
+            Permission.Poker_Facilitate,
+            Permission.Poker_Vote,
+            Permission.Poker_ConfirmEstimate,
+            Permission.Notification_View,
         ],
 
         [ProjectRole.Developer] =
@@ -104,6 +129,13 @@ public static class PermissionMatrix
             Permission.Retro_View,
             Permission.Retro_SubmitCard,
             Permission.Retro_Vote,
+            Permission.Comment_View,
+            Permission.Comment_Create,
+            Permission.Comment_EditOwn,
+            Permission.Comment_DeleteOwn,
+            Permission.Poker_View,
+            Permission.Poker_Vote,
+            Permission.Notification_View,
         ],
 
         [ProjectRole.Viewer] =
@@ -113,6 +145,9 @@ public static class PermissionMatrix
             Permission.Sprint_View,
             Permission.Release_View,
             Permission.Retro_View,
+            Permission.Comment_View,
+            Permission.Poker_View,
+            Permission.Notification_View,
         ],
     };
 

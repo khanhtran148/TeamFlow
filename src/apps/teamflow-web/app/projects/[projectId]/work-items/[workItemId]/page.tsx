@@ -14,12 +14,14 @@ import { WorkItemForm } from "@/components/work-items/work-item-form";
 import { WorkItemSidebar } from "@/components/work-items/work-item-sidebar";
 import { LinksTab } from "@/components/work-items/links-tab";
 import { ChildrenTab } from "@/components/work-items/children-tab";
+import { CommentList } from "@/components/comments/comment-list";
+import { PokerSession } from "@/components/poker/poker-session";
 import { DeleteWorkItemDialog } from "@/components/work-items/delete-work-item-dialog";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import type { Priority, UpdateWorkItemBody } from "@/lib/api/types";
 
-type TabId = "links" | "children";
+type TabId = "links" | "children" | "comments" | "poker";
 
 export default function WorkItemDetailPage() {
   const params = useParams<{ projectId: string; workItemId: string }>();
@@ -27,7 +29,7 @@ export default function WorkItemDetailPage() {
   const workItemId = params?.workItemId ?? "";
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<TabId>("links");
+  const [activeTab, setActiveTab] = useState<TabId>("comments");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { data: workItem, isLoading, isError } = useWorkItem(workItemId);
@@ -242,12 +244,16 @@ export default function WorkItemDetailPage() {
                 marginBottom: 16,
               }}
             >
-              {(["links", "children"] as TabId[]).map((tab) => {
+              {(["comments", "links", "children", ...(workItem.type === "UserStory" ? ["poker" as TabId] : [])] as TabId[]).map((tab) => {
                 const isActive = activeTab === tab;
                 const label =
-                  tab === "links"
-                    ? `Links${workItem.linkCount > 0 ? ` (${workItem.linkCount})` : ""}`
-                    : `Children${workItem.childCount > 0 ? ` (${workItem.childCount})` : ""}`;
+                  tab === "comments"
+                    ? "Comments"
+                    : tab === "links"
+                      ? `Links${workItem.linkCount > 0 ? ` (${workItem.linkCount})` : ""}`
+                      : tab === "poker"
+                        ? "Poker"
+                        : `Children${workItem.childCount > 0 ? ` (${workItem.childCount})` : ""}`;
                 return (
                   <button
                     key={tab}
@@ -275,11 +281,17 @@ export default function WorkItemDetailPage() {
             </div>
 
             {/* Tab content */}
+            {activeTab === "comments" && (
+              <CommentList workItemId={workItemId} projectId={projectId} />
+            )}
             {activeTab === "links" && (
               <LinksTab workItemId={workItemId} projectId={projectId} />
             )}
             {activeTab === "children" && (
               <ChildrenTab workItemId={workItemId} projectId={projectId} />
+            )}
+            {activeTab === "poker" && workItem.type === "UserStory" && (
+              <PokerSession workItemId={workItemId} projectId={projectId} />
             )}
           </div>
         </div>
