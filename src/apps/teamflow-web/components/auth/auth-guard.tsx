@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
-const PUBLIC_PATHS = ["/login", "/register"];
+const PUBLIC_PATHS = ["/login", "/register", "/invite/"];
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -14,6 +14,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -40,9 +41,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
 
     if (isAuthenticated && isPublic) {
-      router.replace("/projects");
+      router.replace(user?.systemRole === "SystemAdmin" ? "/admin" : "/onboarding");
     }
-  }, [checked, isAuthenticated, pathname, router]);
+  }, [checked, isAuthenticated, user, pathname, router]);
 
   // Don't render protected content until we've checked auth state
   if (!checked) {

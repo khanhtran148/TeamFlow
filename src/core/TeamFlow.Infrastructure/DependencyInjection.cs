@@ -41,6 +41,8 @@ public static class DependencyInjection
         services.AddScoped<IBurndownDataPointRepository, BurndownDataPointRepository>();
         services.AddScoped<ISprintSnapshotRepository, SprintSnapshotRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepository>();
+        services.AddScoped<IInvitationRepository, InvitationRepository>();
 
         // Phase 4 repositories
         services.AddScoped<ICommentRepository, CommentRepository>();

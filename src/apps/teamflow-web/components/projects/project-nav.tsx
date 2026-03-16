@@ -5,17 +5,22 @@ import { usePathname } from "next/navigation";
 
 interface ProjectNavProps {
   projectId: string;
+  orgSlug?: string;
 }
 
-const NAV_TABS = [
-  { label: "Backlog", href: (id: string) => `/projects/${id}/backlog` },
-  { label: "Board", href: (id: string) => `/projects/${id}/board` },
-  { label: "Sprints", href: (id: string) => `/projects/${id}/sprints` },
-  { label: "Releases", href: (id: string) => `/projects/${id}/releases` },
-  { label: "Retros", href: (id: string) => `/projects/${id}/retros` },
-];
+function makeNav(orgSlug?: string) {
+  const base = orgSlug ? `/org/${orgSlug}/projects` : `/projects`;
+  return [
+    { label: "Backlog", href: (id: string) => `${base}/${id}/backlog` },
+    { label: "Board", href: (id: string) => `${base}/${id}/board` },
+    { label: "Sprints", href: (id: string) => `${base}/${id}/sprints` },
+    { label: "Releases", href: (id: string) => `${base}/${id}/releases` },
+    { label: "Retros", href: (id: string) => `${base}/${id}/retros` },
+  ];
+}
 
-export function ProjectNav({ projectId }: ProjectNavProps) {
+export function ProjectNav({ projectId, orgSlug }: ProjectNavProps) {
+  const NAV_TABS = makeNav(orgSlug);
   const pathname = usePathname();
 
   return (

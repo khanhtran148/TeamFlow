@@ -25,9 +25,15 @@ export default function LoginPage() {
       accessToken: response.accessToken,
       refreshToken: response.refreshToken,
       expiresAt: response.expiresAt,
+      mustChangePassword: response.mustChangePassword ?? false,
     });
 
-    router.push("/projects");
+    if (response.mustChangePassword) {
+      router.push("/admin/change-password");
+      return;
+    }
+
+    router.push(user.systemRole === "SystemAdmin" ? "/admin" : "/onboarding");
   }
 
   return (

@@ -20,7 +20,7 @@ TeamFlow.Application
   │     ├── {Feature}Handler.cs
   │     └── {Feature}Validator.cs
   └── Common/
-        ├── Behaviors/    — ValidationBehavior, LoggingBehavior
+        ├── Behaviors/    — ActiveUserBehavior, ValidationBehavior, LoggingBehavior
         ├── Interfaces/   — IWorkItemRepository, IPermissionChecker, IAuthService, etc.
         └── Errors/       — NotFoundError, ForbiddenError, ValidationError, ConflictError
 
@@ -63,6 +63,7 @@ HTTP Request
   → JWT Authentication middleware (validates Bearer token)
   → [Controller action]
       → Sender.Send(command)
+          → ActiveUserBehavior (checks user.IsActive — short-circuit 403 if deactivated)
           → ValidationBehavior (FluentValidation — short-circuit on failure)
           → LoggingBehavior (structured log: start + duration)
           → Handler
@@ -202,6 +203,12 @@ Resolved from `HttpContext` JWT claims. Provides `Id` (userId) and `Email`. Used
 Registered in Application `DependencyInjection`. Applied to every `IRequest<>` in order:
 
 ```
+ActiveUserBehavior<TRequest, TResponse>
+  → Skips if ICurrentUser.IsAuthenticated == false (anonymous endpoints: login, register)
+  → Loads user from IUserRepository
+  → If user.IsActive == false: short-circuit with ForbiddenError ("Account deactivated")
+  → If active: call next()
+
 ValidationBehavior<TRequest, TResponse>
   → Runs all IValidator<TRequest> instances
   → If any rule fails: return Result.Failure(validationErrorMessage)

@@ -26,8 +26,8 @@ export function TopBar({ breadcrumb, actions }: TopBarProps) {
     >
       {/* Logo */}
       <Link
-        data-testid="nav-projects"
-        href="/projects"
+        data-testid="nav-home"
+        href="/onboarding"
         style={{
           display: "flex",
           alignItems: "center",

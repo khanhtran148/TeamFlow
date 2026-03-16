@@ -5,6 +5,28 @@ namespace TeamFlow.Domain.Tests;
 public sealed class EnumTests
 {
     [Fact]
+    public void SystemRole_ShouldHaveTwoValues()
+    {
+        var values = Enum.GetValues<SystemRole>();
+        Assert.Equal(2, values.Length);
+        Assert.Contains(SystemRole.User, values);
+        Assert.Contains(SystemRole.SystemAdmin, values);
+    }
+
+    [Fact]
+    public void SystemRole_User_ShouldBeZero()
+    {
+        Assert.Equal(0, (int)SystemRole.User);
+    }
+
+    [Fact]
+    public void SystemRole_SystemAdmin_ShouldBeOne()
+    {
+        Assert.Equal(1, (int)SystemRole.SystemAdmin);
+    }
+
+
+    [Fact]
     public void ProjectRole_ShouldHaveSixValues()
     {
         var values = Enum.GetValues<ProjectRole>();
@@ -97,5 +119,68 @@ public sealed class EnumTests
         Assert.Contains(RetroCardCategory.WentWell, values);
         Assert.Contains(RetroCardCategory.NeedsImprovement, values);
         Assert.Contains(RetroCardCategory.ActionItem, values);
+    }
+
+    [Fact]
+    public void OrgRole_ShouldHaveThreeValues()
+    {
+        var values = Enum.GetValues<OrgRole>();
+        Assert.Equal(3, values.Length);
+        Assert.Contains(OrgRole.Owner, values);
+        Assert.Contains(OrgRole.Admin, values);
+        Assert.Contains(OrgRole.Member, values);
+    }
+
+    [Fact]
+    public void OrgRole_Owner_ShouldBeZero()
+    {
+        Assert.Equal(0, (int)OrgRole.Owner);
+    }
+
+    [Fact]
+    public void OrgRole_Admin_ShouldBeOne()
+    {
+        Assert.Equal(1, (int)OrgRole.Admin);
+    }
+
+    [Fact]
+    public void OrgRole_Member_ShouldBeTwo()
+    {
+        Assert.Equal(2, (int)OrgRole.Member);
+    }
+
+    [Fact]
+    public void InviteStatus_ShouldHaveFourValues()
+    {
+        var values = Enum.GetValues<InviteStatus>();
+        Assert.Equal(4, values.Length);
+        Assert.Contains(InviteStatus.Pending, values);
+        Assert.Contains(InviteStatus.Accepted, values);
+        Assert.Contains(InviteStatus.Expired, values);
+        Assert.Contains(InviteStatus.Revoked, values);
+    }
+
+    [Fact]
+    public void InviteStatus_Pending_ShouldBeZero()
+    {
+        Assert.Equal(0, (int)InviteStatus.Pending);
+    }
+
+    [Fact]
+    public void InviteStatus_Accepted_ShouldBeOne()
+    {
+        Assert.Equal(1, (int)InviteStatus.Accepted);
+    }
+
+    [Fact]
+    public void InviteStatus_Expired_ShouldBeTwo()
+    {
+        Assert.Equal(2, (int)InviteStatus.Expired);
+    }
+
+    [Fact]
+    public void InviteStatus_Revoked_ShouldBeThree()
+    {
+        Assert.Equal(3, (int)InviteStatus.Revoked);
     }
 }

@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using TeamFlow.Application.Common.Interfaces;
+using TeamFlow.Domain.Enums;
 
 namespace TeamFlow.Api.Services;
 
@@ -30,4 +31,15 @@ public sealed class JwtCurrentUser(IHttpContextAccessor httpContextAccessor) : I
 
     public bool IsAuthenticated
         => User?.Identity?.IsAuthenticated ?? false;
+
+    public SystemRole SystemRole
+    {
+        get
+        {
+            var claim = User?.FindFirst("system_role")?.Value;
+            return Enum.TryParse<SystemRole>(claim, ignoreCase: true, out var role)
+                ? role
+                : SystemRole.User;
+        }
+    }
 }

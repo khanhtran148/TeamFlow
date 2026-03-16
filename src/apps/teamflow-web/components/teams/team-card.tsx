@@ -6,12 +6,14 @@ import type { TeamDto } from "@/lib/api/teams";
 
 interface TeamCardProps {
   team: TeamDto;
+  orgSlug?: string;
 }
 
-export function TeamCard({ team }: TeamCardProps) {
+export function TeamCard({ team, orgSlug }: TeamCardProps) {
+  const href = orgSlug ? `/org/${orgSlug}/teams/${team.id}` : `/teams/${team.id}`;
   return (
     <Link
-      href={`/teams/${team.id}`}
+      href={href}
       style={{
         display: "block",
         padding: 16,

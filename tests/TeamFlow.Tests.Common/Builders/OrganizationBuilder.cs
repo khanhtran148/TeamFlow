@@ -9,13 +9,19 @@ public sealed class OrganizationBuilder
     private static readonly Faker F = FakerProvider.Instance;
 
     private string _name = F.Company.CompanyName();
+    private string? _slug;
+    private bool _isActive = true;
 
     public static OrganizationBuilder New() => new();
 
     public OrganizationBuilder WithName(string name) { _name = name; return this; }
+    public OrganizationBuilder WithSlug(string slug) { _slug = slug; return this; }
+    public OrganizationBuilder WithIsActive(bool value) { _isActive = value; return this; }
 
     public Organization Build() => new()
     {
-        Name = _name
+        Name = _name,
+        Slug = _slug ?? Organization.GenerateSlug(_name),
+        IsActive = _isActive
     };
 }

@@ -1,8 +1,10 @@
 using MassTransit;
 using Quartz;
 using TeamFlow.Application;
+using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.BackgroundServices.Consumers;
 using TeamFlow.BackgroundServices.Scheduled.Jobs;
+using TeamFlow.BackgroundServices.Services;
 using TeamFlow.Infrastructure;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -10,6 +12,8 @@ var builder = Host.CreateApplicationBuilder(args);
 // ─── Layers ───────────────────────────────────────────────────────────────
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<ICurrentUser, SystemCurrentUser>();
+builder.Services.AddSingleton<IBroadcastService, NoOpBroadcastService>();
 
 // ─── MassTransit + RabbitMQ ────────────────────────────────────────────────
 builder.Services.AddMassTransit(x =>
@@ -36,9 +40,6 @@ builder.Services.AddMassTransit(x =>
                 h.Password(rabbitMqSection["Password"]
                     ?? throw new InvalidOperationException("RabbitMQ:Password must be configured"));
             });
-
-        // Main exchange
-        cfg.Message<object>(e => e.SetEntityName("teamflow.events"));
 
         // Retry policy: immediate -> 30s -> 5min -> 30min -> DLQ
         cfg.UseMessageRetry(r => r.Intervals(
@@ -71,7 +72,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(burndownJobKey)
         .WithIdentity("BurndownSnapshotJob-trigger")
-        .WithCronSchedule("59 23 * * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
+        .WithCronSchedule("0 59 23 * * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
         .WithPriority(10));
 
     // ── ReleaseOverdueDetectorJob: 00:05 AM daily ──
@@ -82,7 +83,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(releaseOverdueJobKey)
         .WithIdentity("ReleaseOverdueDetectorJob-trigger")
-        .WithCronSchedule("5 0 * * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
+        .WithCronSchedule("0 5 0 * * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
         .WithPriority(10));
 
     // ── StaleItemDetectorJob: 08:00 AM daily ──
@@ -93,7 +94,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(staleItemJobKey)
         .WithIdentity("StaleItemDetectorJob-trigger")
-        .WithCronSchedule("0 8 * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithCronSchedule("0 0 8 * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
         .WithPriority(5));
 
     // ── EventPartitionCreatorJob: 03:00 AM on 25th of month ──
@@ -104,7 +105,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(partitionJobKey)
         .WithIdentity("EventPartitionCreatorJob-trigger")
-        .WithCronSchedule("0 3 25 * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
+        .WithCronSchedule("0 0 3 25 * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
         .WithPriority(15));
 
     // ── Phase 5: EmailOutboxProcessorJob: every 30 seconds ──
@@ -115,7 +116,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(emailOutboxJobKey)
         .WithIdentity("EmailOutboxProcessorJob-trigger")
-        .WithCronSchedule("*/30 * * * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithCronSchedule("0/30 * * * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
         .WithPriority(10));
 
     // ── Phase 5: DeadlineReminderJob: 08:00 AM daily ──
@@ -126,7 +127,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(deadlineReminderJobKey)
         .WithIdentity("DeadlineReminderJob-trigger")
-        .WithCronSchedule("0 8 * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithCronSchedule("0 0 8 * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
         .WithPriority(5));
 
     // ── Phase 5: VelocityAggregatorJob: Monday 07:00 AM ──
@@ -137,7 +138,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(velocityAggregatorJobKey)
         .WithIdentity("VelocityAggregatorJob-trigger")
-        .WithCronSchedule("0 7 * * 1", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithCronSchedule("0 0 7 ? * MON", x => x.WithMisfireHandlingInstructionDoNothing())
         .WithPriority(5));
 
     // ── Phase 5: SprintReportGeneratorJob: on-demand (finds unreported sprints) ──
@@ -148,7 +149,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(sprintReportJobKey)
         .WithIdentity("SprintReportGeneratorJob-trigger")
-        .WithCronSchedule("0 0 * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithCronSchedule("0 0 0 * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
         .WithPriority(5));
 
     // ── Phase 5: DataArchivalJob: 03:00 AM on 1st of month ──
@@ -159,7 +160,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(dataArchivalJobKey)
         .WithIdentity("DataArchivalJob-trigger")
-        .WithCronSchedule("0 3 1 * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
+        .WithCronSchedule("0 0 3 1 * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
         .WithPriority(5));
 
     // ── Phase 5: TeamHealthSummaryJob: Monday 07:30 AM (after velocity) ──
@@ -170,7 +171,7 @@ builder.Services.AddQuartz(q =>
     q.AddTrigger(opts => opts
         .ForJob(teamHealthJobKey)
         .WithIdentity("TeamHealthSummaryJob-trigger")
-        .WithCronSchedule("30 7 * * 1", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithCronSchedule("0 30 7 ? * MON", x => x.WithMisfireHandlingInstructionDoNothing())
         .WithPriority(5));
 });
 

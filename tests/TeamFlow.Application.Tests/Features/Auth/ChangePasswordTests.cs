@@ -53,6 +53,27 @@ public sealed class ChangePasswordTests
         result.Error.Should().Contain("incorrect");
     }
 
+    [Fact]
+    public async Task Handle_UserWithMustChangePassword_ClearsFlag()
+    {
+        var user = new User
+        {
+            Email = "admin@test.com",
+            Name = "Admin",
+            PasswordHash = "old-hash",
+            MustChangePassword = true
+        };
+        _userRepo.GetByIdAsync(UserId, Arg.Any<CancellationToken>()).Returns(user);
+        _authService.VerifyPassword("OldPassword1", "old-hash").Returns(true);
+
+        var cmd = new ChangePasswordCommand("OldPassword1", "NewPassword1");
+        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        user.MustChangePassword.Should().BeFalse();
+        await _userRepo.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
+    }
+
     [Theory]
     [InlineData("", "NewPassword1")]
     [InlineData("OldPassword1", "")]

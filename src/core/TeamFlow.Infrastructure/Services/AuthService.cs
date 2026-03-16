@@ -25,6 +25,7 @@ public sealed class AuthService(IConfiguration configuration) : IAuthService
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
             new("name", user.Name),
+            new("system_role", user.SystemRole.ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

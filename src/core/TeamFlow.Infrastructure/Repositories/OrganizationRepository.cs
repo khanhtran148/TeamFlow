@@ -11,6 +11,16 @@ public sealed class OrganizationRepository(TeamFlowDbContext context) : IOrganiz
         => await context.Organizations
             .FirstOrDefaultAsync(o => o.Id == id, ct);
 
+    public async Task<Organization?> GetBySlugAsync(string slug, CancellationToken ct = default)
+        => await context.Organizations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Slug == slug, ct);
+
+    public async Task<bool> ExistsBySlugAsync(string slug, CancellationToken ct = default)
+        => await context.Organizations
+            .AsNoTracking()
+            .AnyAsync(o => o.Slug == slug, ct);
+
     public async Task<Organization> AddAsync(Organization organization, CancellationToken ct = default)
     {
         context.Organizations.Add(organization);
@@ -18,29 +28,59 @@ public sealed class OrganizationRepository(TeamFlowDbContext context) : IOrganiz
         return organization;
     }
 
+    public async Task<Organization> UpdateAsync(Organization organization, CancellationToken ct = default)
+    {
+        context.Organizations.Update(organization);
+        await context.SaveChangesAsync(ct);
+        return organization;
+    }
+
     public async Task<IEnumerable<Organization>> ListByUserAsync(Guid userId, CancellationToken ct = default)
     {
-        // Orgs where the user is the creator
-        var createdOrgIds = context.Organizations
+        // Orgs where the user is a member (via OrganizationMember)
+        var memberOrgIds = context.OrganizationMembers
             .AsNoTracking()
-            .Where(o => o.CreatedByUserId == userId)
-            .Select(o => o.Id);
-
-        // Orgs where the user has any project membership
-        var memberOrgIds = context.ProjectMemberships
-            .AsNoTracking()
-            .Where(pm => pm.MemberId == userId && pm.MemberType == "User")
-            .Join(context.Projects.AsNoTracking(),
-                pm => pm.ProjectId,
-                p => p.Id,
-                (pm, p) => p.OrgId);
-
-        var allOrgIds = createdOrgIds.Union(memberOrgIds).Distinct();
+            .Where(m => m.UserId == userId)
+            .Select(m => m.OrganizationId);
 
         return await context.Organizations
             .AsNoTracking()
-            .Where(o => allOrgIds.Contains(o.Id))
+            .Where(o => memberOrgIds.Contains(o.Id))
             .OrderBy(o => o.Name)
             .ToListAsync(ct);
+    }
+
+    public async Task<IEnumerable<Organization>> ListAllAsync(CancellationToken ct = default)
+        => await context.Organizations
+            .AsNoTracking()
+            .OrderBy(o => o.Name)
+            .ToListAsync(ct);
+
+    public async Task<(IEnumerable<Organization> Items, int TotalCount)> ListAllPagedAsync(
+        string? search, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = context.Organizations
+            .AsNoTracking()
+            .Include(o => o.Members);
+
+        IQueryable<Organization> filtered = query;
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.ToLower();
+            filtered = query.Where(o =>
+                o.Name.ToLower().Contains(term) ||
+                o.Slug.ToLower().Contains(term));
+        }
+
+        var totalCount = await filtered.CountAsync(ct);
+
+        var items = await filtered
+            .OrderBy(o => o.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, totalCount);
     }
 }

@@ -5,6 +5,9 @@
 
 // ---- Enums ----
 
+export type OrgRole = "Owner" | "Admin" | "Member";
+export type InviteStatus = "Pending" | "Accepted" | "Expired" | "Revoked";
+
 export type WorkItemType = "Epic" | "UserStory" | "Task" | "Bug" | "Spike";
 
 export type WorkItemStatus =
@@ -28,6 +31,116 @@ export type LinkType =
 export type LinkScope = "SameProject" | "CrossProject";
 
 export type ProjectStatus = "Active" | "Archived";
+
+export type SystemRole = "User" | "SystemAdmin";
+
+// ---- Org DTOs ----
+
+export interface OrganizationDto {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+}
+
+export interface MyOrganizationDto {
+  id: string;
+  name: string;
+  slug: string;
+  role: OrgRole;
+  joinedAt: string;
+}
+
+export interface InvitationDto {
+  id: string;
+  organizationId: string;
+  email: string | null;
+  role: OrgRole;
+  status: InviteStatus;
+  expiresAt: string;
+  createdAt: string;
+  acceptedByUserName: string | null;
+}
+
+export interface CreateInvitationResponse {
+  id: string;
+  token: string;
+  role: OrgRole;
+  expiresAt: string;
+  status: InviteStatus;
+}
+
+export interface AcceptInvitationResponse {
+  organizationId: string;
+  organizationSlug: string;
+  role: OrgRole;
+}
+
+export interface OrganizationMemberDto {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  role: OrgRole;
+  joinedAt: string;
+}
+
+// ---- Admin DTOs ----
+
+export interface AdminOrganizationDto {
+  id: string;
+  name: string;
+  slug: string;
+  memberCount: number;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export interface AdminUserDto {
+  id: string;
+  email: string;
+  name: string;
+  systemRole: SystemRole;
+  createdAt: string;
+  isActive: boolean;
+  mustChangePassword: boolean;
+}
+
+// ---- Admin Request Types ----
+
+export interface AdminListParams {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminResetPasswordRequest {
+  newPassword: string;
+}
+
+export interface ChangeStatusRequest {
+  isActive: boolean;
+}
+
+export interface AdminUpdateOrgRequest {
+  name: string;
+  slug: string;
+}
+
+export interface TransferOwnershipRequest {
+  newOwnerUserId: string;
+}
+
+// ---- PagedResult (contract shape from admin improvements) ----
+
+export interface PagedResult<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
 
 export type ReleaseStatus = "Unreleased" | "Overdue" | "Released";
 

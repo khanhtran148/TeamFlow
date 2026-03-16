@@ -8,4 +8,5 @@ public interface ICurrentUser
     string Email { get; }
     string Name { get; }
     bool IsAuthenticated { get; }
+    SystemRole SystemRole { get; }
 }
