@@ -54,4 +54,16 @@ public sealed class GetSprintReportTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
     }
+
+    [Fact]
+    public async Task Handle_NoPermission_ReturnsAccessDenied()
+    {
+        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        var result = await CreateHandler().Handle(new GetSprintReportQuery(SprintId, ProjectId), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("Access denied");
+    }
 }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Domain.Enums;
 using TeamFlow.Infrastructure.Persistence;
 
 namespace TeamFlow.Infrastructure.Repositories;
@@ -15,7 +16,7 @@ public sealed class NotificationPreferenceRepository(TeamFlowDbContext context) 
             .ToListAsync(ct);
 
     public async Task<NotificationPreference?> GetByUserAndTypeAsync(
-        Guid userId, string notificationType, CancellationToken ct = default)
+        Guid userId, NotificationType notificationType, CancellationToken ct = default)
         => await context.NotificationPreferences
             .FirstOrDefaultAsync(p => p.UserId == userId && p.NotificationType == notificationType, ct);
 

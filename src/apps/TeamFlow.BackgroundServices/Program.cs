@@ -19,6 +19,8 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<SignalRBroadcastConsumer>();
     x.AddConsumer<SignalRWorkItemStatusBroadcastConsumer>();
     x.AddConsumer<DomainEventStoreConsumer>();
+    x.AddConsumer<WorkItemAssignedNotificationConsumer>();
+    x.AddConsumer<NotificationCreatedConsumer>();
 
     x.UsingRabbitMq((ctx, cfg) =>
     {
@@ -104,6 +106,72 @@ builder.Services.AddQuartz(q =>
         .WithIdentity("EventPartitionCreatorJob-trigger")
         .WithCronSchedule("0 3 25 * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
         .WithPriority(15));
+
+    // ── Phase 5: EmailOutboxProcessorJob: every 30 seconds ──
+    var emailOutboxJobKey = new JobKey("EmailOutboxProcessorJob");
+    q.AddJob<EmailOutboxProcessorJob>(opts => opts
+        .WithIdentity(emailOutboxJobKey)
+        .StoreDurably());
+    q.AddTrigger(opts => opts
+        .ForJob(emailOutboxJobKey)
+        .WithIdentity("EmailOutboxProcessorJob-trigger")
+        .WithCronSchedule("*/30 * * * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithPriority(10));
+
+    // ── Phase 5: DeadlineReminderJob: 08:00 AM daily ──
+    var deadlineReminderJobKey = new JobKey("DeadlineReminderJob");
+    q.AddJob<DeadlineReminderJob>(opts => opts
+        .WithIdentity(deadlineReminderJobKey)
+        .StoreDurably());
+    q.AddTrigger(opts => opts
+        .ForJob(deadlineReminderJobKey)
+        .WithIdentity("DeadlineReminderJob-trigger")
+        .WithCronSchedule("0 8 * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithPriority(5));
+
+    // ── Phase 5: VelocityAggregatorJob: Monday 07:00 AM ──
+    var velocityAggregatorJobKey = new JobKey("VelocityAggregatorJob");
+    q.AddJob<VelocityAggregatorJob>(opts => opts
+        .WithIdentity(velocityAggregatorJobKey)
+        .StoreDurably());
+    q.AddTrigger(opts => opts
+        .ForJob(velocityAggregatorJobKey)
+        .WithIdentity("VelocityAggregatorJob-trigger")
+        .WithCronSchedule("0 7 * * 1", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithPriority(5));
+
+    // ── Phase 5: SprintReportGeneratorJob: on-demand (finds unreported sprints) ──
+    var sprintReportJobKey = new JobKey("SprintReportGeneratorJob");
+    q.AddJob<SprintReportGeneratorJob>(opts => opts
+        .WithIdentity(sprintReportJobKey)
+        .StoreDurably());
+    q.AddTrigger(opts => opts
+        .ForJob(sprintReportJobKey)
+        .WithIdentity("SprintReportGeneratorJob-trigger")
+        .WithCronSchedule("0 0 * * ?", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithPriority(5));
+
+    // ── Phase 5: DataArchivalJob: 03:00 AM on 1st of month ──
+    var dataArchivalJobKey = new JobKey("DataArchivalJob");
+    q.AddJob<DataArchivalJob>(opts => opts
+        .WithIdentity(dataArchivalJobKey)
+        .StoreDurably());
+    q.AddTrigger(opts => opts
+        .ForJob(dataArchivalJobKey)
+        .WithIdentity("DataArchivalJob-trigger")
+        .WithCronSchedule("0 3 1 * ?", x => x.WithMisfireHandlingInstructionFireAndProceed())
+        .WithPriority(5));
+
+    // ── Phase 5: TeamHealthSummaryJob: Monday 07:30 AM (after velocity) ──
+    var teamHealthJobKey = new JobKey("TeamHealthSummaryJob");
+    q.AddJob<TeamHealthSummaryJob>(opts => opts
+        .WithIdentity(teamHealthJobKey)
+        .StoreDurably());
+    q.AddTrigger(opts => opts
+        .ForJob(teamHealthJobKey)
+        .WithIdentity("TeamHealthSummaryJob-trigger")
+        .WithCronSchedule("30 7 * * 1", x => x.WithMisfireHandlingInstructionDoNothing())
+        .WithPriority(5));
 });
 
 builder.Services.AddQuartzHostedService(options =>

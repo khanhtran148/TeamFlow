@@ -61,52 +61,43 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
     public async Task<CycleTimeDto> GetCycleTimeDataAsync(
         Guid projectId, DateOnly? fromDate, DateOnly? toDate, CancellationToken ct = default)
     {
-        var query = context.WorkItemHistories
+        // Single query: join completed transitions with start transitions
+        var completedQuery = context.WorkItemHistories
             .AsNoTracking()
             .Where(h => h.WorkItem!.ProjectId == projectId
                 && h.FieldName == "Status"
                 && h.NewValue == nameof(WorkItemStatus.Done));
 
         if (fromDate.HasValue)
-            query = query.Where(h => DateOnly.FromDateTime(h.CreatedAt) >= fromDate.Value);
+            completedQuery = completedQuery.Where(h => DateOnly.FromDateTime(h.CreatedAt) >= fromDate.Value);
         if (toDate.HasValue)
-            query = query.Where(h => DateOnly.FromDateTime(h.CreatedAt) <= toDate.Value);
+            completedQuery = completedQuery.Where(h => DateOnly.FromDateTime(h.CreatedAt) <= toDate.Value);
 
-        var completedItems = await query
-            .Select(h => new
-            {
-                h.WorkItemId,
-                h.WorkItem!.Type,
-                CompletedAt = h.CreatedAt
-            })
-            .ToListAsync(ct);
-
-        var startHistories = await context.WorkItemHistories
+        var startQuery = context.WorkItemHistories
             .AsNoTracking()
-            .Where(h => completedItems.Select(c => c.WorkItemId).Contains(h.WorkItemId)
+            .Where(h => h.WorkItem!.ProjectId == projectId
                 && h.FieldName == "Status"
                 && h.NewValue == nameof(WorkItemStatus.InProgress))
             .GroupBy(h => h.WorkItemId)
-            .Select(g => new
-            {
-                WorkItemId = g.Key,
-                StartedAt = g.Min(h => h.CreatedAt)
-            })
-            .ToListAsync(ct);
+            .Select(g => new { WorkItemId = g.Key, StartedAt = g.Min(h => h.CreatedAt) });
 
-        var cycleData = completedItems
-            .Join(startHistories,
+        var joined = await completedQuery
+            .Join(startQuery,
                 c => c.WorkItemId,
                 s => s.WorkItemId,
                 (c, s) => new
                 {
-                    ItemType = c.Type.ToString(),
-                    CycleDays = (c.CompletedAt - s.StartedAt).TotalDays
+                    c.WorkItem!.Type,
+                    CompletedAt = c.CreatedAt,
+                    s.StartedAt
                 })
-            .GroupBy(x => x.ItemType)
+            .ToListAsync(ct);
+
+        var cycleData = joined
+            .GroupBy(x => x.Type.ToString())
             .Select(g =>
             {
-                var days = g.Select(x => x.CycleDays).OrderBy(d => d).ToList();
+                var days = g.Select(x => (x.CompletedAt - x.StartedAt).TotalDays).OrderBy(d => d).ToList();
                 var count = days.Count;
                 return new CycleTimeByTypeDto(
                     g.Key,
@@ -144,36 +135,36 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
     public async Task<DashboardSummaryDto> GetDashboardSummaryAsync(
         Guid projectId, CancellationToken ct = default)
     {
-        var activeSprint = await context.Sprints
+        var staleThreshold = DateTime.UtcNow.AddDays(-14);
+
+        // Run all independent queries in parallel
+        var activeSprintTask = context.Sprints
             .AsNoTracking()
             .Where(s => s.ProjectId == projectId && s.Status == SprintStatus.Active)
             .Select(s => new { s.Id, s.Name })
             .FirstOrDefaultAsync(ct);
 
-        var totalItems = await context.WorkItems
+        var totalItemsTask = context.WorkItems
             .AsNoTracking()
             .CountAsync(w => w.ProjectId == projectId, ct);
 
-        var openItems = await context.WorkItems
+        var openItemsTask = context.WorkItems
             .AsNoTracking()
             .CountAsync(w => w.ProjectId == projectId
                 && w.Status != WorkItemStatus.Done
                 && w.Status != WorkItemStatus.Rejected, ct);
 
-        var completionPct = totalItems > 0 ? Math.Round((double)(totalItems - openItems) / totalItems, 3) : 0;
-
-        var overdueReleases = await context.Releases
+        var overdueReleasesTask = context.Releases
             .AsNoTracking()
             .CountAsync(r => r.ProjectId == projectId && r.Status == ReleaseStatus.Overdue, ct);
 
-        var staleThreshold = DateTime.UtcNow.AddDays(-14);
-        var staleItems = await context.WorkItems
+        var staleItemsTask = context.WorkItems
             .AsNoTracking()
             .CountAsync(w => w.ProjectId == projectId
                 && w.Status == WorkItemStatus.InProgress
                 && w.UpdatedAt < staleThreshold, ct);
 
-        var velocity3Avg = await context.TeamVelocityHistories
+        var velocity3AvgTask = context.TeamVelocityHistories
             .AsNoTracking()
             .Where(v => v.ProjectId == projectId)
             .OrderByDescending(v => v.RecordedAt)
@@ -181,39 +172,55 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
             .Select(v => v.Velocity3SprintAvg)
             .FirstOrDefaultAsync(ct);
 
+        await Task.WhenAll(activeSprintTask, totalItemsTask, openItemsTask,
+            overdueReleasesTask, staleItemsTask, velocity3AvgTask);
+
+        var activeSprint = await activeSprintTask;
+        var totalItems = await totalItemsTask;
+        var openItems = await openItemsTask;
+        var completionPct = totalItems > 0 ? Math.Round((double)(totalItems - openItems) / totalItems, 3) : 0;
+
         return new DashboardSummaryDto(
             activeSprint?.Id,
             activeSprint?.Name,
             totalItems,
             openItems,
             completionPct,
-            overdueReleases,
-            staleItems,
-            (decimal)(velocity3Avg ?? 0)
+            await overdueReleasesTask,
+            await staleItemsTask,
+            (decimal)(await velocity3AvgTask ?? 0)
         );
     }
 
     public async Task<ReleaseProgressDto> GetReleaseProgressAsync(
         Guid releaseId, CancellationToken ct = default)
     {
-        var items = await context.WorkItems
+        var aggregated = await context.WorkItems
             .AsNoTracking()
             .Where(w => w.ReleaseId == releaseId)
-            .Select(w => new { w.Status, w.EstimationValue })
-            .ToListAsync(ct);
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                DoneCount = g.Count(w => w.Status == WorkItemStatus.Done),
+                InProgressCount = g.Count(w =>
+                    w.Status == WorkItemStatus.InProgress || w.Status == WorkItemStatus.InReview),
+                TodoCount = g.Count(w =>
+                    w.Status == WorkItemStatus.ToDo || w.Status == WorkItemStatus.NeedsClarification),
+                DonePoints = g.Where(w => w.Status == WorkItemStatus.Done)
+                    .Sum(w => w.EstimationValue ?? 0),
+                TotalPoints = g.Sum(w => w.EstimationValue ?? 0)
+            })
+            .FirstOrDefaultAsync(ct);
 
-        var doneCount = items.Count(w => w.Status == WorkItemStatus.Done);
-        var inProgressCount = items.Count(w =>
-            w.Status is WorkItemStatus.InProgress or WorkItemStatus.InReview);
-        var todoCount = items.Count(w =>
-            w.Status is WorkItemStatus.ToDo or WorkItemStatus.NeedsClarification);
-        var donePoints = items.Where(w => w.Status == WorkItemStatus.Done)
-            .Sum(w => w.EstimationValue ?? 0);
-        var totalPoints = items.Sum(w => w.EstimationValue ?? 0);
-        var completionPct = totalPoints > 0
-            ? Math.Round((double)(donePoints / totalPoints), 3)
+        if (aggregated is null)
+            return new ReleaseProgressDto(0, 0, 0, 0, 0, 0);
+
+        var completionPct = aggregated.TotalPoints > 0
+            ? Math.Round((double)aggregated.DonePoints / (double)aggregated.TotalPoints, 3)
             : 0;
 
-        return new ReleaseProgressDto(doneCount, inProgressCount, todoCount, donePoints, totalPoints, completionPct);
+        return new ReleaseProgressDto(
+            aggregated.DoneCount, aggregated.InProgressCount, aggregated.TodoCount,
+            aggregated.DonePoints, aggregated.TotalPoints, completionPct);
     }
 }

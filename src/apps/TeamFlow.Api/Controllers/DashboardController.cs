@@ -6,7 +6,6 @@ using TeamFlow.Application.Features.Dashboard.Dtos;
 using TeamFlow.Application.Features.Dashboard.GetCumulativeFlow;
 using TeamFlow.Application.Features.Dashboard.GetCycleTime;
 using TeamFlow.Application.Features.Dashboard.GetDashboardSummary;
-using TeamFlow.Application.Features.Dashboard.GetReleaseProgress;
 using TeamFlow.Application.Features.Dashboard.GetVelocityChart;
 using TeamFlow.Application.Features.Dashboard.GetWorkloadHeatmap;
 
@@ -63,20 +62,6 @@ public sealed class DashboardController : ApiControllerBase
     public async Task<IActionResult> GetWorkload(Guid projectId, CancellationToken ct)
     {
         var result = await Sender.Send(new GetWorkloadHeatmapQuery(projectId), ct);
-        return HandleResult(result);
-    }
-}
-
-[ApiVersion("1.0")]
-[EnableRateLimiting("general")]
-public sealed class ReleasesProgressController : ApiControllerBase
-{
-    [HttpGet("/api/v{version:apiVersion}/releases/{releaseId:guid}/progress")]
-    [ProducesResponseType(typeof(ReleaseProgressDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetProgress(
-        Guid releaseId, [FromQuery] Guid projectId, CancellationToken ct)
-    {
-        var result = await Sender.Send(new GetReleaseProgressQuery(releaseId, projectId), ct);
         return HandleResult(result);
     }
 }

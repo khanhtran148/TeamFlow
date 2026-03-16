@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -68,6 +67,3 @@ public sealed class SavedFiltersController : ApiControllerBase
         return result.IsSuccess ? NoContent() : HandleResult(result);
     }
 }
-
-public sealed record SaveFilterBody(string Name, JsonDocument FilterJson, bool IsDefault);
-public sealed record UpdateSavedFilterBody(string? Name, JsonDocument? FilterJson, bool? IsDefault);

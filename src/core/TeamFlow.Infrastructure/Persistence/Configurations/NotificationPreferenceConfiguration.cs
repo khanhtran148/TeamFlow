@@ -13,7 +13,7 @@ public sealed class NotificationPreferenceConfiguration : IEntityTypeConfigurati
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Id).HasColumnName("id");
         builder.Property(p => p.UserId).HasColumnName("user_id").IsRequired();
-        builder.Property(p => p.NotificationType).HasColumnName("notification_type").HasMaxLength(50).IsRequired();
+        builder.Property(p => p.NotificationType).HasColumnName("notification_type").HasMaxLength(50).HasConversion<string>().IsRequired();
         builder.Property(p => p.EmailEnabled).HasColumnName("email_enabled").IsRequired();
         builder.Property(p => p.InAppEnabled).HasColumnName("in_app_enabled").IsRequired();
         builder.Property(p => p.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");

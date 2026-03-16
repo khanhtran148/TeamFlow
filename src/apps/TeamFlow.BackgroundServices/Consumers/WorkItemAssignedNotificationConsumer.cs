@@ -2,6 +2,7 @@ using MassTransit;
 using Microsoft.Extensions.Logging;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.BackgroundServices.EventDriven.Consumers;
+using TeamFlow.Domain.Enums;
 using TeamFlow.Domain.Events;
 using TeamFlow.Infrastructure.Persistence;
 
@@ -27,7 +28,7 @@ public sealed class WorkItemAssignedNotificationConsumer(
 
         await notificationService.CreateNotificationAsync(
             @event.NewAssigneeId,
-            "WorkItemAssigned",
+            NotificationType.WorkItemAssigned,
             title,
             workItem?.Description,
             @event.WorkItemId,

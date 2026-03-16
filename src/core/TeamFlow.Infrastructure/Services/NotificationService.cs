@@ -1,6 +1,7 @@
 using MediatR;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Domain.Enums;
 using TeamFlow.Domain.Events;
 
 namespace TeamFlow.Infrastructure.Services;
@@ -14,7 +15,7 @@ public sealed class NotificationService(
 {
     public async Task CreateNotificationAsync(
         Guid recipientId,
-        string type,
+        NotificationType type,
         string title,
         string? body,
         Guid? referenceId,
@@ -26,12 +27,14 @@ public sealed class NotificationService(
         var inAppEnabled = pref?.InAppEnabled ?? true;
         var emailEnabled = pref?.EmailEnabled ?? true;
 
+        var typeString = type.ToString();
+
         if (inAppEnabled)
         {
             var notification = new InAppNotification
             {
                 RecipientId = recipientId,
-                Type = type,
+                Type = typeString,
                 Title = title,
                 Body = body,
                 ReferenceId = referenceId,
@@ -42,7 +45,7 @@ public sealed class NotificationService(
             await notificationRepository.AddAsync(notification, ct);
 
             await publisher.Publish(new NotificationCreatedDomainEvent(
-                notification.Id, recipientId, type, title), ct);
+                notification.Id, recipientId, typeString, title), ct);
         }
 
         if (emailEnabled)
@@ -54,11 +57,11 @@ public sealed class NotificationService(
                 {
                     RecipientEmail = user.Email,
                     RecipientId = recipientId,
-                    TemplateType = type,
+                    TemplateType = typeString,
                     Subject = title,
                     BodyJson = System.Text.Json.JsonDocument.Parse(
                         System.Text.Json.JsonSerializer.Serialize(new { title, body, referenceId, referenceType })),
-                    Status = Domain.Enums.EmailStatus.Pending,
+                    Status = EmailStatus.Pending,
                     NextRetryAt = DateTime.UtcNow
                 };
 

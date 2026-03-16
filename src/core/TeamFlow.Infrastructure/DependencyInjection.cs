@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<ITeamHealthSummaryRepository, TeamHealthSummaryRepository>();
 
         // Phase 5 services
+        services.Configure<SmtpEmailSenderSettings>(configuration.GetSection("Email"));
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 

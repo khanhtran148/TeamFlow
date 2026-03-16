@@ -16,7 +16,7 @@ export default function SearchPage() {
       </aside>
       <div className="flex-1 space-y-4">
         <SearchInput />
-        <FilterPanel projectId={projectId} />
+        <FilterPanel />
         <SearchResults projectId={projectId} />
       </div>
     </div>

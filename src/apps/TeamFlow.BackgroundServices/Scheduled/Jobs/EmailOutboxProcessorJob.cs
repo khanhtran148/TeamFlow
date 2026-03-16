@@ -41,7 +41,7 @@ public sealed class EmailOutboxProcessorJob(
 
             try
             {
-                var body = entry.BodyJson.RootElement.ToString();
+                var body = System.Net.WebUtility.HtmlEncode(entry.BodyJson.RootElement.ToString());
                 await emailSender.SendAsync(entry.RecipientEmail, entry.Subject, body, ct);
 
                 entry.Status = EmailStatus.Sent;
@@ -57,7 +57,7 @@ public sealed class EmailOutboxProcessorJob(
                     "Failed to send email {EmailId}, attempt {Attempt}/{Max}",
                     entry.Id, entry.AttemptCount, entry.MaxAttempts);
 
-                entry.LastError = ex.Message;
+                entry.LastError = ex.Message.Length > 500 ? ex.Message[..500] : ex.Message;
 
                 if (entry.AttemptCount >= entry.MaxAttempts)
                 {

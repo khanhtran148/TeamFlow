@@ -88,15 +88,17 @@ export function WorkItemSidebar({ workItem, projectId }: WorkItemSidebarProps) {
         />
       </SidebarSection>
 
-      {/* Assignee */}
-      <SidebarSection label="Assignee">
-        <AssigneePicker
-          workItemId={workItem.id}
-          projectId={projectId}
-          assigneeId={workItem.assigneeId}
-          assigneeName={workItem.assigneeName}
-        />
-      </SidebarSection>
+      {/* Assignee — hidden for Epics (cannot have assignee per domain rules) */}
+      {workItem.type !== "Epic" && (
+        <SidebarSection label="Assignee">
+          <AssigneePicker
+            workItemId={workItem.id}
+            projectId={projectId}
+            assigneeId={workItem.assigneeId}
+            assigneeName={workItem.assigneeName}
+          />
+        </SidebarSection>
+      )}
 
       {/* Release */}
       {workItem.releaseId && (

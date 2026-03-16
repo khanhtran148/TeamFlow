@@ -8,6 +8,7 @@ public sealed class SmtpEmailSenderSettings
 {
     public string SmtpHost { get; set; } = "localhost";
     public int SmtpPort { get; set; } = 1025;
+    public bool UseSsl { get; set; }
     public string FromAddress { get; set; } = "noreply@teamflow.local";
     public string FromName { get; set; } = "TeamFlow";
 }
@@ -24,10 +25,10 @@ public sealed class SmtpEmailSender(
     {
         var config = settings.Value;
 
-        using var message = new MailKit.Net.Smtp.SmtpClient();
+        using var client = new MailKit.Net.Smtp.SmtpClient();
         try
         {
-            await message.ConnectAsync(config.SmtpHost, config.SmtpPort, false, ct);
+            await client.ConnectAsync(config.SmtpHost, config.SmtpPort, config.UseSsl, ct);
 
             var mimeMessage = new MimeKit.MimeMessage();
             mimeMessage.From.Add(new MimeKit.MailboxAddress(config.FromName, config.FromAddress));
@@ -35,17 +36,17 @@ public sealed class SmtpEmailSender(
             mimeMessage.Subject = subject;
             mimeMessage.Body = new MimeKit.TextPart("html") { Text = htmlBody };
 
-            await message.SendAsync(mimeMessage, ct);
-            logger.LogInformation("Email sent to {Recipient} with subject {Subject}", to, subject);
+            await client.SendAsync(mimeMessage, ct);
+            logger.LogDebug("Email sent to {Recipient}", to);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send email to {Recipient}", to);
+            logger.LogError("Failed to send email to {Recipient}", to);
             throw;
         }
         finally
         {
-            await message.DisconnectAsync(true, ct);
+            await client.DisconnectAsync(true, ct);
         }
     }
 }

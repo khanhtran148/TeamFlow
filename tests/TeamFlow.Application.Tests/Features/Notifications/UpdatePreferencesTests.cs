@@ -4,6 +4,7 @@ using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Notifications;
 using TeamFlow.Application.Features.Notifications.UpdatePreferences;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Domain.Enums;
 
 namespace TeamFlow.Application.Tests.Features.Notifications;
 
@@ -24,7 +25,7 @@ public sealed class UpdatePreferencesTests
     [Fact]
     public async Task Handle_NewPreference_CreatesIt()
     {
-        _repo.GetByUserAndTypeAsync(ActorId, "WorkItemAssigned", Arg.Any<CancellationToken>())
+        _repo.GetByUserAndTypeAsync(ActorId, NotificationType.WorkItemAssigned, Arg.Any<CancellationToken>())
             .Returns((NotificationPreference?)null);
 
         var prefs = new List<NotificationPreferenceDto>
@@ -36,7 +37,7 @@ public sealed class UpdatePreferencesTests
 
         result.IsSuccess.Should().BeTrue();
         await _repo.Received(1).UpsertAsync(
-            Arg.Is<NotificationPreference>(p => p.NotificationType == "WorkItemAssigned" && !p.EmailEnabled),
+            Arg.Is<NotificationPreference>(p => p.NotificationType == NotificationType.WorkItemAssigned && !p.EmailEnabled),
             Arg.Any<CancellationToken>());
     }
 
@@ -46,11 +47,11 @@ public sealed class UpdatePreferencesTests
         var existing = new NotificationPreference
         {
             UserId = ActorId,
-            NotificationType = "WorkItemAssigned",
+            NotificationType = NotificationType.WorkItemAssigned,
             EmailEnabled = true,
             InAppEnabled = true
         };
-        _repo.GetByUserAndTypeAsync(ActorId, "WorkItemAssigned", Arg.Any<CancellationToken>())
+        _repo.GetByUserAndTypeAsync(ActorId, NotificationType.WorkItemAssigned, Arg.Any<CancellationToken>())
             .Returns(existing);
 
         var prefs = new List<NotificationPreferenceDto>
@@ -64,5 +65,19 @@ public sealed class UpdatePreferencesTests
         await _repo.Received(1).UpsertAsync(
             Arg.Is<NotificationPreference>(p => !p.EmailEnabled && !p.InAppEnabled),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_InvalidNotificationType_ReturnsFailure()
+    {
+        var prefs = new List<NotificationPreferenceDto>
+        {
+            new("InvalidType", false, true)
+        };
+
+        var result = await CreateHandler().Handle(new UpdatePreferencesCommand(prefs), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("Invalid notification type");
     }
 }

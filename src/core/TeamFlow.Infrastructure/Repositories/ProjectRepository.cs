@@ -30,6 +30,7 @@ public sealed class ProjectRepository(TeamFlowDbContext context) : IProjectRepos
         => await context.Projects.AnyAsync(p => p.Id == id, ct);
 
     public async Task<(IEnumerable<Project> Items, int TotalCount)> ListAsync(
+        Guid userId,
         Guid? orgId,
         string? status,
         string? search,
@@ -37,7 +38,22 @@ public sealed class ProjectRepository(TeamFlowDbContext context) : IProjectRepos
         int pageSize,
         CancellationToken ct = default)
     {
-        var query = context.Projects.AsNoTracking();
+        // User can see projects where they have a direct membership
+        // OR where they are OrgAdmin (CreatedByUserId) of the owning org
+        var memberProjectIds = context.ProjectMemberships
+            .AsNoTracking()
+            .Where(pm => pm.MemberId == userId && pm.MemberType == "User")
+            .Select(pm => pm.ProjectId);
+
+        var orgAdminOrgIds = context.Organizations
+            .AsNoTracking()
+            .Where(o => o.CreatedByUserId == userId)
+            .Select(o => o.Id);
+
+        var query = context.Projects
+            .AsNoTracking()
+            .Where(p => memberProjectIds.Contains(p.Id)
+                || orgAdminOrgIds.Contains(p.OrgId));
 
         if (orgId.HasValue)
             query = query.Where(p => p.OrgId == orgId.Value);
@@ -46,7 +62,7 @@ public sealed class ProjectRepository(TeamFlowDbContext context) : IProjectRepos
             query = query.Where(p => p.Status == status);
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(p => p.Name.Contains(search));
+            query = query.Where(p => EF.Functions.ILike(p.Name, $"%{search}%"));
 
         var totalCount = await query.CountAsync(ct);
 

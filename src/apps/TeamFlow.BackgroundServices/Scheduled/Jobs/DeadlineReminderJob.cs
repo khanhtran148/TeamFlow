@@ -50,8 +50,8 @@ public sealed class DeadlineReminderJob(
 
             var daysUntil = item.ReleaseDate.DayNumber - today.DayNumber;
             var type = daysUntil <= 1
-                ? nameof(NotificationType.DeadlineReminder1d)
-                : nameof(NotificationType.DeadlineReminder3d);
+                ? NotificationType.DeadlineReminder1d
+                : NotificationType.DeadlineReminder3d;
 
             var title = $"Deadline reminder: {item.Title} — release \"{item.ReleaseName}\" in {daysUntil} day(s)";
 

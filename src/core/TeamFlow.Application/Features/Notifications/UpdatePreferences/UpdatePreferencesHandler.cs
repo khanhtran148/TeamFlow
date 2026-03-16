@@ -2,6 +2,7 @@ using CSharpFunctionalExtensions;
 using MediatR;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Domain.Enums;
 
 namespace TeamFlow.Application.Features.Notifications.UpdatePreferences;
 
@@ -14,15 +15,18 @@ public sealed class UpdatePreferencesHandler(
     {
         foreach (var dto in request.Preferences)
         {
+            if (!Enum.TryParse<NotificationType>(dto.NotificationType, out var notificationType))
+                return Result.Failure($"Invalid notification type: {dto.NotificationType}");
+
             var pref = await preferenceRepository.GetByUserAndTypeAsync(
-                currentUser.Id, dto.NotificationType, ct);
+                currentUser.Id, notificationType, ct);
 
             if (pref is null)
             {
                 pref = new NotificationPreference
                 {
                     UserId = currentUser.Id,
-                    NotificationType = dto.NotificationType,
+                    NotificationType = notificationType,
                     EmailEnabled = dto.EmailEnabled,
                     InAppEnabled = dto.InAppEnabled
                 };

@@ -3,17 +3,33 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { ChevronDown, X, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAssignWorkItem, useUnassignWorkItem } from "@/lib/hooks/use-work-items";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { apiClient } from "@/lib/api/client";
 
-// Phase 1: seed users (no real user API yet)
-const SEED_USERS = [
-  { id: "00000000-0000-0000-0000-000000000001", name: "Alice Johnson" },
-  { id: "00000000-0000-0000-0000-000000000002", name: "Bob Smith" },
-  { id: "00000000-0000-0000-0000-000000000003", name: "Carol White" },
-  { id: "00000000-0000-0000-0000-000000000004", name: "Dave Brown" },
-  { id: "00000000-0000-0000-0000-000000000005", name: "Eve Davis" },
-];
+interface ProjectMember {
+  id: string;
+  memberId: string;
+  memberName: string;
+  memberType: string;
+  role: string;
+}
+
+function useProjectMembers(projectId: string) {
+  return useQuery({
+    queryKey: ["project-members", projectId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ProjectMember[]>(
+        `/projects/${projectId}/memberships`,
+      );
+      return data
+        .filter((m) => m.memberType === "User")
+        .map((m) => ({ id: m.memberId, name: m.memberName }));
+    },
+    staleTime: 60_000,
+  });
+}
 
 interface AssigneePickerProps {
   workItemId: string;
@@ -30,6 +46,7 @@ export function AssigneePicker({
 }: AssigneePickerProps) {
   const [open, setOpen] = useState(false);
 
+  const { data: members = [], isLoading: membersLoading } = useProjectMembers(projectId);
   const assignMutation = useAssignWorkItem(projectId);
   const unassignMutation = useUnassignWorkItem(projectId);
 
@@ -176,39 +193,49 @@ export function AssigneePicker({
                 Unassign
               </button>
             )}
-            {SEED_USERS.map((user) => {
-              const userInitials = user.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .slice(0, 2);
-              const isSelected = user.id === assigneeId;
-              return (
-                <button
-                  key={user.id}
-                  onClick={() => handleAssign(user.id, user.name)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    padding: "7px 12px",
-                    background: isSelected ? "var(--tf-bg4)" : "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--tf-text)",
-                    fontSize: 12,
-                    fontFamily: "var(--tf-font-body)",
-                  }}
-                >
-                  <UserAvatar initials={userInitials} name={user.name} size="xs" />
-                  <span style={{ flex: 1, textAlign: "left" }}>{user.name}</span>
-                  {isSelected && (
-                    <span style={{ fontSize: 10, color: "var(--tf-accent)" }}>✓</span>
-                  )}
-                </button>
-              );
-            })}
+            {membersLoading ? (
+              <div style={{ padding: "12px", textAlign: "center", color: "var(--tf-text3)", fontSize: 12 }}>
+                <Loader2 size={14} className="animate-spin" style={{ display: "inline-block" }} />
+              </div>
+            ) : members.length === 0 ? (
+              <div style={{ padding: "8px 12px", color: "var(--tf-text3)", fontSize: 12 }}>
+                No members found
+              </div>
+            ) : (
+              members.map((user) => {
+                const userInitials = user.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2);
+                const isSelected = user.id === assigneeId;
+                return (
+                  <button
+                    key={user.id}
+                    onClick={() => handleAssign(user.id, user.name)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      padding: "7px 12px",
+                      background: isSelected ? "var(--tf-bg4)" : "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--tf-text)",
+                      fontSize: 12,
+                      fontFamily: "var(--tf-font-body)",
+                    }}
+                  >
+                    <UserAvatar initials={userInitials} name={user.name} size="xs" />
+                    <span style={{ flex: 1, textAlign: "left" }}>{user.name}</span>
+                    {isSelected && (
+                      <span style={{ fontSize: 10, color: "var(--tf-accent)" }}>✓</span>
+                    )}
+                  </button>
+                );
+              })
+            )}
           </div>
         </>
       )}

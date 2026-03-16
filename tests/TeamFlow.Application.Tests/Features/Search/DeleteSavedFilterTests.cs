@@ -3,12 +3,14 @@ using NSubstitute;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Search.DeleteSavedFilter;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Domain.Enums;
 
 namespace TeamFlow.Application.Tests.Features.Search;
 
 public sealed class DeleteSavedFilterTests
 {
     private readonly ISavedFilterRepository _repo = Substitute.For<ISavedFilterRepository>();
+    private readonly IPermissionChecker _permissionChecker = Substitute.For<IPermissionChecker>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
 
     private static readonly Guid ActorId = Guid.NewGuid();
@@ -17,9 +19,11 @@ public sealed class DeleteSavedFilterTests
     public DeleteSavedFilterTests()
     {
         _currentUser.Id.Returns(ActorId);
+        _permissionChecker.HasPermissionAsync(ActorId, ProjectId, Permission.WorkItem_View, Arg.Any<CancellationToken>())
+            .Returns(true);
     }
 
-    private DeleteSavedFilterHandler CreateHandler() => new(_repo, _currentUser);
+    private DeleteSavedFilterHandler CreateHandler() => new(_repo, _permissionChecker, _currentUser);
 
     [Fact]
     public async Task Handle_OwnFilter_DeletesSuccessfully()
@@ -55,5 +59,17 @@ public sealed class DeleteSavedFilterTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
+    }
+
+    [Fact]
+    public async Task Handle_NotProjectMember_ReturnsForbidden()
+    {
+        _permissionChecker.HasPermissionAsync(ActorId, ProjectId, Permission.WorkItem_View, Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        var result = await CreateHandler().Handle(new DeleteSavedFilterCommand(ProjectId, Guid.NewGuid()), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("Access denied");
     }
 }

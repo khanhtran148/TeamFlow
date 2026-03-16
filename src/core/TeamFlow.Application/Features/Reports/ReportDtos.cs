@@ -1,10 +1,12 @@
+using System.Text.Json;
+
 namespace TeamFlow.Application.Features.Reports;
 
 public sealed record SprintReportDto(
     Guid Id,
     Guid SprintId,
     Guid ProjectId,
-    object ReportData,
+    JsonDocument ReportData,
     DateTime GeneratedAt,
     string GeneratedBy
 );
@@ -14,6 +16,6 @@ public sealed record TeamHealthSummaryDto(
     Guid ProjectId,
     DateOnly PeriodStart,
     DateOnly PeriodEnd,
-    object SummaryData,
+    JsonDocument SummaryData,
     DateTime GeneratedAt
 );

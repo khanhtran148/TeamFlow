@@ -7,7 +7,7 @@ const statuses: WorkItemStatus[] = ["ToDo", "InProgress", "InReview", "Done", "R
 const priorities: Priority[] = ["Critical", "High", "Medium", "Low"];
 const types: WorkItemType[] = ["Epic", "UserStory", "Task", "Bug", "Spike"];
 
-export function FilterPanel({ projectId: _projectId }: { projectId: string }) {
+export function FilterPanel() {
   const { statusFilter, priorityFilter, typeFilter, setStatusFilter, setPriorityFilter, setTypeFilter, resetFilters } =
     useSearchStore();
 

@@ -12,12 +12,14 @@ public sealed class ListProjectsTests
     private readonly IProjectRepository _projectRepo = Substitute.For<IProjectRepository>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
 
+    private static readonly Guid ActorId = Guid.NewGuid();
+
     public ListProjectsTests()
     {
-        _currentUser.Id.Returns(Guid.NewGuid());
+        _currentUser.Id.Returns(ActorId);
     }
 
-    private ListProjectsHandler CreateHandler() => new(_projectRepo);
+    private ListProjectsHandler CreateHandler() => new(_projectRepo, _currentUser);
 
     [Fact]
     public async Task Handle_WithProjects_ReturnsPagedResult()
@@ -27,7 +29,7 @@ public sealed class ListProjectsTests
             ProjectBuilder.New().WithName("Project A").Build(),
             ProjectBuilder.New().WithName("Project B").Build()
         };
-        _projectRepo.ListAsync(Arg.Any<Guid?>(), Arg.Any<string?>(), Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>())
+        _projectRepo.ListAsync(ActorId, Arg.Any<Guid?>(), Arg.Any<string?>(), Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>())
             .Returns((projects, 2));
 
         var query = new ListProjectsQuery(null, null, null, 1, 20);
@@ -41,24 +43,36 @@ public sealed class ListProjectsTests
     [Fact]
     public async Task Handle_FilterByStatus_PassesStatusToRepository()
     {
-        _projectRepo.ListAsync(Arg.Any<Guid?>(), "Active", Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>())
+        _projectRepo.ListAsync(ActorId, Arg.Any<Guid?>(), "Active", Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>())
             .Returns((new List<Project>(), 0));
 
         var query = new ListProjectsQuery(null, "Active", null, 1, 20);
         await CreateHandler().Handle(query, CancellationToken.None);
 
-        await _projectRepo.Received(1).ListAsync(null, "Active", null, 1, 20, Arg.Any<CancellationToken>());
+        await _projectRepo.Received(1).ListAsync(ActorId, null, "Active", null, 1, 20, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_SearchByName_PassesSearchToRepository()
     {
-        _projectRepo.ListAsync(Arg.Any<Guid?>(), Arg.Any<string?>(), "alpha", 1, 20, Arg.Any<CancellationToken>())
+        _projectRepo.ListAsync(ActorId, Arg.Any<Guid?>(), Arg.Any<string?>(), "alpha", 1, 20, Arg.Any<CancellationToken>())
             .Returns((new List<Project>(), 0));
 
         var query = new ListProjectsQuery(null, null, "alpha", 1, 20);
         await CreateHandler().Handle(query, CancellationToken.None);
 
-        await _projectRepo.Received(1).ListAsync(null, null, "alpha", 1, 20, Arg.Any<CancellationToken>());
+        await _projectRepo.Received(1).ListAsync(ActorId, null, null, "alpha", 1, 20, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_PassesCurrentUserIdToRepository()
+    {
+        _projectRepo.ListAsync(ActorId, Arg.Any<Guid?>(), Arg.Any<string?>(), Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>())
+            .Returns((new List<Project>(), 0));
+
+        var query = new ListProjectsQuery(null, null, null, 1, 20);
+        await CreateHandler().Handle(query, CancellationToken.None);
+
+        await _projectRepo.Received(1).ListAsync(ActorId, Arg.Any<Guid?>(), Arg.Any<string?>(), Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>());
     }
 }

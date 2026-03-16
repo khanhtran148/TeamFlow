@@ -21,7 +21,7 @@ public sealed class GetPreferencesHandler(
         var dtos = allTypes.Select(t =>
         {
             var typeName = t.ToString();
-            if (prefMap.TryGetValue(typeName, out var pref))
+            if (prefMap.TryGetValue(t, out var pref))
                 return new NotificationPreferenceDto(typeName, pref.EmailEnabled, pref.InAppEnabled);
             return new NotificationPreferenceDto(typeName, true, true);
         }).ToList();

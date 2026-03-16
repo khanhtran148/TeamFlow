@@ -33,6 +33,9 @@ public sealed class FullTextSearchHandler(
             request.PageSize,
             ct);
 
+        const int defaultLinkCount = 0;
+        const int defaultChildCount = 0;
+
         var dtos = items.Select(item => new WorkItemDto(
             item.Id,
             item.ProjectId,
@@ -47,8 +50,8 @@ public sealed class FullTextSearchHandler(
             item.Assignee?.Name,
             item.SprintId,
             item.ReleaseId,
-            0,
-            0,
+            defaultLinkCount,
+            defaultChildCount,
             item.SortOrder,
             item.CreatedAt,
             item.UpdatedAt

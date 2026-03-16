@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+
 using TeamFlow.Infrastructure.Persistence;
 
 namespace TeamFlow.BackgroundServices.Scheduled.Jobs;
@@ -15,8 +16,7 @@ namespace TeamFlow.BackgroundServices.Scheduled.Jobs;
 public sealed class TeamHealthSummaryJob(
     ILogger<TeamHealthSummaryJob> logger,
     TeamFlowDbContext dbContext,
-    ITeamHealthSummaryRepository teamHealthRepository,
-    INotificationService notificationService)
+    ITeamHealthSummaryRepository teamHealthRepository)
     : BaseJob(logger, dbContext)
 {
     protected override async Task ExecuteInternal(
@@ -82,7 +82,7 @@ public sealed class TeamHealthSummaryJob(
                 ProjectId = projectId,
                 PeriodStart = weekStart,
                 PeriodEnd = weekEnd,
-                SummaryData = JsonDocument.Parse(JsonSerializer.Serialize(summaryData))
+                SummaryData = JsonSerializer.SerializeToDocument(summaryData)
             };
 
             await teamHealthRepository.AddAsync(summary, ct);

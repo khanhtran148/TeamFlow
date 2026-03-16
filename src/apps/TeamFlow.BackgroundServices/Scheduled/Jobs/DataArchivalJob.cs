@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Infrastructure.Persistence;
@@ -17,10 +18,12 @@ namespace TeamFlow.BackgroundServices.Scheduled.Jobs;
 /// </summary>
 public sealed class DataArchivalJob(
     ILogger<DataArchivalJob> logger,
-    TeamFlowDbContext dbContext)
+    TeamFlowDbContext dbContext,
+    IConfiguration configuration)
     : BaseJob(logger, dbContext)
 {
-    private const string ArchivePath = "data/archives";
+    private string ArchivePath => Path.GetFullPath(
+        configuration["Archival:BasePath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "archives"));
 
     protected override async Task ExecuteInternal(
         Quartz.IJobExecutionContext context, JobExecutionMetric metric)

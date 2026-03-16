@@ -1,10 +1,12 @@
+using TeamFlow.Domain.Enums;
+
 namespace TeamFlow.Application.Common.Interfaces;
 
 public interface INotificationService
 {
     Task CreateNotificationAsync(
         Guid recipientId,
-        string type,
+        NotificationType type,
         string title,
         string? body,
         Guid? referenceId,

@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Domain.Entities;
-using TeamFlow.Domain.Enums;
 using TeamFlow.Infrastructure.Persistence;
 
 namespace TeamFlow.BackgroundServices.Scheduled.Jobs;
@@ -13,8 +11,7 @@ namespace TeamFlow.BackgroundServices.Scheduled.Jobs;
 /// </summary>
 public sealed class VelocityAggregatorJob(
     ILogger<VelocityAggregatorJob> logger,
-    TeamFlowDbContext dbContext,
-    INotificationService notificationService)
+    TeamFlowDbContext dbContext)
     : BaseJob(logger, dbContext)
 {
     protected override async Task ExecuteInternal(
@@ -58,9 +55,11 @@ public sealed class VelocityAggregatorJob(
                 };
             }
 
-            await DbContext.SaveChangesAsync(ct);
             metric.RecordsProcessed++;
         }
+
+        if (metric.RecordsProcessed > 0)
+            await DbContext.SaveChangesAsync(ct);
 
         logger.LogInformation(
             "VelocityAggregatorJob: Updated {Count} projects", metric.RecordsProcessed);

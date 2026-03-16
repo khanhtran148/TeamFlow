@@ -9,6 +9,7 @@ public interface IProjectRepository
     Task<Project> UpdateAsync(Project project, CancellationToken ct = default);
     Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
     Task<(IEnumerable<Project> Items, int TotalCount)> ListAsync(
+        Guid userId,
         Guid? orgId,
         string? status,
         string? search,

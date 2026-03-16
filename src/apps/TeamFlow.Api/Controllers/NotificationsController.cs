@@ -76,5 +76,3 @@ public sealed class NotificationsController : ApiControllerBase
         return HandleResult(result);
     }
 }
-
-public sealed record UpdatePreferencesBody(IReadOnlyList<NotificationPreferenceDto> Preferences);

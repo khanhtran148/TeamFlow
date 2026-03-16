@@ -71,7 +71,7 @@ public sealed class SprintReportGeneratorJob(
             {
                 SprintId = sprint.Id,
                 ProjectId = sprint.ProjectId,
-                ReportData = JsonDocument.Parse(JsonSerializer.Serialize(reportData)),
+                ReportData = JsonSerializer.SerializeToDocument(reportData),
                 GeneratedBy = "System"
             };
 

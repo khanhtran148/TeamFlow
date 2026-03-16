@@ -1,16 +1,21 @@
 using CSharpFunctionalExtensions;
 using MediatR;
 using TeamFlow.Application.Common.Interfaces;
+using TeamFlow.Domain.Enums;
 
 namespace TeamFlow.Application.Features.Search.UpdateSavedFilter;
 
 public sealed class UpdateSavedFilterHandler(
     ISavedFilterRepository savedFilterRepository,
+    IPermissionChecker permissionChecker,
     ICurrentUser currentUser)
     : IRequestHandler<UpdateSavedFilterCommand, Result<SavedFilterDto>>
 {
     public async Task<Result<SavedFilterDto>> Handle(UpdateSavedFilterCommand request, CancellationToken ct)
     {
+        if (!await permissionChecker.HasPermissionAsync(currentUser.Id, request.ProjectId, Permission.WorkItem_View, ct))
+            return Result.Failure<SavedFilterDto>("Access denied");
+
         var filter = await savedFilterRepository.GetByIdAsync(request.FilterId, ct);
         if (filter is null)
             return Result.Failure<SavedFilterDto>("Saved filter not found");

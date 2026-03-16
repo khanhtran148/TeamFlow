@@ -7,12 +7,15 @@ using TeamFlow.Domain.Entities;
 
 namespace TeamFlow.Application.Features.Projects.ListProjects;
 
-public sealed class ListProjectsHandler(IProjectRepository projectRepository)
+public sealed class ListProjectsHandler(
+    IProjectRepository projectRepository,
+    ICurrentUser currentUser)
     : IRequestHandler<ListProjectsQuery, Result<PagedResult<ProjectDto>>>
 {
     public async Task<Result<PagedResult<ProjectDto>>> Handle(ListProjectsQuery request, CancellationToken ct)
     {
         var (items, totalCount) = await projectRepository.ListAsync(
+            currentUser.Id,
             request.OrgId,
             request.Status,
             request.Search,
