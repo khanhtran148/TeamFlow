@@ -195,7 +195,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
           border: "none",
           cursor: "pointer",
           color: "var(--tf-text3)",
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: "var(--tf-font-body)",
           padding: 0,
           transition: "color var(--tf-tr)",
@@ -260,7 +260,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
                   alignItems: "center",
                   padding: "2px 9px",
                   borderRadius: 100,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: 600,
                   fontFamily: "var(--tf-font-mono)",
                   background: statusConfig.bg,
@@ -296,7 +296,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
                 border: "1px solid var(--tf-border)",
                 background: "transparent",
                 color: "var(--tf-text2)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 500,
                 cursor: "pointer",
                 fontFamily: "var(--tf-font-body)",
@@ -321,7 +321,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
                 border: "1px solid var(--tf-border)",
                 background: "transparent",
                 color: "var(--tf-red)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 500,
                 cursor: "pointer",
                 fontFamily: "var(--tf-font-body)",
@@ -348,7 +348,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
               display: "inline-flex",
               alignItems: "center",
               gap: 5,
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-mono)",
             }}
@@ -358,7 +358,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
           </span>
           <span
             style={{
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-mono)",
             }}
@@ -373,7 +373,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   color: "var(--tf-text3)",
                   fontFamily: "var(--tf-font-mono)",
                 }}
@@ -382,7 +382,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
               </span>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   color: "var(--tf-text2)",
                   fontFamily: "var(--tf-font-mono)",
                 }}
@@ -453,7 +453,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
                   borderRadius: 100,
                   background: "var(--tf-bg4)",
                   color: "var(--tf-text3)",
-                  fontSize: 11,
+                  fontSize: 13,
                   fontFamily: "var(--tf-font-mono)",
                 }}
               >
@@ -473,7 +473,7 @@ export default function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
               border: "1px solid var(--tf-accent)",
               background: "transparent",
               color: "var(--tf-accent)",
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: "var(--tf-font-body)",

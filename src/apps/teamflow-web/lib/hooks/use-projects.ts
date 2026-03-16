@@ -49,6 +49,8 @@ export function useProject(
     queryKey: projectKeys.detail(id),
     queryFn: () => getProject(id),
     enabled: !!id,
+    retry: 2,
+    retryDelay: 500,
     ...options,
   });
 }

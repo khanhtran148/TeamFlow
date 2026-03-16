@@ -137,7 +137,7 @@ export function CreateReleaseDialog({ open, projectId, onClose }: CreateReleaseD
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label
               htmlFor="release-name"
-              style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+              style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
             >
               Name <span style={{ color: "var(--tf-red)" }}>*</span>
             </label>
@@ -174,7 +174,7 @@ export function CreateReleaseDialog({ open, projectId, onClose }: CreateReleaseD
               }}
             />
             {nameError && (
-              <span style={{ fontSize: 11, color: "var(--tf-red)" }}>{nameError}</span>
+              <span style={{ fontSize: 13, color: "var(--tf-red)" }}>{nameError}</span>
             )}
           </div>
 
@@ -182,7 +182,7 @@ export function CreateReleaseDialog({ open, projectId, onClose }: CreateReleaseD
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label
               htmlFor="release-description"
-              style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+              style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
             >
               Description
             </label>
@@ -217,7 +217,7 @@ export function CreateReleaseDialog({ open, projectId, onClose }: CreateReleaseD
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label
               htmlFor="release-date"
-              style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+              style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
             >
               Release Date
             </label>
@@ -259,7 +259,7 @@ export function CreateReleaseDialog({ open, projectId, onClose }: CreateReleaseD
                 border: "1px solid var(--tf-border)",
                 background: "transparent",
                 color: "var(--tf-text2)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 500,
                 cursor: isPending ? "not-allowed" : "pointer",
                 opacity: isPending ? 0.5 : 1,
@@ -276,7 +276,7 @@ export function CreateReleaseDialog({ open, projectId, onClose }: CreateReleaseD
                 border: "1px solid var(--tf-accent)",
                 background: "var(--tf-accent)",
                 color: "var(--primary-foreground)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: isPending ? "not-allowed" : "pointer",
                 opacity: isPending ? 0.7 : 1,

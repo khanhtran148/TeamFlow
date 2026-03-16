@@ -92,6 +92,24 @@ export async function createRetroActionItem(
   return response.data;
 }
 
+export async function renameRetroSession(
+  sessionId: string,
+  name: string,
+): Promise<void> {
+  await apiClient.put(`/retros/${sessionId}/name`, { name });
+}
+
+export async function deleteRetroSession(sessionId: string): Promise<void> {
+  await apiClient.delete(`/retros/${sessionId}`);
+}
+
+export async function updateColumnsConfig(
+  sessionId: string,
+  columnsConfig: unknown,
+): Promise<void> {
+  await apiClient.put(`/retros/${sessionId}/columns-config`, { columnsConfig });
+}
+
 export async function getPreviousActionItems(
   projectId: string,
 ): Promise<RetroActionItemDto[]> {

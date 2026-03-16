@@ -110,7 +110,7 @@ export function ErrorDisplay({ error, onRetry, title }: ErrorDisplayProps) {
         </p>
         <p
           style={{
-            fontSize: 12,
+            fontSize: 13,
             color: "var(--tf-text3)",
             lineHeight: 1.6,
             maxWidth: 320,
@@ -121,7 +121,7 @@ export function ErrorDisplay({ error, onRetry, title }: ErrorDisplayProps) {
         {displayStatusCode && (
           <p
             style={{
-              fontSize: 10,
+              fontSize: 13,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-mono)",
               marginTop: 6,
@@ -144,7 +144,7 @@ export function ErrorDisplay({ error, onRetry, title }: ErrorDisplayProps) {
             border: "1px solid var(--tf-border)",
             background: "var(--tf-bg3)",
             color: "var(--tf-text2)",
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 500,
             cursor: "pointer",
             fontFamily: "var(--tf-font-body)",

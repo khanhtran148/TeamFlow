@@ -7,6 +7,9 @@ namespace TeamFlow.Infrastructure.Repositories;
 
 public sealed class InAppNotificationRepository(TeamFlowDbContext context) : IInAppNotificationRepository
 {
+    public async Task<InAppNotification?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => await context.InAppNotifications.FirstOrDefaultAsync(n => n.Id == id, ct);
+
     public async Task<InAppNotification> AddAsync(InAppNotification notification, CancellationToken ct = default)
     {
         context.InAppNotifications.Add(notification);

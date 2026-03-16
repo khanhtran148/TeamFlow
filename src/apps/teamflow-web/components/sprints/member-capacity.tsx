@@ -9,7 +9,7 @@ interface MemberCapacityProps {
 export function MemberCapacity({ members }: MemberCapacityProps) {
   if (members.length === 0) {
     return (
-      <p style={{ fontSize: 12, color: "var(--tf-text3)", textAlign: "center", padding: "12px 0" }}>
+      <p style={{ fontSize: 13, color: "var(--tf-text3)", textAlign: "center", padding: "12px 0" }}>
         No capacity configured. Edit sprint capacity to assign points per member.
       </p>
     );
@@ -19,7 +19,7 @@ export function MemberCapacity({ members }: MemberCapacityProps) {
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <span
         style={{
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 600,
           color: "var(--tf-text2)",
           fontFamily: "var(--tf-font-mono)",
@@ -49,7 +49,7 @@ export function MemberCapacity({ members }: MemberCapacityProps) {
             >
               <span
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   color: "var(--tf-text)",
                   fontWeight: 500,
                   minWidth: 100,
@@ -81,7 +81,7 @@ export function MemberCapacity({ members }: MemberCapacityProps) {
               </div>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   color: isOver ? "var(--tf-red)" : "var(--tf-text3)",
                   fontFamily: "var(--tf-font-mono)",
                   fontWeight: isOver ? 600 : 400,

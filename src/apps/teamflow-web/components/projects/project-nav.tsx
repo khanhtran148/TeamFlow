@@ -23,8 +23,8 @@ export function ProjectNav({ projectId }: ProjectNavProps) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 2,
-        padding: "0 16px",
+        gap: 4,
+        padding: "0 20px",
         background: "var(--tf-bg2)",
         borderBottom: "1px solid var(--tf-border)",
         flexShrink: 0,
@@ -41,8 +41,8 @@ export function ProjectNav({ projectId }: ProjectNavProps) {
             style={{
               display: "flex",
               alignItems: "center",
-              padding: "10px 12px",
-              fontSize: 12,
+              padding: "12px 16px",
+              fontSize: 13,
               fontWeight: isActive ? 600 : 400,
               color: isActive ? "var(--tf-accent)" : "var(--tf-text3)",
               textDecoration: "none",

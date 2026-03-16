@@ -121,7 +121,7 @@ export function CreateWorkItemDialog({
 
   const labelStyle: React.CSSProperties = {
     display: "block",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 600,
     color: "var(--tf-text2)",
     fontFamily: "var(--tf-font-body)",

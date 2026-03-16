@@ -40,7 +40,7 @@ export default function TeamsPage() {
                 "linear-gradient(135deg, var(--tf-accent), var(--tf-blue))",
               color: "#0a0a0b",
               fontWeight: 600,
-              fontSize: 12,
+              fontSize: 13,
               cursor: "pointer",
             }}
           >

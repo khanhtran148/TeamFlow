@@ -32,20 +32,62 @@ public sealed class GetKanbanBoardHandler(
 
         var itemsList = items.ToList();
 
-        // Get blocked status using a single batch query (no N+1)
         var blockedItemIds = await linkRepository.GetBlockedItemIdsAsync(itemsList.Select(i => i.Id), ct);
 
-        var columns = KanbanStatuses.Select(status =>
-        {
-            var statusItems = itemsList
-                .Where(i => i.Status == status)
-                .Select(i => MapToKanbanItem(i, blockedItemIds))
-                .ToList();
+        var columns = BuildColumns(itemsList, blockedItemIds);
 
+        IEnumerable<KanbanSwimlaneDto>? swimlanes = null;
+        if (!string.IsNullOrEmpty(request.Swimlane))
+        {
+            swimlanes = request.Swimlane.ToLowerInvariant() switch
+            {
+                "assignee" => BuildAssigneeSwimlanes(itemsList, blockedItemIds),
+                "epic" => BuildEpicSwimlanes(itemsList, blockedItemIds),
+                _ => null
+            };
+        }
+
+        return Result.Success(new KanbanBoardDto(request.ProjectId, columns, swimlanes));
+    }
+
+    private static List<KanbanColumnDto> BuildColumns(List<WorkItem> items, HashSet<Guid> blockedIds)
+    {
+        return KanbanStatuses.Select(status =>
+        {
+            var statusItems = items
+                .Where(i => i.Status == status)
+                .Select(i => MapToKanbanItem(i, blockedIds))
+                .ToList();
             return new KanbanColumnDto(status, statusItems.Count, statusItems);
         }).ToList();
+    }
 
-        return Result.Success(new KanbanBoardDto(request.ProjectId, columns));
+    private static List<KanbanSwimlaneDto> BuildAssigneeSwimlanes(List<WorkItem> items, HashSet<Guid> blockedIds)
+    {
+        var grouped = items.GroupBy(i => new { i.AssigneeId, Name = i.Assignee?.Name ?? "Unassigned" });
+
+        return grouped
+            .OrderBy(g => g.Key.Name)
+            .Select(g => new KanbanSwimlaneDto(
+                g.Key.AssigneeId?.ToString() ?? "unassigned",
+                g.Key.Name,
+                BuildColumns(g.ToList(), blockedIds)
+            ))
+            .ToList();
+    }
+
+    private static List<KanbanSwimlaneDto> BuildEpicSwimlanes(List<WorkItem> items, HashSet<Guid> blockedIds)
+    {
+        var grouped = items.GroupBy(i => new { i.ParentId, Title = i.Parent?.Title ?? "No Epic" });
+
+        return grouped
+            .OrderBy(g => g.Key.Title)
+            .Select(g => new KanbanSwimlaneDto(
+                g.Key.ParentId?.ToString() ?? "no-epic",
+                g.Key.Title,
+                BuildColumns(g.ToList(), blockedIds)
+            ))
+            .ToList();
     }
 
     private static KanbanItemDto MapToKanbanItem(WorkItem item, HashSet<Guid> blockedIds) =>

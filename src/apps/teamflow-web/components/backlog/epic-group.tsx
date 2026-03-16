@@ -129,7 +129,7 @@ export function EpicGroup({
         {/* Epic title */}
         <span
           style={{
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             color: epic ? epicColor : "var(--tf-text3)",
             fontFamily: "var(--tf-font-body)",
@@ -142,7 +142,7 @@ export function EpicGroup({
         {/* Item count */}
         <span
           style={{
-            fontSize: 10,
+            fontSize: 13,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-mono)",
             marginRight: 8,
@@ -155,7 +155,7 @@ export function EpicGroup({
         {totalPoints > 0 && (
           <span
             style={{
-              fontSize: 10,
+              fontSize: 13,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-mono)",
             }}
@@ -172,7 +172,7 @@ export function EpicGroup({
             <div
               style={{
                 padding: "10px 12px",
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--tf-text3)",
                 fontFamily: "var(--tf-font-body)",
                 fontStyle: "italic",

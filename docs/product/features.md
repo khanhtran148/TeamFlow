@@ -5,8 +5,8 @@
 | Priority | Features |
 |---|---|
 | **Must Have** | Auth, Work Item CRUD, Backlog, Sprint Planning, Kanban Board, 6 Roles, Permission 3-levels, Work Item History, Item Linking (6 types), Release Management, Realtime via SignalR |
-| **Should Have** | Dashboard & Analytics, Burn-down chart, Email Notifications, Retrospective, Full-text Search |
-| **Could Have** | Report Scheduler, Saved Filters, Sprint Risk Warning, Release Notes auto-generation |
+| **Should Have** | Dashboard & Analytics ✅, Burn-down chart ✅, Email Notifications ✅, Retrospective ✅, Full-text Search ✅ |
+| **Could Have** | Report Scheduler ✅, Saved Filters ✅, Sprint Risk Warning, Release Notes auto-generation |
 | **Won't Have v1** | AI features, Git integration, Time tracking, Mobile app, i18n, SSO/OAuth2 |
 
 ---
@@ -170,3 +170,49 @@ Every mutation writes an immutable history record:
 - No role (including Org Admin) can modify history
 - Displayed as chronological feed, newest first
 - Realtime: `workitem.history_added` event updates History tab live
+
+---
+
+## Phase 5 — Implemented Features
+
+### Dashboard & Analytics (Sub-phase 5.2)
+- Velocity chart — last N sprints with 3-sprint and 6-sprint averages
+- Burn-down chart — real-time active sprint
+- Cumulative flow diagram — status counts over time
+- Cycle time per item type — avg, median, p90
+- Team workload heatmap — per-member assignment intensity
+- Release progress dashboard — done/in-progress/todo breakdown
+- Dashboard summary KPI cards
+
+### Notifications & Reminders (Sub-phase 5.3)
+- Email on work item assignment via outbox pattern
+- Deadline reminder: configurable (1 day / 3 days before)
+- Sprint summary email on sprint close
+- Release overdue email to PO + TL
+- In-app notification center: read/unread, mark all read, pagination
+- Per-user notification preferences: enable/disable email and in-app per type
+- Failed delivery: exponential backoff (30s, 5m, 30m) x 3 → dead-letter queue + alert
+- Real-time notification bell with unread badge via SignalR
+
+### Background Automation (Sub-phase 5.4)
+- `EmailOutboxProcessorJob` — every 30 seconds, processes pending/failed emails
+- `DeadlineReminderJob` — daily 08:00, detects items due in 1d/3d
+- `VelocityAggregatorJob` — Monday 07:00, recalculates velocity averages and trends
+- `SprintReportGeneratorJob` — on-demand, triggered by SprintCompletedConsumer
+- `DataArchivalJob` — 1st of month 03:00, archives old data and hard-deletes soft-deleted items >30d
+- `TeamHealthSummaryJob` — Monday 07:30, weekly health metrics per project
+
+### Advanced Search (Sub-phase 5.1)
+- Full-text search: PostgreSQL tsvector + GIN index (weighted: title A, description B)
+- Multi-condition filter combinations (status, priority, type, assignee, sprint, release, date range)
+- Saved filters per user per project with default filter support
+
+### Additional UX Improvements (Phase 5)
+- Retro session naming, rename, and delete
+- Retro board column configuration
+- Swimlane kanban filter
+- Sprint duration selector
+- Real-time assignee picker
+- Project list view
+- System font stack (font rendering improvement)
+- Epic assignee field hidden (Epics are not assignable)

@@ -68,7 +68,7 @@ export function PokerControls({
             gap: 5,
             padding: "7px 16px",
             borderRadius: 6,
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             border: "none",
             background: "var(--tf-accent)",
@@ -93,7 +93,7 @@ export function PokerControls({
         >
           <span
             style={{
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-text3)",
             }}
           >
@@ -116,7 +116,7 @@ export function PokerControls({
                   selectedEstimate === val
                     ? "var(--tf-accent)"
                     : "var(--tf-text2)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 fontFamily: "var(--tf-font-mono)",
                 cursor: "pointer",
@@ -138,7 +138,7 @@ export function PokerControls({
                 gap: 5,
                 padding: "7px 14px",
                 borderRadius: 6,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 border: "none",
                 background: "var(--tf-accent)",

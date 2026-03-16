@@ -164,9 +164,16 @@ export interface KanbanColumnDto {
   items: KanbanItemDto[];
 }
 
+export interface KanbanSwimlaneDto {
+  key: string;
+  label: string;
+  columns: KanbanColumnDto[];
+}
+
 export interface KanbanBoardDto {
   projectId: string;
   columns: KanbanColumnDto[];
+  swimlanes: KanbanSwimlaneDto[] | null;
 }
 
 // ---- Release DTOs ----
@@ -413,8 +420,16 @@ export type RetroCardCategory = "WentWell" | "NeedsImprovement" | "ActionItem";
 
 // ---- Retro DTOs ----
 
+export interface RetroColumnConfig {
+  key: RetroCardCategory;
+  label: string;
+  headerColor: string;
+  visible: boolean;
+}
+
 export interface RetroSessionDto {
   id: string;
+  name: string;
   projectId: string;
   sprintId: string | null;
   facilitatorId: string;
@@ -422,6 +437,7 @@ export interface RetroSessionDto {
   anonymityMode: string;
   status: RetroSessionStatus;
   aiSummary: Record<string, unknown> | null;
+  columnsConfig: RetroColumnConfig[] | null;
   cards: RetroCardDto[];
   actionItems: RetroActionItemDto[];
   createdAt: string;
@@ -452,6 +468,7 @@ export interface RetroActionItemDto {
 
 export interface RetroSessionSummaryDto {
   id: string;
+  name: string;
   projectId: string;
   sprintId: string | null;
   facilitatorName: string;
@@ -471,6 +488,7 @@ export interface ListRetroSessionsResponse {
 
 export interface CreateRetroSessionBody {
   projectId: string;
+  name?: string;
   sprintId?: string;
   anonymityMode: string;
 }
@@ -616,4 +634,145 @@ export interface InAppNotificationDto {
   referenceType: string | null;
   isRead: boolean;
   createdAt: string;
+}
+
+export interface NotificationPreferenceDto {
+  notificationType: string;
+  emailEnabled: boolean;
+  inAppEnabled: boolean;
+}
+
+export interface UnreadCountDto {
+  count: number;
+}
+
+// ---- Saved Filter DTOs ----
+
+export interface SavedFilterDto {
+  id: string;
+  name: string;
+  filterJson: Record<string, unknown>;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface SaveFilterBody {
+  name: string;
+  filterJson: Record<string, unknown>;
+  isDefault: boolean;
+}
+
+export interface UpdateSavedFilterBody {
+  name?: string;
+  filterJson?: Record<string, unknown>;
+  isDefault?: boolean;
+}
+
+// ---- Search Params ----
+
+export interface SearchParams {
+  projectId: string;
+  q?: string;
+  status?: WorkItemStatus[];
+  priority?: Priority[];
+  type?: WorkItemType[];
+  assigneeId?: string;
+  sprintId?: string;
+  releaseId?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// ---- Dashboard DTOs ----
+
+export interface DashboardSummaryDto {
+  activeSprintId: string | null;
+  activeSprintName: string | null;
+  totalItems: number;
+  openItems: number;
+  completionPct: number;
+  overdueReleases: number;
+  staleItems: number;
+  velocity3SprintAvg: number;
+}
+
+export interface VelocitySprintDto {
+  sprintId: string;
+  sprintName: string;
+  plannedPoints: number;
+  completedPoints: number;
+  velocity: number;
+  avg3Sprint: number;
+  avg6Sprint: number;
+}
+
+export interface VelocityChartDto {
+  sprints: VelocitySprintDto[];
+}
+
+export interface CumulativeFlowPointDto {
+  date: string;
+  toDo: number;
+  inProgress: number;
+  inReview: number;
+  done: number;
+}
+
+export interface CumulativeFlowDto {
+  dataPoints: CumulativeFlowPointDto[];
+}
+
+export interface CycleTimeByTypeDto {
+  itemType: string;
+  avgDays: number;
+  medianDays: number;
+  p90Days: number;
+  sampleSize: number;
+}
+
+export interface CycleTimeDto {
+  byType: CycleTimeByTypeDto[];
+}
+
+export interface WorkloadMemberDto {
+  userId: string;
+  name: string;
+  assignedCount: number;
+  inProgressCount: number;
+  pointsAssigned: number;
+}
+
+export interface WorkloadHeatmapDto {
+  members: WorkloadMemberDto[];
+}
+
+export interface ReleaseProgressDto {
+  doneCount: number;
+  inProgressCount: number;
+  todoCount: number;
+  donePoints: number;
+  totalPoints: number;
+  completionPct: number;
+}
+
+// ---- Report DTOs ----
+
+export interface SprintReportDto {
+  id: string;
+  sprintId: string;
+  projectId: string;
+  reportData: Record<string, unknown>;
+  generatedAt: string;
+  generatedBy: string;
+}
+
+export interface TeamHealthSummaryDto {
+  id: string;
+  projectId: string;
+  periodStart: string;
+  periodEnd: string;
+  summaryData: Record<string, unknown>;
+  generatedAt: string;
 }

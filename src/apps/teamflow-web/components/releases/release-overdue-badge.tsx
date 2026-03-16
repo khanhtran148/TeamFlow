@@ -17,7 +17,7 @@ export function ReleaseOverdueBadge({ isOverdue }: ReleaseOverdueBadgeProps) {
         gap: 4,
         padding: "2px 8px",
         borderRadius: 100,
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: 600,
         background: "var(--tf-red-dim)",
         color: "var(--tf-red)",

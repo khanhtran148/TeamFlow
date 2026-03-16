@@ -1,0 +1,117 @@
+using FluentAssertions;
+using NSubstitute;
+using TeamFlow.Application.Common.Interfaces;
+using TeamFlow.Application.Features.Retros.RenameRetroSession;
+using TeamFlow.Domain.Entities;
+using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common.Builders;
+
+namespace TeamFlow.Application.Tests.Features.Retros;
+
+public sealed class RenameRetroSessionTests
+{
+    private readonly IRetroSessionRepository _retroRepo = Substitute.For<IRetroSessionRepository>();
+    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
+    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
+
+    private static readonly Guid UserId = Guid.NewGuid();
+    private static readonly Guid ProjectId = Guid.NewGuid();
+
+    public RenameRetroSessionTests()
+    {
+        _currentUser.Id.Returns(UserId);
+        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+    }
+
+    private RenameRetroSessionHandler CreateHandler() =>
+        new(_retroRepo, _permissions, _currentUser);
+
+    [Fact]
+    public async Task Handle_ValidName_RenamesSession()
+    {
+        var session = RetroSessionBuilder.New()
+            .WithProject(ProjectId)
+            .WithFacilitator(UserId)
+            .WithStatus(RetroSessionStatus.Open)
+            .Build();
+
+        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+
+        var command = new RenameRetroSessionCommand(session.Id, "New Name");
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        session.Name.Should().Be("New Name");
+        await _retroRepo.Received(1).UpdateAsync(session, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_SessionNotFound_ReturnsFailure()
+    {
+        var sessionId = Guid.NewGuid();
+        _retroRepo.GetByIdAsync(sessionId, Arg.Any<CancellationToken>()).Returns((RetroSession?)null);
+
+        var command = new RenameRetroSessionCommand(sessionId, "New Name");
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().Contain("Retro session not found");
+    }
+
+    [Fact]
+    public async Task Handle_NoPermission_ReturnsFailure()
+    {
+        var session = RetroSessionBuilder.New()
+            .WithProject(ProjectId)
+            .WithFacilitator(UserId)
+            .Build();
+
+        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        _permissions.HasPermissionAsync(UserId, ProjectId, Permission.Retro_Facilitate, Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        var command = new RenameRetroSessionCommand(session.Id, "New Name");
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().Contain("Access denied");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task Handle_EmptyOrWhitespaceName_ReturnsFailure(string? name)
+    {
+        var session = RetroSessionBuilder.New()
+            .WithProject(ProjectId)
+            .WithFacilitator(UserId)
+            .Build();
+
+        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+
+        var command = new RenameRetroSessionCommand(session.Id, name!);
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().Contain("Name is required");
+    }
+
+    [Fact]
+    public async Task Handle_NameWithWhitespace_TrimsBeforeSaving()
+    {
+        var session = RetroSessionBuilder.New()
+            .WithProject(ProjectId)
+            .WithFacilitator(UserId)
+            .Build();
+
+        _retroRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+
+        var command = new RenameRetroSessionCommand(session.Id, "  Trimmed Name  ");
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        session.Name.Should().Be("Trimmed Name");
+    }
+}

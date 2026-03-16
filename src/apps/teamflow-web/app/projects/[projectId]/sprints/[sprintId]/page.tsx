@@ -158,7 +158,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
           border: "none",
           cursor: "pointer",
           color: "var(--tf-text3)",
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: "var(--tf-font-body)",
           padding: 0,
           transition: "color var(--tf-tr)",
@@ -226,7 +226,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
                     gap: 4,
                     padding: "2px 8px",
                     borderRadius: 100,
-                    fontSize: 10,
+                    fontSize: 13,
                     fontWeight: 600,
                     fontFamily: "var(--tf-font-mono)",
                     background: "var(--tf-yellow-dim)",
@@ -278,7 +278,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
                   border: "1px solid var(--tf-accent)",
                   background: canStartSprint ? "var(--tf-accent)" : "transparent",
                   color: canStartSprint ? "var(--primary-foreground)" : "var(--tf-text3)",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 600,
                   cursor: canStartSprint ? "pointer" : "not-allowed",
                   fontFamily: "var(--tf-font-body)",
@@ -305,7 +305,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
                   border: "1px solid var(--tf-accent)",
                   background: "var(--tf-accent)",
                   color: "var(--primary-foreground)",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: "var(--tf-font-body)",
@@ -334,7 +334,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
                   border: "1px solid var(--tf-border)",
                   background: "transparent",
                   color: "var(--tf-text2)",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 500,
                   cursor: "pointer",
                   fontFamily: "var(--tf-font-body)",
@@ -367,7 +367,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
                   border: "1px solid var(--tf-border)",
                   background: "transparent",
                   color: "var(--tf-text2)",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 500,
                   cursor: "pointer",
                   fontFamily: "var(--tf-font-body)",
@@ -398,7 +398,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
                   border: "1px solid var(--tf-border)",
                   background: "transparent",
                   color: "var(--tf-red)",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 500,
                   cursor: "pointer",
                   fontFamily: "var(--tf-font-body)",
@@ -426,7 +426,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
               display: "inline-flex",
               alignItems: "center",
               gap: 5,
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-mono)",
             }}
@@ -437,7 +437,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
           </span>
           <span
             style={{
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-mono)",
             }}
@@ -453,7 +453,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   color: "var(--tf-text3)",
                   fontFamily: "var(--tf-font-mono)",
                 }}
@@ -462,7 +462,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
               </span>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   color: "var(--tf-text2)",
                   fontFamily: "var(--tf-font-mono)",
                 }}
@@ -547,7 +547,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
                 borderRadius: 100,
                 background: "var(--tf-bg4)",
                 color: "var(--tf-text3)",
-                fontSize: 11,
+                fontSize: 13,
                 fontFamily: "var(--tf-font-mono)",
               }}
             >
@@ -583,7 +583,7 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
                 </span>
                 <span
                   style={{
-                    fontSize: 10,
+                    fontSize: 13,
                     fontFamily: "var(--tf-font-mono)",
                     color:
                       item.status === "Done"

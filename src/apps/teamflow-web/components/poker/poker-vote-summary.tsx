@@ -52,7 +52,7 @@ export function PokerVoteSummary({ session }: PokerVoteSummaryProps) {
         </div>
         <div
           style={{
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-text3)",
             marginTop: 4,
           }}
@@ -125,7 +125,7 @@ export function PokerVoteSummary({ session }: PokerVoteSummaryProps) {
           >
             {avg}
           </div>
-          <div style={{ fontSize: 10, color: "var(--tf-text3)" }}>
+          <div style={{ fontSize: 13, color: "var(--tf-text3)" }}>
             Average
           </div>
         </div>
@@ -140,7 +140,7 @@ export function PokerVoteSummary({ session }: PokerVoteSummaryProps) {
           >
             {min}
           </div>
-          <div style={{ fontSize: 10, color: "var(--tf-text3)" }}>Min</div>
+          <div style={{ fontSize: 13, color: "var(--tf-text3)" }}>Min</div>
         </div>
         <div style={{ textAlign: "center" }}>
           <div
@@ -153,7 +153,7 @@ export function PokerVoteSummary({ session }: PokerVoteSummaryProps) {
           >
             {max}
           </div>
-          <div style={{ fontSize: 10, color: "var(--tf-text3)" }}>Max</div>
+          <div style={{ fontSize: 13, color: "var(--tf-text3)" }}>Max</div>
         </div>
       </div>
 
@@ -171,7 +171,7 @@ export function PokerVoteSummary({ session }: PokerVoteSummaryProps) {
               borderRadius: 5,
             }}
           >
-            <span style={{ fontSize: 12, color: "var(--tf-text)" }}>
+            <span style={{ fontSize: 13, color: "var(--tf-text)" }}>
               {vote.voterName}
             </span>
             <span

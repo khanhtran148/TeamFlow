@@ -37,7 +37,7 @@ export function RetroActionItemList({
             borderRadius: 100,
             background: "var(--tf-bg4)",
             color: "var(--tf-text3)",
-            fontSize: 10,
+            fontSize: 13,
             fontFamily: "var(--tf-font-mono)",
           }}
         >
@@ -68,7 +68,7 @@ export function RetroActionItemList({
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 500,
                   color: "var(--tf-text)",
                 }}
@@ -78,7 +78,7 @@ export function RetroActionItemList({
               {item.assigneeName && (
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--tf-text3)",
                     marginTop: 2,
                   }}
@@ -89,7 +89,7 @@ export function RetroActionItemList({
               {item.dueDate && (
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--tf-text3)",
                     marginTop: 2,
                     fontFamily: "var(--tf-font-mono)",
@@ -110,7 +110,7 @@ export function RetroActionItemList({
                   gap: 3,
                   padding: "3px 8px",
                   borderRadius: 4,
-                  fontSize: 10,
+                  fontSize: 13,
                   color: "var(--tf-accent)",
                   textDecoration: "none",
                   border: "1px solid var(--tf-accent)",

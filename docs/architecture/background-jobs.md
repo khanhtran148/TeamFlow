@@ -33,7 +33,7 @@
 | **2** | `WorkItemRejectedConsumer`, `WorkItemHistoryConsumer` |
 | **3** | `SprintStartedConsumer`, `SprintCompletedConsumer`, `BurndownSnapshotJob`, `ReleaseOverdueDetectorJob`, `StaleItemDetectorJob`, `SprintReportGeneratorJob`, Email consumers |
 | **4** | `RetroSessionClosedConsumer`, `RetroActionItemLinkerConsumer` |
-| **5** | `EmbeddingRefreshJob`, `VelocityAggregatorJob`, `TeamHealthSummaryJob`, `DataArchivalJob` |
+| **5** | `EmailOutboxProcessorJob`, `DeadlineReminderJob`, `VelocityAggregatorJob`, `SprintReportGeneratorJob` (enhanced), `DataArchivalJob`, `TeamHealthSummaryJob`, `EmbeddingRefreshJob`, `WorkItemAssignedNotificationConsumer`, `NotificationCreatedConsumer` |
 
 ---
 
@@ -243,6 +243,66 @@ Phase 4: Hard delete soft-deleted WorkItems
 5. Send email to PO, TL, Team Manager
 
 6. Broadcast SignalR: sprint.report_ready
+```
+
+### EmailOutboxProcessorJob
+**Cron:** `*/30 * * * * ?` (every 30 seconds)
+**Priority:** High | **Misfire:** FireNow | **Concurrent:** No
+**Active:** Phase 5
+
+```
+Query: email_outbox WHERE status IN ('Pending', 'Failed') AND next_retry_at <= NOW()
+
+For each email:
+  1. Set status → Sending
+  2. Attempt send via IEmailSender (SMTP/MailKit)
+  3. On success: set status → Sent, set sent_at
+  4. On failure: increment attempt_count
+     - If attempt_count < max_attempts:
+       Set status → Failed, set next_retry_at with exponential backoff (30s, 5m, 30m)
+     - If attempt_count >= max_attempts:
+       Set status → DeadLettered, log alert
+
+Performance: <100ms per email attempt
+Isolation: each email in separate DB transaction
+```
+
+### DeadlineReminderJob
+**Cron:** `0 8 * * ?` (08:00 AM daily)
+**Priority:** Medium | **Misfire:** DoNothing
+**Active:** Phase 5
+
+```
+Query: work_items with release date 1 day or 3 days away
+  AND status NOT IN (Done, Rejected)
+  AND assignee is set
+
+For each matching item:
+  1. Check user's notification preferences for DeadlineReminder1d / DeadlineReminder3d
+  2. If enabled: create in-app notification via INotificationService
+  3. If email enabled: create EmailOutbox entry for email delivery
+  4. Skip items already reminded for this deadline window
+
+Skip: archived projects, unassigned items
+```
+
+### TeamHealthSummaryJob
+**Cron:** `0 7 * * 1` (07:30 AM Monday — runs after VelocityAggregatorJob)
+**Priority:** Low | **Misfire:** DoNothing
+**Active:** Phase 5
+
+```
+For each project with completed sprints:
+  1. Aggregate weekly metrics:
+     - Velocity trend (from TeamVelocityHistory)
+     - Bug rate (bugs created / total items)
+     - Rework rate (items moved back to earlier status)
+     - Stale item count
+     - Average cycle time
+     - Sprint predictability score
+  2. Store in team_health_summaries table
+  3. Send summary email to TL + Team Manager
+  4. Broadcast SignalR: team_health.summary_ready
 ```
 
 ---

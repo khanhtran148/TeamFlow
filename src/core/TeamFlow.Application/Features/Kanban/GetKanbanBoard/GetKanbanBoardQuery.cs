@@ -16,6 +16,13 @@ public sealed record GetKanbanBoardQuery(
 
 public sealed record KanbanBoardDto(
     Guid ProjectId,
+    IEnumerable<KanbanColumnDto> Columns,
+    IEnumerable<KanbanSwimlaneDto>? Swimlanes = null
+);
+
+public sealed record KanbanSwimlaneDto(
+    string Key,
+    string Label,
     IEnumerable<KanbanColumnDto> Columns
 );
 

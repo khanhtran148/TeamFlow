@@ -258,6 +258,80 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.ToTable("domain_events", (string)null);
                 });
 
+            modelBuilder.Entity("TeamFlow.Domain.Entities.EmailOutbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<JsonDocument>("BodyJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("body_json");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text")
+                        .HasColumnName("last_error");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_attempts");
+
+                    b.Property<DateTime?>("NextRetryAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("next_retry_at");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("recipient_email");
+
+                    b.Property<Guid?>("RecipientId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recipient_id");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("sent_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("subject");
+
+                    b.Property<string>("TemplateType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("template_type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientId");
+
+                    b.HasIndex("Status", "NextRetryAt")
+                        .HasFilter("status IN ('Pending', 'Failed')");
+
+                    b.ToTable("email_outbox", (string)null);
+                });
+
             modelBuilder.Entity("TeamFlow.Domain.Entities.InAppNotification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -366,6 +440,49 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("job_execution_metrics", (string)null);
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.NotificationPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("EmailEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("email_enabled");
+
+                    b.Property<bool>("InAppEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("in_app_enabled");
+
+                    b.Property<string>("NotificationType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("notification_type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "NotificationType")
+                        .IsUnique();
+
+                    b.ToTable("notification_preferences", (string)null);
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.Organization", b =>
@@ -796,6 +913,10 @@ namespace TeamFlow.Infrastructure.Migrations
                         .HasColumnType("character varying(10)")
                         .HasColumnName("anonymity_mode");
 
+                    b.Property<JsonDocument>("ColumnsConfig")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("columns_config");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("created_at");
@@ -803,6 +924,14 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.Property<Guid>("FacilitatorId")
                         .HasColumnType("uuid")
                         .HasColumnName("facilitator_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasDefaultValue("Retro")
+                        .HasColumnName("name");
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid")
@@ -861,6 +990,56 @@ namespace TeamFlow.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TeamFlow.Domain.Entities.SavedFilter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<JsonDocument>("FilterJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("filter_json");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("UserId", "ProjectId");
+
+                    b.HasIndex("UserId", "ProjectId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("saved_filters", (string)null);
+                });
+
             modelBuilder.Entity("TeamFlow.Domain.Entities.Sprint", b =>
                 {
                     b.Property<Guid>("Id")
@@ -909,6 +1088,46 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("sprints", (string)null);
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.SprintReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("generated_at");
+
+                    b.Property<string>("GeneratedBy")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("generated_by");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<JsonDocument>("ReportData")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("report_data");
+
+                    b.Property<Guid>("SprintId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sprint_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("SprintId")
+                        .IsUnique();
+
+                    b.ToTable("sprint_reports", (string)null);
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.SprintSnapshot", b =>
@@ -981,6 +1200,44 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.HasIndex("OrgId");
 
                     b.ToTable("teams", (string)null);
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.TeamHealthSummary", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("generated_at");
+
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date")
+                        .HasColumnName("period_start");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<JsonDocument>("SummaryData")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("summary_data");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "PeriodStart")
+                        .IsUnique()
+                        .IsDescending(false, true)
+                        .HasDatabaseName("idx_ths_project");
+
+                    b.ToTable("team_health_summaries", (string)null);
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.TeamMember", b =>
@@ -1470,6 +1727,16 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.Navigation("Actor");
                 });
 
+            modelBuilder.Entity("TeamFlow.Domain.Entities.EmailOutbox", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.User", "Recipient")
+                        .WithMany()
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Recipient");
+                });
+
             modelBuilder.Entity("TeamFlow.Domain.Entities.InAppNotification", b =>
                 {
                     b.HasOne("TeamFlow.Domain.Entities.User", "Recipient")
@@ -1479,6 +1746,17 @@ namespace TeamFlow.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Recipient");
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.NotificationPreference", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.PlanningPokerSession", b =>
@@ -1685,6 +1963,25 @@ namespace TeamFlow.Infrastructure.Migrations
                     b.Navigation("Voter");
                 });
 
+            modelBuilder.Entity("TeamFlow.Domain.Entities.SavedFilter", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TeamFlow.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TeamFlow.Domain.Entities.Sprint", b =>
                 {
                     b.HasOne("TeamFlow.Domain.Entities.Project", "Project")
@@ -1694,6 +1991,25 @@ namespace TeamFlow.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.SprintReport", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TeamFlow.Domain.Entities.Sprint", "Sprint")
+                        .WithMany()
+                        .HasForeignKey("SprintId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Sprint");
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.SprintSnapshot", b =>
@@ -1716,6 +2032,17 @@ namespace TeamFlow.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("TeamFlow.Domain.Entities.TeamHealthSummary", b =>
+                {
+                    b.HasOne("TeamFlow.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("TeamFlow.Domain.Entities.TeamMember", b =>

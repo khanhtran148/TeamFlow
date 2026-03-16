@@ -128,7 +128,7 @@ export function PokerSession({ workItemId, projectId }: PokerSessionProps) {
               gap: 5,
               padding: "7px 16px",
               borderRadius: 6,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               border: "none",
               background: "var(--tf-accent)",
@@ -182,7 +182,7 @@ export function PokerSession({ workItemId, projectId }: PokerSessionProps) {
         </span>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-text3)",
           }}
         >
@@ -198,7 +198,7 @@ export function PokerSession({ workItemId, projectId }: PokerSessionProps) {
         <div>
           <div
             style={{
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-text3)",
               marginBottom: 8,
             }}

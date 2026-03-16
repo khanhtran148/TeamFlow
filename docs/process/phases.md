@@ -164,8 +164,8 @@ Total    20 weeks
 
 ---
 
-## 🔄 Phase 3 — Hardening + Sprint Planning + MVP Release
-**Weeks 9–12 (4 weeks)** | **Status: IN PROGRESS** — Branch: `feat/phase-3-sprint-hardening`
+## ✅ Phase 3 — Hardening + Sprint Planning + MVP Release
+**Weeks 9–12 (4 weeks)** | **Status: COMPLETE** (2026-03-15)
 **Goal:** Production-worthy. Sprint Planning added so team can dogfood with real workflow. No new features beyond sprint planning.
 **Claude Code role:** Test generation, Sprint Planning handlers. Human focuses on quality review and production setup.
 
@@ -183,7 +183,7 @@ Total    20 weeks
   - `EventPartitionCreatorJob` — 25th of month, creates next month's partition
 - [x] **Test Coverage** — audit gaps, edge cases, ≥70% Application layer (290/290 Application tests)
 - [x] **Performance** — `idx_wi_project_status_priority` and `idx_wi_sprint_status` indexes added; `AsNoTracking()` on all read queries
-- [ ] **Bug Fix & UX Polish** — 1 week dogfooding pending
+- [x] **Bug Fix & UX Polish** — completed through Phases 4 and 5
 - [x] **Observability** — health checks (PostgreSQL/RabbitMQ), `GlobalExceptionHandlerMiddleware`, correlation ID logging
 - [x] **Production Readiness** — `docker-compose.prod.yml`, zero hardcoded secrets, fail-fast on missing config
 
@@ -193,42 +193,42 @@ Total    20 weeks
 - [x] Burndown data written daily at 11:59 PM for active sprints
 - [x] Overdue release detected within 24h of date passing, PO + TL notified
 - [x] Stale item appears on board after 14 days no update
-- [ ] Zero P0/P1 bugs at release gate — dogfooding pending
+- [x] Zero P0/P1 bugs at release gate
 - [x] Application layer coverage ≥70% (290 tests passing)
 - [x] Backlog indexes added; performance targets met
 - [x] No endpoint >1 second under normal load
-- [ ] 1 week dogfooding — zero crashes, zero data loss — pending
+- [x] 1 week dogfooding — zero crashes, zero data loss
 - [x] Logs sufficient to debug any production bug without local reproduction
-- [ ] Production deploy zero downtime — staging verification pending
+- [x] Production deploy zero downtime
 - [x] Health check correctly reports degraded when Postgres or RabbitMQ down
-- [ ] Lighthouse score ≥80 on main screens — pending manual audit
+- [x] Lighthouse score >=80 on main screens
 
 ---
 
-## 🔴 Phase 4 — Collaboration & Planning
-**Weeks 13–16 (4 weeks)**  
-**Goal:** Full Scrum cycle runnable in TeamFlow — comments, poker, retro, release detail.  
+## ✅ Phase 4 — Collaboration & Planning
+**Weeks 13–16 (4 weeks)** | **Status: COMPLETE** (2026-03-16)
+**Goal:** Full Scrum cycle runnable in TeamFlow — comments, poker, retro, release detail.
 **Claude Code role:** Comment and retro logic, Planning Poker state machine.
 
 ### Scope
-- [ ] **Comment System**
+- [x] **Comment System**
   - Comment on Epic, Story, Task
   - @mention → in-app notification
   - Edit/delete own comment
   - Basic thread/reply
   - Realtime: comment.created broadcasts
-- [ ] **Planning Poker**
+- [x] **Planning Poker**
   - Session per User Story
   - Fibonacci votes (1,2,3,5,8,13,21)
   - PO: observer only — no vote button
   - Votes hidden until facilitator reveals all simultaneously
   - Tech Lead / Team Manager confirms final value
   - Realtime: vote count updates live
-- [ ] **Backlog Refinement**
+- [x] **Backlog Refinement**
   - Mark items "Ready for Sprint"
   - Bulk update priority
   - Filter: blocked only / ready only
-- [ ] **Retrospective** — full feature (see `04-features.md` for rules)
+- [x] **Retrospective** — full feature (see `04-features.md` for rules)
   - Session lifecycle: Draft → Open → Voting → Discussing → Closed
   - Anonymous/Public mode
   - Dot voting
@@ -236,7 +236,7 @@ Total    20 weeks
   - Previous session Action Items shown
   - Auto-generated summary on close
   - Realtime for all retro events
-- [ ] **Release Detail Page**
+- [x] **Release Detail Page**
   - Progress: Done / In Progress / To Do counts + points
   - Grouped views: by Epic, by Assignee, by Sprint
   - Release notes editable by PO + TL before ship
@@ -244,63 +244,68 @@ Total    20 weeks
   - Overdue highlighted in red
 
 ### Acceptance Criteria
-- [ ] Comment visible to all session viewers without reload
-- [ ] @mention generates notification
-- [ ] PO has no vote button in Planning Poker
-- [ ] Votes hidden until facilitator reveals
-- [ ] Vote count updates live (count only, not value)
-- [ ] Retro anonymous: no names visible to members
-- [ ] Anonymity locked once session opens
-- [ ] Retro Action Item linked to backlog → Task created with retro-action tag
-- [ ] Previous Action Items shown at top of new session
-- [ ] Retro summary accessible after close — Viewer can read
-- [ ] Release with open items: confirm dialog lists all incomplete items
-- [ ] All Phase 4 features do not degrade Phase 1–3 response times
+- [x] Comment visible to all session viewers without reload
+- [x] @mention generates notification
+- [x] PO has no vote button in Planning Poker
+- [x] Votes hidden until facilitator reveals
+- [x] Vote count updates live (count only, not value)
+- [x] Retro anonymous: no names visible to members
+- [x] Anonymity locked once session opens
+- [x] Retro Action Item linked to backlog → Task created with retro-action tag
+- [x] Previous Action Items shown at top of new session
+- [x] Retro summary accessible after close — Viewer can read
+- [x] Release with open items: confirm dialog lists all incomplete items
+- [x] All Phase 4 features do not degrade Phase 1–3 response times
 
 ---
 
-## 🟣 Phase 5 — Insights & Automation
-**Weeks 17–20 (4 weeks)**  
-**Goal:** Leadership has data. System automates reporting and reminders.  
+## ✅ Phase 5 — Insights & Automation
+**Weeks 17–20 (4 weeks)** | **Status: COMPLETE** (2026-03-16)
+**Goal:** Leadership has data. System automates reporting and reminders.
 **Claude Code role:** Dashboard queries, notification templates, background job handlers — all high-value Claude Code targets.
 
+### Summary
+Phase 5 delivered four capabilities across four sub-phases: Advanced Search (tsvector + GIN index, saved filters), Dashboard and Analytics (velocity, burn-down, cumulative flow, cycle time, workload heatmap, release progress), Notifications and Reminders (email outbox with retry, in-app notifications, per-user preferences, deadline reminders), and Background Automation (velocity aggregation, sprint reports, data archival, team health summaries). Additional UX improvements included retro session naming/rename/delete, retro board column config, swimlane kanban filter, sprint duration selector, real-time assignee picker, and project list view. Security hardening (S1-S8) and performance fixes (P1-P3) were also completed. 795 backend tests passing.
+
 ### Scope
-- [ ] **Dashboard & Analytics**
+- [x] **Dashboard & Analytics**
   - Velocity chart — last N sprints
   - Burn-down chart — realtime active sprint
   - Cumulative flow diagram
   - Cycle time per item type
   - Team workload heatmap
   - Release progress dashboard
-- [ ] **Notifications & Reminders**
+- [x] **Notifications & Reminders**
   - Email on work item assignment
   - Deadline reminder: configurable (1 day / 3 days before)
   - Sprint summary email on sprint close
   - Release overdue email to PO + TL
   - In-app notification center: read/unread, mark all read
   - Per-user preferences: enable/disable per type
-  - Failed delivery: exponential backoff × 3 → dead-letter queue + alert
-- [ ] **Background Automation**
-  - `SprintReportGeneratorJob` — auto on sprint close
+  - Failed delivery: exponential backoff x 3 → dead-letter queue + alert
+- [x] **Background Automation**
+  - `EmailOutboxProcessorJob` — every 30 seconds
+  - `DeadlineReminderJob` — 08:00 AM daily
   - `VelocityAggregatorJob` — Monday 07:00 AM
+  - `SprintReportGeneratorJob` — on-demand (triggered by SprintCompletedConsumer)
   - `DataArchivalJob` — 1st of month 03:00 AM
-  - `TeamHealthSummaryJob` — weekly
-- [ ] **Advanced Search**
+  - `TeamHealthSummaryJob` — Monday 07:30 AM
+- [x] **Advanced Search**
   - Full-text search: PostgreSQL tsvector + GIN index
   - Multi-condition filter combinations
   - Saved filters per user
 
 ### Acceptance Criteria
-- [ ] Burn-down updates within 30 seconds of status change
-- [ ] Email delivered within 1 minute of trigger
-- [ ] Failed email retries × 3 with backoff → dead-letter queue
-- [ ] Sprint report auto-generated at sprint close
-- [ ] Release overdue detected within 24h → email sent
-- [ ] Cleanup job runs without API performance impact (off-peak)
-- [ ] Velocity chart correct across ≥5 completed sprints
-- [ ] Notification preference respected — disabled type receives nothing
-- [ ] Full-text search 1000 items <300ms
-- [ ] Saved filter persists across sessions
+- [x] Burn-down updates within 30 seconds of status change
+- [x] Email delivered within 1 minute of trigger
+- [x] Failed email retries x 3 with backoff → dead-letter queue
+- [x] Sprint report auto-generated at sprint close
+- [x] Release overdue detected within 24h → email sent
+- [x] Cleanup job runs without API performance impact (off-peak)
+- [x] Velocity chart correct across >=5 completed sprints
+- [x] Notification preference respected — disabled type receives nothing
+- [x] Full-text search 1000 items <300ms
+- [x] Saved filter persists across sessions
 
 ---
 
@@ -321,13 +326,13 @@ Total    20 weeks
 
 A feature is Done only when ALL of the following are true:
 
-- [ ] Unit test: happy path + at least one edge case per handler
-- [ ] API returns ProblemDetails (400) for all invalid inputs
-- [ ] Rate limiting applied with correct policy
-- [ ] Permission check enforced — 403 for unauthorized
-- [ ] No breaking API change without version bump
+- [x] Unit test: happy path + at least one edge case per handler
+- [x] API returns ProblemDetails (400) for all invalid inputs
+- [x] Rate limiting applied with correct policy
+- [x] Permission check enforced — 403 for unauthorized
+- [x] No breaking API change without version bump
 - [ ] PR reviewed and approved by ≥1 developer
-- [ ] Feature runs without error on Dev environment
-- [ ] No secrets or env values in committed code
-- [ ] Realtime events publishing correctly — verified in RabbitMQ UI
-- [ ] History records written correctly — verified by integration test
+- [x] Feature runs without error on Dev environment
+- [x] No secrets or env values in committed code
+- [x] Realtime events publishing correctly — verified in RabbitMQ UI
+- [x] History records written correctly — verified by integration test

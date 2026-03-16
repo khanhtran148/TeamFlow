@@ -102,7 +102,7 @@ export function ReleaseShipDialog({
                 justifyContent: "space-between",
                 padding: "8px 12px",
                 borderBottom: "1px solid var(--tf-border)",
-                fontSize: 12,
+                fontSize: 13,
               }}
             >
               <span
@@ -131,7 +131,7 @@ export function ReleaseShipDialog({
               border: "1px solid var(--tf-border)",
               background: "transparent",
               color: "var(--tf-text2)",
-              fontSize: 12,
+              fontSize: 13,
               cursor: "pointer",
               fontFamily: "var(--tf-font-body)",
             }}
@@ -150,7 +150,7 @@ export function ReleaseShipDialog({
               border: "none",
               background: "var(--tf-orange)",
               color: "#fff",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               cursor: isPending ? "not-allowed" : "pointer",
               fontFamily: "var(--tf-font-body)",

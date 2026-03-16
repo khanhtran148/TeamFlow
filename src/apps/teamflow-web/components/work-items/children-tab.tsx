@@ -53,7 +53,7 @@ export function ChildrenTab({ workItemId, projectId }: ChildrenTabProps) {
         >
           <div
             style={{
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--tf-text2)",
               fontFamily: "var(--tf-font-body)",
             }}
@@ -72,7 +72,7 @@ export function ChildrenTab({ workItemId, projectId }: ChildrenTabProps) {
               borderRadius: 6,
               cursor: "pointer",
               color: "var(--tf-text2)",
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: "var(--tf-font-body)",
             }}
           >
@@ -98,7 +98,7 @@ export function ChildrenTab({ workItemId, projectId }: ChildrenTabProps) {
             <div style={{ fontSize: 13, fontFamily: "var(--tf-font-body)" }}>
               No child items
             </div>
-            <div style={{ fontSize: 11, marginTop: 4 }}>
+            <div style={{ fontSize: 13, marginTop: 4 }}>
               Break this item down into smaller tasks, stories, or bugs.
             </div>
           </div>
@@ -152,7 +152,7 @@ export function ChildrenTab({ workItemId, projectId }: ChildrenTabProps) {
                   <span
                     style={{
                       fontFamily: "var(--tf-font-mono)",
-                      fontSize: 10,
+                      fontSize: 13,
                       color: "var(--tf-text3)",
                       minWidth: 60,
                       flexShrink: 0,
@@ -163,7 +163,7 @@ export function ChildrenTab({ workItemId, projectId }: ChildrenTabProps) {
                   <span
                     style={{
                       flex: 1,
-                      fontSize: 12,
+                      fontSize: 13,
                       color: "var(--tf-text)",
                       fontFamily: "var(--tf-font-body)",
                       overflow: "hidden",

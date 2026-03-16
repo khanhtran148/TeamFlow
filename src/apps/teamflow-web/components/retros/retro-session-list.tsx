@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Clock, Users } from "lucide-react";
+import { Plus, Clock, Users, Pencil, Trash2, Check, X } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { Pagination } from "@/components/shared/pagination";
 import {
@@ -11,7 +12,8 @@ import {
   useCreateRetroSession,
 } from "@/lib/hooks/use-retros";
 import { useHasPermission } from "@/lib/hooks/use-permission";
-import type { RetroSessionStatus, RetroSessionSummaryDto } from "@/lib/api/types";
+import { renameRetroSession, deleteRetroSession } from "@/lib/api/retros";
+import type { RetroSessionStatus } from "@/lib/api/types";
 import type { ApiError } from "@/lib/api/client";
 
 interface RetroSessionListProps {
@@ -52,7 +54,11 @@ function formatDate(dateStr: string): string {
 export function RetroSessionList({ projectId }: RetroSessionListProps) {
   const [page, setPage] = useState(1);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
   const canFacilitate = useHasPermission(projectId, "Retro_Facilitate");
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useRetroSessions(projectId, page, 10);
   const createMutation = useCreateRetroSession(projectId);
@@ -62,12 +68,42 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
       await createMutation.mutateAsync({
         projectId,
         anonymityMode,
+        name: createName.trim() || undefined,
       });
       setShowCreateDialog(false);
+      setCreateName("");
       toast.success("Retro session created");
     } catch (err) {
       const apiErr = err as ApiError;
       toast.error(apiErr.message ?? "Failed to create session");
+    }
+  }
+
+  async function handleRename(sessionId: string) {
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      await renameRetroSession(sessionId, trimmed);
+      await queryClient.invalidateQueries({ queryKey: ["retros", projectId] });
+      setEditingId(null);
+      toast.success("Session renamed");
+    } catch (err) {
+      const apiErr = err as ApiError;
+      toast.error(apiErr.message ?? "Failed to rename session");
+    }
+  }
+
+  async function handleDelete(sessionId: string) {
+    try {
+      await deleteRetroSession(sessionId);
+      await queryClient.invalidateQueries({ queryKey: ["retros", projectId] });
+      toast.success("Session deleted");
+    } catch (err) {
+      const apiErr = err as ApiError;
+      toast.error(apiErr.message ?? "Failed to delete session");
     }
   }
 
@@ -80,9 +116,6 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
   }
 
   const sessions = data?.items ?? [];
-  const totalPages = data
-    ? Math.ceil(data.totalCount / data.pageSize)
-    : 1;
 
   return (
     <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -115,7 +148,7 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
               gap: 6,
               padding: "6px 14px",
               borderRadius: 6,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               border: "none",
               background: "var(--tf-accent)",
@@ -157,32 +190,28 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
           {sessions.map((session, i) => {
             const statusConfig = STATUS_CONFIG[session.status];
             const isLast = i === sessions.length - 1;
+            const isRenaming = editingId === session.id;
 
             return (
-              <Link
+              <div
                 key={session.id}
-                href={`/projects/${projectId}/retros/${session.id}`}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
                   padding: "14px 16px",
-                  borderBottom: isLast
-                    ? "none"
-                    : "1px solid var(--tf-border)",
-                  textDecoration: "none",
-                  transition: "background var(--tf-tr)",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.background =
-                    "var(--tf-bg3)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.background =
-                    "transparent";
+                  borderBottom: isLast ? "none" : "1px solid var(--tf-border)",
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
+                {/* Clickable info area */}
+                <Link
+                  href={`/projects/${projectId}/retros/${session.id}`}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    textDecoration: "none",
+                  }}
+                >
                   <div
                     style={{
                       display: "flex",
@@ -190,21 +219,88 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
                       gap: 8,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--tf-text)",
-                      }}
-                    >
-                      Retro
-                    </span>
+                    {isRenaming ? (
+                      <div
+                        style={{ display: "flex", alignItems: "center", gap: 4 }}
+                        onClick={(e) => e.preventDefault()}
+                      >
+                        <input
+                          autoFocus
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void handleRename(session.id);
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          style={{
+                            padding: "2px 8px",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            background: "var(--tf-bg4)",
+                            border: "1px solid var(--tf-accent)",
+                            borderRadius: 4,
+                            color: "var(--tf-text)",
+                            fontFamily: "var(--tf-font-body)",
+                            outline: "none",
+                            width: 180,
+                          }}
+                        />
+                        <button
+                          onClick={() => void handleRename(session.id)}
+                          aria-label="Confirm rename"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 22,
+                            height: 22,
+                            borderRadius: 4,
+                            border: "none",
+                            background: "var(--tf-accent)",
+                            color: "var(--tf-bg)",
+                            cursor: "pointer",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Check size={11} />
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          aria-label="Cancel rename"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 22,
+                            height: 22,
+                            borderRadius: 4,
+                            border: "1px solid var(--tf-border)",
+                            background: "transparent",
+                            color: "var(--tf-text3)",
+                            cursor: "pointer",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--tf-text)",
+                        }}
+                      >
+                        {session.name}
+                      </span>
+                    )}
                     <span
                       style={{
                         display: "inline-flex",
                         padding: "1px 8px",
                         borderRadius: 100,
-                        fontSize: 10,
+                        fontSize: 13,
                         fontWeight: 600,
                         fontFamily: "var(--tf-font-mono)",
                         background: statusConfig.bg,
@@ -221,7 +317,7 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
                           gap: 3,
                           padding: "1px 8px",
                           borderRadius: 100,
-                          fontSize: 10,
+                          fontSize: 13,
                           fontWeight: 500,
                           background: "var(--tf-violet-dim)",
                           color: "var(--tf-violet)",
@@ -238,7 +334,7 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
                       alignItems: "center",
                       gap: 10,
                       marginTop: 4,
-                      fontSize: 11,
+                      fontSize: 13,
                       color: "var(--tf-text3)",
                     }}
                   >
@@ -253,14 +349,14 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
                       {session.actionItemCount !== 1 ? "s" : ""}
                     </span>
                   </div>
-                </div>
+                </Link>
 
                 <span
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 4,
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--tf-text3)",
                     fontFamily: "var(--tf-font-mono)",
                     flexShrink: 0,
@@ -269,7 +365,70 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
                   <Clock size={11} />
                   {formatDate(session.createdAt)}
                 </span>
-              </Link>
+
+                {/* Facilitator inline actions */}
+                {canFacilitate && !isRenaming && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                    <button
+                      onClick={() => {
+                        setEditingId(session.id);
+                        setEditName(session.name);
+                      }}
+                      aria-label={`Rename ${session.name}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 26,
+                        height: 26,
+                        borderRadius: 5,
+                        border: "1px solid var(--tf-border)",
+                        background: "transparent",
+                        color: "var(--tf-text3)",
+                        cursor: "pointer",
+                        transition: "all var(--tf-tr)",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tf-border2)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text3)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tf-border)";
+                      }}
+                    >
+                      <Pencil size={11} />
+                    </button>
+                    <button
+                      onClick={() => void handleDelete(session.id)}
+                      aria-label={`Delete ${session.name}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 26,
+                        height: 26,
+                        borderRadius: 5,
+                        border: "1px solid var(--tf-border)",
+                        background: "transparent",
+                        color: "var(--tf-text3)",
+                        cursor: "pointer",
+                        transition: "all var(--tf-tr)",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-red)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tf-red)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text3)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tf-border)";
+                      }}
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -284,7 +443,7 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
         />
       )}
 
-      {/* Simple create dialog */}
+      {/* Create dialog */}
       {showCreateDialog && (
         <div
           style={{
@@ -296,7 +455,10 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
             justifyContent: "center",
             zIndex: 100,
           }}
-          onClick={() => setShowCreateDialog(false)}
+          onClick={() => {
+            setShowCreateDialog(false);
+            setCreateName("");
+          }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -322,6 +484,41 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
             >
               New Retrospective
             </h3>
+
+            {/* Session name input */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label
+                htmlFor="retro-name"
+                style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
+              >
+                Session Name
+              </label>
+              <input
+                id="retro-name"
+                type="text"
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder="e.g. Sprint 12 Retro"
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: 6,
+                  border: "1px solid var(--tf-border)",
+                  background: "var(--tf-bg3)",
+                  color: "var(--tf-text)",
+                  fontSize: 13,
+                  outline: "none",
+                  fontFamily: "var(--tf-font-body)",
+                  transition: "border-color var(--tf-tr)",
+                }}
+                onFocus={(e) => {
+                  (e.currentTarget as HTMLInputElement).style.borderColor = "var(--tf-accent)";
+                }}
+                onBlur={(e) => {
+                  (e.currentTarget as HTMLInputElement).style.borderColor = "var(--tf-border)";
+                }}
+              />
+            </div>
+
             <p
               style={{
                 fontSize: 13,
@@ -333,7 +530,7 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               <button
-                onClick={() => handleCreate("Public")}
+                onClick={() => void handleCreate("Public")}
                 disabled={createMutation.isPending}
                 style={{
                   flex: 1,
@@ -360,7 +557,7 @@ export function RetroSessionList({ projectId }: RetroSessionListProps) {
                 Public
               </button>
               <button
-                onClick={() => handleCreate("Anonymous")}
+                onClick={() => void handleCreate("Anonymous")}
                 disabled={createMutation.isPending}
                 style={{
                   flex: 1,

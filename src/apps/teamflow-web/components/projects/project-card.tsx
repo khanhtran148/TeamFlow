@@ -19,7 +19,7 @@ function ProjectStatusBadge({ status }: { status: "Active" | "Archived" }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        padding: "2px 8px",
+        padding: "1px 7px",
         borderRadius: 100,
         fontSize: 10,
         fontWeight: 600,
@@ -76,195 +76,154 @@ export function ProjectCard({
     <div
       onClick={() => onClick(project)}
       style={{
-        background: "var(--tf-bg2)",
-        border: "1px solid var(--tf-border)",
-        borderRadius: "var(--tf-radius)",
-        padding: "14px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 16px",
         cursor: "pointer",
         position: "relative",
-        transition: "border-color var(--tf-tr), background var(--tf-tr)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
+        borderBottom: "1px solid var(--tf-border)",
+        transition: "background var(--tf-tr)",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "var(--tf-border2)";
         (e.currentTarget as HTMLDivElement).style.background = "var(--tf-bg3)";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "var(--tf-border)";
-        (e.currentTarget as HTMLDivElement).style.background = "var(--tf-bg2)";
+        (e.currentTarget as HTMLDivElement).style.background = "transparent";
       }}
     >
-      {/* Header row */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-        {/* Color dot */}
-        <div
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: project.status === "Active" ? "var(--tf-accent)" : "var(--tf-text3)",
-            marginTop: 5,
-            flexShrink: 0,
-          }}
-        />
+      {/* Color dot */}
+      <div
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: project.status === "Active" ? "var(--tf-accent)" : "var(--tf-text3)",
+          flexShrink: 0,
+        }}
+      />
 
-        {/* Name + status */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span
-              style={{
-                fontFamily: "var(--tf-font-head)",
-                fontWeight: 600,
-                fontSize: 14,
-                color: "var(--tf-text)",
-                lineHeight: 1.3,
-              }}
-            >
-              {project.name}
-            </span>
-            <ProjectStatusBadge status={project.status} />
-          </div>
-
-          {project.description && (
-            <p
-              style={{
-                fontSize: 12,
-                color: "var(--tf-text3)",
-                marginTop: 3,
-                lineHeight: 1.5,
-                overflow: "hidden",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-              }}
-            >
-              {project.description}
-            </p>
-          )}
-        </div>
-
-        {/* Menu button */}
-        <div style={{ position: "relative", flexShrink: 0 }}>
-          <button
-            onClick={handleMenuToggle}
+      {/* Name + description */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
             style={{
-              width: 26,
-              height: 26,
-              borderRadius: 5,
-              border: "1px solid var(--tf-border)",
-              background: "transparent",
-              color: "var(--tf-text3)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all var(--tf-tr)",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "var(--tf-bg4)";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text3)";
+              fontWeight: 600,
+              fontSize: 14,
+              color: "var(--tf-text)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
-            <MoreHorizontal size={13} />
-          </button>
-
-          {menuOpen && (
-            <>
-              {/* Backdrop */}
-              <div
-                style={{ position: "fixed", inset: 0, zIndex: 9 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                }}
-              />
-              {/* Dropdown */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: 30,
-                  right: 0,
-                  zIndex: 10,
-                  background: "var(--tf-bg3)",
-                  border: "1px solid var(--tf-border)",
-                  borderRadius: "var(--tf-radius)",
-                  boxShadow: "var(--tf-shadow)",
-                  minWidth: 140,
-                  overflow: "hidden",
-                }}
-              >
-                <MenuItemButton
-                  icon={<Pencil size={12} />}
-                  label="Edit"
-                  onClick={handleEdit}
-                />
-                {project.status === "Active" && (
-                  <MenuItemButton
-                    icon={<Archive size={12} />}
-                    label="Archive"
-                    onClick={handleArchive}
-                  />
-                )}
-                <MenuItemButton
-                  icon={<Trash2 size={12} />}
-                  label="Delete"
-                  onClick={handleDelete}
-                  destructive
-                />
-              </div>
-            </>
-          )}
+            {project.name}
+          </span>
+          <ProjectStatusBadge status={project.status} />
         </div>
+        {project.description && (
+          <span
+            style={{
+              fontSize: 12,
+              color: "var(--tf-text3)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "block",
+              marginTop: 2,
+            }}
+          >
+            {project.description}
+          </span>
+        )}
       </div>
 
-      {/* Stats row */}
+      {/* Stats */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 14,
-          paddingTop: 4,
-          borderTop: "1px solid var(--tf-border)",
+          gap: 12,
+          flexShrink: 0,
+          fontSize: 11,
+          color: "var(--tf-text3)",
+          fontFamily: "var(--tf-font-mono)",
         }}
       >
-        <StatChip icon={<Layers size={11} />} label={`${project.epicCount} epics`} />
-        <StatChip icon={<CheckSquare size={11} />} label={`${project.openItemCount} open`} />
-        <span
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+          <Layers size={11} />
+          {project.epicCount}
+        </span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+          <CheckSquare size={11} />
+          {project.openItemCount}
+        </span>
+        <span>{formatDate(project.createdAt)}</span>
+      </div>
+
+      {/* Menu button */}
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <button
+          onClick={handleMenuToggle}
           style={{
-            marginLeft: "auto",
-            fontSize: 11,
+            width: 28,
+            height: 28,
+            borderRadius: 5,
+            border: "1px solid transparent",
+            background: "transparent",
             color: "var(--tf-text3)",
-            fontFamily: "var(--tf-font-mono)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all var(--tf-tr)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "var(--tf-bg4)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tf-border)";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "transparent";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--tf-text3)";
           }}
         >
-          Created {formatDate(project.createdAt)}
-        </span>
+          <MoreHorizontal size={14} />
+        </button>
+
+        {menuOpen && (
+          <>
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 9 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: 32,
+                right: 0,
+                zIndex: 10,
+                background: "var(--tf-bg3)",
+                border: "1px solid var(--tf-border)",
+                borderRadius: "var(--tf-radius)",
+                boxShadow: "var(--tf-shadow)",
+                minWidth: 140,
+                overflow: "hidden",
+              }}
+            >
+              <MenuItemButton icon={<Pencil size={12} />} label="Edit" onClick={handleEdit} />
+              {project.status === "Active" && (
+                <MenuItemButton icon={<Archive size={12} />} label="Archive" onClick={handleArchive} />
+              )}
+              <MenuItemButton icon={<Trash2 size={12} />} label="Delete" onClick={handleDelete} destructive />
+            </div>
+          </>
+        )}
       </div>
     </div>
-  );
-}
-
-function StatChip({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 11,
-        color: "var(--tf-text3)",
-        fontFamily: "var(--tf-font-mono)",
-      }}
-    >
-      {icon}
-      {label}
-    </span>
   );
 }
 

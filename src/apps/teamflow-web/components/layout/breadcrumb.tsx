@@ -20,7 +20,7 @@ export function Breadcrumb({ segments, children }: BreadcrumbProps) {
           display: "flex",
           alignItems: "center",
           gap: 5,
-          fontSize: 12,
+          fontSize: 13,
           color: "var(--tf-text2)",
         }}
       >
@@ -38,7 +38,7 @@ export function Breadcrumb({ segments, children }: BreadcrumbProps) {
         display: "flex",
         alignItems: "center",
         gap: 5,
-        fontSize: 12,
+        fontSize: 13,
         color: "var(--tf-text2)",
       }}
     >

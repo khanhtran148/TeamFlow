@@ -33,6 +33,18 @@ services:
       timeout: 10s
       retries: 5
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: teamflow-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   teamflow-api:
     build:
       context: .
@@ -52,6 +64,10 @@ services:
       RabbitMQ__Port: "5672"
       RabbitMQ__Username: ${RABBITMQ_DEFAULT_USER}
       RabbitMQ__Password: ${RABBITMQ_DEFAULT_PASS}
+      Email__SmtpHost: mailhog
+      Email__SmtpPort: "1025"
+      Email__FromAddress: noreply@teamflow.local
+      Email__FromName: TeamFlow
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
       Jwt__Secret: ${JWT_SECRET}
@@ -73,6 +89,10 @@ services:
       RabbitMQ__Port: "5672"
       RabbitMQ__Username: ${RABBITMQ_DEFAULT_USER}
       RabbitMQ__Password: ${RABBITMQ_DEFAULT_PASS}
+      Email__SmtpHost: mailhog
+      Email__SmtpPort: "1025"
+      Email__FromAddress: noreply@teamflow.local
+      Email__FromName: TeamFlow
 
 volumes:
   postgres_data:

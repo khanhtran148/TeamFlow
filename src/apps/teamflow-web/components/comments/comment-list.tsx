@@ -97,7 +97,7 @@ export function CommentList({ workItemId, projectId }: CommentListProps) {
               borderRadius: 100,
               background: "var(--tf-bg4)",
               color: "var(--tf-text3)",
-              fontSize: 11,
+              fontSize: 13,
               fontFamily: "var(--tf-font-mono)",
             }}
           >
@@ -115,7 +115,7 @@ export function CommentList({ workItemId, projectId }: CommentListProps) {
               alignItems: "center",
               gap: 6,
               marginBottom: 6,
-              fontSize: 11,
+              fontSize: 13,
               color: "var(--tf-text3)",
             }}
           >
@@ -127,7 +127,7 @@ export function CommentList({ workItemId, projectId }: CommentListProps) {
                 border: "none",
                 color: "var(--tf-accent)",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 13,
                 fontFamily: "var(--tf-font-body)",
                 padding: 0,
               }}
@@ -202,7 +202,7 @@ export function CommentList({ workItemId, projectId }: CommentListProps) {
                   border: "1px solid var(--tf-border)",
                   background: "transparent",
                   color: page === 1 ? "var(--tf-text3)" : "var(--tf-text2)",
-                  fontSize: 11,
+                  fontSize: 13,
                   cursor: page === 1 ? "not-allowed" : "pointer",
                   fontFamily: "var(--tf-font-body)",
                 }}
@@ -211,7 +211,7 @@ export function CommentList({ workItemId, projectId }: CommentListProps) {
               </button>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   color: "var(--tf-text3)",
                   display: "flex",
                   alignItems: "center",
@@ -232,7 +232,7 @@ export function CommentList({ workItemId, projectId }: CommentListProps) {
                     page === totalPages
                       ? "var(--tf-text3)"
                       : "var(--tf-text2)",
-                  fontSize: 11,
+                  fontSize: 13,
                   cursor: page === totalPages ? "not-allowed" : "pointer",
                   fontFamily: "var(--tf-font-body)",
                 }}

@@ -26,7 +26,7 @@ export function PriorityIcon({ priority, showLabel = false }: PriorityIconProps)
       title={config.label}
       style={{
         color: config.color,
-        fontSize: 11,
+        fontSize: 13,
         fontFamily: "var(--tf-font-body)",
         display: "inline-flex",
         alignItems: "center",

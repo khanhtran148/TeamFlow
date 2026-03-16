@@ -27,7 +27,7 @@ export function ReadyBadge({
         gap: 3,
         padding: "2px 8px",
         borderRadius: 100,
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: 600,
         fontFamily: "var(--tf-font-body)",
         background: isReady ? "var(--tf-accent-dim2)" : "var(--tf-bg4)",

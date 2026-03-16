@@ -12,6 +12,7 @@ public class RetroSessionConfiguration : IEntityTypeConfiguration<RetroSession>
 
         builder.HasKey(r => r.Id);
         builder.Property(r => r.Id).HasColumnName("id");
+        builder.Property(r => r.Name).HasColumnName("name").HasMaxLength(200).IsRequired().HasDefaultValue("Retro");
         builder.Property(r => r.SprintId).HasColumnName("sprint_id");
         builder.Property(r => r.ProjectId).HasColumnName("project_id").IsRequired();
         builder.Property(r => r.FacilitatorId).HasColumnName("facilitator_id").IsRequired();
@@ -19,6 +20,7 @@ public class RetroSessionConfiguration : IEntityTypeConfiguration<RetroSession>
         builder.Property(r => r.Status).HasColumnName("status")
             .HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(r => r.AiSummary).HasColumnName("ai_summary").HasColumnType("jsonb");
+        builder.Property(r => r.ColumnsConfig).HasColumnName("columns_config").HasColumnType("jsonb");
         builder.Property(r => r.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
 
         builder.HasOne(r => r.Sprint)

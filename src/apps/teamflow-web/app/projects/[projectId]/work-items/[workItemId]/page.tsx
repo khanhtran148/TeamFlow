@@ -110,7 +110,7 @@ export default function WorkItemDetailPage() {
             <Link
               href={`/projects/${projectId}/backlog`}
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--tf-accent)",
                 textDecoration: "none",
               }}
@@ -148,7 +148,7 @@ export default function WorkItemDetailPage() {
             display: "flex",
             alignItems: "center",
             gap: 5,
-            fontSize: 12,
+            fontSize: 13,
             color: "var(--tf-text2)",
             textDecoration: "none",
             fontFamily: "var(--tf-font-body)",
@@ -177,7 +177,7 @@ export default function WorkItemDetailPage() {
             borderRadius: 6,
             cursor: "pointer",
             color: "var(--tf-text3)",
-            fontSize: 12,
+            fontSize: 13,
             fontFamily: "var(--tf-font-body)",
             transition: "all var(--tf-tr)",
           }}
@@ -267,7 +267,7 @@ export default function WorkItemDetailPage() {
                         : "2px solid transparent",
                       cursor: "pointer",
                       fontFamily: "var(--tf-font-body)",
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: isActive ? 600 : 400,
                       color: isActive ? "var(--tf-accent)" : "var(--tf-text2)",
                       marginBottom: -1,

@@ -5,6 +5,7 @@ namespace TeamFlow.Application.Features.Retros;
 
 public sealed record RetroSessionDto(
     Guid Id,
+    string Name,
     Guid ProjectId,
     Guid? SprintId,
     Guid FacilitatorId,
@@ -12,6 +13,7 @@ public sealed record RetroSessionDto(
     string AnonymityMode,
     RetroSessionStatus Status,
     JsonDocument? AiSummary,
+    JsonDocument? ColumnsConfig,
     IReadOnlyList<RetroCardDto> Cards,
     IReadOnlyList<RetroActionItemDto> ActionItems,
     DateTime CreatedAt
@@ -42,6 +44,7 @@ public sealed record RetroActionItemDto(
 
 public sealed record RetroSessionSummaryDto(
     Guid Id,
+    string Name,
     Guid ProjectId,
     Guid? SprintId,
     string FacilitatorName,

@@ -23,6 +23,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
   const [endDate, setEndDate] = useState("");
   const [nameError, setNameError] = useState("");
   const [dateError, setDateError] = useState("");
+  const [duration, setDuration] = useState(14);
 
   const { mutate: createSprint, isPending: isCreating } = useCreateSprint(projectId);
   const { mutate: updateSprint, isPending: isUpdating } = useUpdateSprint(projectId);
@@ -37,12 +38,35 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
     } else if (open && !sprint) {
       setName("");
       setGoal("");
-      setStartDate("");
-      setEndDate("");
+      const today = new Date().toISOString().split("T")[0];
+      setStartDate(today);
+      const endD = new Date();
+      endD.setDate(endD.getDate() + duration);
+      setEndDate(endD.toISOString().split("T")[0]);
     }
     setNameError("");
     setDateError("");
   }, [open, sprint]);
+
+  function handleDurationChange(days: number) {
+    setDuration(days);
+    if (startDate) {
+      const endD = new Date(startDate);
+      endD.setDate(endD.getDate() + days);
+      setEndDate(endD.toISOString().split("T")[0]);
+    }
+    if (dateError) setDateError("");
+  }
+
+  function handleStartDateChange(value: string) {
+    setStartDate(value);
+    if (value) {
+      const endD = new Date(value);
+      endD.setDate(endD.getDate() + duration);
+      setEndDate(endD.toISOString().split("T")[0]);
+    }
+    if (dateError) setDateError("");
+  }
 
   function handleClose() {
     setName("");
@@ -190,7 +214,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label
               htmlFor="sprint-name"
-              style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+              style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
             >
               Name <span style={{ color: "var(--tf-red)" }}>*</span>
             </label>
@@ -228,7 +252,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
               }}
             />
             {nameError && (
-              <span style={{ fontSize: 11, color: "var(--tf-red)" }}>{nameError}</span>
+              <span style={{ fontSize: 13, color: "var(--tf-red)" }}>{nameError}</span>
             )}
           </div>
 
@@ -236,7 +260,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label
               htmlFor="sprint-goal"
-              style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+              style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
             >
               Goal
             </label>
@@ -268,12 +292,52 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
             />
           </div>
 
+          {/* Duration selector - only for new sprints */}
+          {!isEditing && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label
+                style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
+              >
+                Duration
+              </label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[
+                  { label: "1 week", days: 7 },
+                  { label: "2 weeks", days: 14 },
+                  { label: "3 weeks", days: 21 },
+                  { label: "4 weeks", days: 28 },
+                ].map(({ label, days }) => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => handleDurationChange(days)}
+                    style={{
+                      flex: 1,
+                      padding: "5px 0",
+                      borderRadius: 5,
+                      border: `1px solid ${duration === days ? "var(--tf-accent)" : "var(--tf-border)"}`,
+                      background: duration === days ? "var(--tf-accent-dim2)" : "var(--tf-bg3)",
+                      color: duration === days ? "var(--tf-accent)" : "var(--tf-text2)",
+                      fontSize: 13,
+                      fontWeight: duration === days ? 600 : 400,
+                      cursor: "pointer",
+                      fontFamily: "var(--tf-font-body)",
+                      transition: "all var(--tf-tr)",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Date fields */}
           <div style={{ display: "flex", gap: 12 }}>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
               <label
                 htmlFor="sprint-start-date"
-                style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+                style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
               >
                 Start Date
               </label>
@@ -282,10 +346,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
                 id="sprint-start-date"
                 type="date"
                 value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  if (dateError) setDateError("");
-                }}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 style={{
                   padding: "7px 10px",
                   borderRadius: 6,
@@ -311,7 +372,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
               <label
                 htmlFor="sprint-end-date"
-                style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+                style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
               >
                 End Date
               </label>
@@ -348,7 +409,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
             </div>
           </div>
           {dateError && (
-            <span style={{ fontSize: 11, color: "var(--tf-red)" }}>{dateError}</span>
+            <span style={{ fontSize: 13, color: "var(--tf-red)" }}>{dateError}</span>
           )}
 
           {/* Actions */}
@@ -363,7 +424,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
                 border: "1px solid var(--tf-border)",
                 background: "transparent",
                 color: "var(--tf-text2)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 500,
                 cursor: isPending ? "not-allowed" : "pointer",
                 opacity: isPending ? 0.5 : 1,
@@ -381,7 +442,7 @@ export function SprintFormDialog({ open, projectId, sprint, onClose }: SprintFor
                 border: "1px solid var(--tf-accent)",
                 background: "var(--tf-accent)",
                 color: "var(--primary-foreground)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: isPending ? "not-allowed" : "pointer",
                 opacity: isPending ? 0.7 : 1,

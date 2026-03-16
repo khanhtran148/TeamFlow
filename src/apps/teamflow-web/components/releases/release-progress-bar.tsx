@@ -12,7 +12,7 @@ export function ReleaseProgressBar({ progress }: ReleaseProgressBarProps) {
     return (
       <div
         style={{
-          fontSize: 12,
+          fontSize: 13,
           color: "var(--tf-text3)",
           textAlign: "center",
           padding: 10,
@@ -65,7 +65,7 @@ export function ReleaseProgressBar({ progress }: ReleaseProgressBarProps) {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          fontSize: 11,
+          fontSize: 13,
           color: "var(--tf-text3)",
           fontFamily: "var(--tf-font-mono)",
         }}
@@ -110,7 +110,7 @@ export function ReleaseProgressBar({ progress }: ReleaseProgressBarProps) {
       {progress.totalPoints > 0 && (
         <div
           style={{
-            fontSize: 11,
+            fontSize: 13,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-mono)",
           }}

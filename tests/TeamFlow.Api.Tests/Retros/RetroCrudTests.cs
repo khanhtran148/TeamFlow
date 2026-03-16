@@ -22,7 +22,7 @@ public sealed class RetroCrudTests(PostgresFixture postgres) : ApiIntegrationTes
         var client = CreateAuthenticatedClient(ProjectRole.OrgAdmin);
 
         var response = await client.PostAsJsonAsync(RetrosUrl,
-            new CreateRetroSessionCommand(projectId, null, "Public"));
+            new CreateRetroSessionCommand(projectId, null, null, "Public"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
@@ -41,7 +41,7 @@ public sealed class RetroCrudTests(PostgresFixture postgres) : ApiIntegrationTes
         var client = CreateAuthenticatedClient(ProjectRole.Viewer);
 
         var response = await client.PostAsJsonAsync(RetrosUrl,
-            new CreateRetroSessionCommand(projectId, null, "Public"));
+            new CreateRetroSessionCommand(projectId, null, null, "Public"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -55,7 +55,7 @@ public sealed class RetroCrudTests(PostgresFixture postgres) : ApiIntegrationTes
         var client = CreateAuthenticatedClient(ProjectRole.OrgAdmin);
 
         var createResponse = await client.PostAsJsonAsync(RetrosUrl,
-            new CreateRetroSessionCommand(projectId, null, "Public"));
+            new CreateRetroSessionCommand(projectId, null, null, "Public"));
         var created = await createResponse.Content.ReadFromJsonAsync<RetroSessionDto>(TestJsonOptions.Default);
 
         var response = await client.GetAsync($"{RetrosUrl}/{created!.Id}");
@@ -88,7 +88,7 @@ public sealed class RetroCrudTests(PostgresFixture postgres) : ApiIntegrationTes
         var client = CreateAuthenticatedClient(ProjectRole.OrgAdmin);
 
         var createResponse = await client.PostAsJsonAsync(RetrosUrl,
-            new CreateRetroSessionCommand(projectId, null, "Public"));
+            new CreateRetroSessionCommand(projectId, null, null, "Public"));
         var created = await createResponse.Content.ReadFromJsonAsync<RetroSessionDto>(TestJsonOptions.Default);
 
         var response = await client.PostAsync($"{RetrosUrl}/{created!.Id}/start", null);
@@ -109,7 +109,7 @@ public sealed class RetroCrudTests(PostgresFixture postgres) : ApiIntegrationTes
         var client = CreateAuthenticatedClient(ProjectRole.OrgAdmin);
 
         var createResponse = await client.PostAsJsonAsync(RetrosUrl,
-            new CreateRetroSessionCommand(projectId, null, "Public"));
+            new CreateRetroSessionCommand(projectId, null, null, "Public"));
         var created = await createResponse.Content.ReadFromJsonAsync<RetroSessionDto>(TestJsonOptions.Default);
 
         await client.PostAsync($"{RetrosUrl}/{created!.Id}/start", null);
@@ -151,7 +151,7 @@ public sealed class RetroCrudTests(PostgresFixture postgres) : ApiIntegrationTes
         var client = CreateAuthenticatedClient(ProjectRole.OrgAdmin);
 
         var createResponse = await client.PostAsJsonAsync(RetrosUrl,
-            new CreateRetroSessionCommand(projectId, null, "Public"));
+            new CreateRetroSessionCommand(projectId, null, null, "Public"));
         var created = await createResponse.Content.ReadFromJsonAsync<RetroSessionDto>(TestJsonOptions.Default);
 
         // Transition: Draft -> Open -> Voting -> Discussing
@@ -176,7 +176,7 @@ public sealed class RetroCrudTests(PostgresFixture postgres) : ApiIntegrationTes
         var client = CreateAnonymousClient();
 
         var response = await client.PostAsJsonAsync(RetrosUrl,
-            new CreateRetroSessionCommand(Guid.NewGuid(), null, "Public"));
+            new CreateRetroSessionCommand(Guid.NewGuid(), null, null, "Public"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }

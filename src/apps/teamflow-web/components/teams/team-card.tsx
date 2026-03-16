@@ -56,7 +56,7 @@ export function TeamCard({ team }: TeamCardProps) {
           {team.description && (
             <div
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--tf-text3)",
                 marginTop: 2,
               }}
@@ -68,7 +68,7 @@ export function TeamCard({ team }: TeamCardProps) {
         <div
           style={{
             marginLeft: "auto",
-            fontSize: 12,
+            fontSize: 13,
             color: "var(--tf-text2)",
             display: "flex",
             alignItems: "center",

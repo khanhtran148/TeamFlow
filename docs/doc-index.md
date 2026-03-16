@@ -25,8 +25,14 @@ description: Master index of all TeamFlow documentation
 ## Process
 | Document | Description |
 |---|---|
-| [process/phases.md](process/phases.md) | 5-phase breakdown with scope and acceptance criteria |
+| [process/phases.md](process/phases.md) | 5-phase breakdown with scope and acceptance criteria — all phases complete |
 | [process/definition-of-done.md](process/definition-of-done.md) | DoD, cross-phase rules, risk register |
+
+## Plans
+| Document | Description |
+|---|---|
+| [plans/phase-5-dashboard-notifications/plan.md](plans/phase-5-dashboard-notifications/plan.md) | Phase 5 implementation plan — sub-phases, API contracts, file inventory |
+| [plans/phase-5-dashboard-notifications/phase-5-summary.md](plans/phase-5-dashboard-notifications/phase-5-summary.md) | Phase 5 delivery summary — features, bug fixes, security, performance, test coverage |
 
 ## Prototypes
 | Document | Description |

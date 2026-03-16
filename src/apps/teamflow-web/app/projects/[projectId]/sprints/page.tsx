@@ -57,7 +57,7 @@ export default function SprintsPage() {
             Sprints
           </h1>
           {!isLoading && !isError && (
-            <p style={{ fontSize: 12, color: "var(--tf-text3)", marginTop: 3 }}>
+            <p style={{ fontSize: 13, color: "var(--tf-text3)", marginTop: 3 }}>
               {sprints.length} {sprints.length === 1 ? "sprint" : "sprints"} in {project.name}
             </p>
           )}
@@ -76,7 +76,7 @@ export default function SprintsPage() {
               border: "1px solid var(--tf-accent)",
               background: "var(--tf-accent)",
               color: "var(--primary-foreground)",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: "var(--tf-font-body)",
@@ -166,7 +166,7 @@ export default function SprintsPage() {
                   color: "var(--tf-bg)",
                   border: "none",
                   borderRadius: 6,
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: "var(--tf-font-body)",

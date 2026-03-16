@@ -90,7 +90,7 @@ export function DeleteWorkItemDialog({
                 border: "1px solid var(--tf-red)",
                 borderRadius: 6,
                 padding: "10px 14px",
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--tf-red)",
                 marginBottom: 10,
               }}
@@ -102,7 +102,7 @@ export function DeleteWorkItemDialog({
             </div>
           )}
 
-          <p style={{ fontSize: 12, color: "var(--tf-text3)" }}>
+          <p style={{ fontSize: 13, color: "var(--tf-text3)" }}>
             This action performs a soft-delete. The item will be hidden from all
             views but can be recovered by an administrator.
           </p>

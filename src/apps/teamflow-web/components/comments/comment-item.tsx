@@ -55,10 +55,15 @@ export function CommentItem({
   }
 
   // Render @mentions as styled spans
+  // Supports @[Full Name] (bracket format) and @SingleWord (legacy)
   function renderContent(text: string) {
-    const parts = text.split(/(@[a-zA-Z0-9._-]+)/g);
+    const parts = text.split(/(@\[[^\]]+\]|@[a-zA-Z0-9._-]+)/g);
     return parts.map((part, i) => {
       if (part.startsWith("@")) {
+        // Strip brackets from @[Name] for display
+        const display = part.startsWith("@[") && part.endsWith("]")
+          ? `@${part.slice(2, -1)}`
+          : part;
         return (
           <span
             key={i}
@@ -70,7 +75,7 @@ export function CommentItem({
               padding: "0 3px",
             }}
           >
-            {part}
+            {display}
           </span>
         );
       }
@@ -105,7 +110,7 @@ export function CommentItem({
         >
           <span
             style={{
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               color: "var(--tf-text)",
             }}
@@ -114,7 +119,7 @@ export function CommentItem({
           </span>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 13,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-mono)",
             }}
@@ -124,7 +129,7 @@ export function CommentItem({
           {comment.editedAt && (
             <span
               style={{
-                fontSize: 10,
+                fontSize: 13,
                 color: "var(--tf-text3)",
                 fontStyle: "italic",
               }}
@@ -161,7 +166,7 @@ export function CommentItem({
                 style={{
                   padding: "4px 12px",
                   borderRadius: 5,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: 600,
                   border: "none",
                   background: "var(--tf-accent)",
@@ -180,7 +185,7 @@ export function CommentItem({
                 style={{
                   padding: "4px 12px",
                   borderRadius: 5,
-                  fontSize: 11,
+                  fontSize: 13,
                   border: "1px solid var(--tf-border)",
                   background: "transparent",
                   color: "var(--tf-text2)",
@@ -227,7 +232,7 @@ export function CommentItem({
                 background: "transparent",
                 border: "none",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 13,
                 color: "var(--tf-text3)",
                 fontFamily: "var(--tf-font-body)",
                 transition: "color var(--tf-tr)",
@@ -257,7 +262,7 @@ export function CommentItem({
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--tf-text3)",
                     fontFamily: "var(--tf-font-body)",
                     transition: "color var(--tf-tr)",
@@ -285,7 +290,7 @@ export function CommentItem({
                     background: "transparent",
                     border: "none",
                     cursor: deletePending ? "not-allowed" : "pointer",
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--tf-text3)",
                     fontFamily: "var(--tf-font-body)",
                     transition: "color var(--tf-tr)",

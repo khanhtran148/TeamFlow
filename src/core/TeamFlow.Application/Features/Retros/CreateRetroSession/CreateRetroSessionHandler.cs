@@ -23,6 +23,7 @@ public sealed class CreateRetroSessionHandler(
 
         var session = new RetroSession
         {
+            Name = string.IsNullOrWhiteSpace(request.Name) ? "Retro" : request.Name.Trim(),
             ProjectId = request.ProjectId,
             SprintId = request.SprintId,
             FacilitatorId = currentUser.Id,

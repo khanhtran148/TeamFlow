@@ -64,7 +64,7 @@ export function WorkItemForm({ workItem, onSave, isSaving }: WorkItemFormProps) 
 
   const labelStyle: React.CSSProperties = {
     display: "block",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 600,
     color: "var(--tf-text2)",
     fontFamily: "var(--tf-font-body)",
@@ -187,7 +187,7 @@ export function WorkItemForm({ workItem, onSave, isSaving }: WorkItemFormProps) 
               background: "var(--tf-accent)",
               color: "var(--tf-bg)",
               fontWeight: 600,
-              fontSize: 12,
+              fontSize: 13,
               gap: 6,
             }}
           >

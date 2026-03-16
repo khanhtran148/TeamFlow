@@ -49,7 +49,7 @@ export function RetroActionItemForm({
             background: "var(--tf-bg4)",
             border: "1px solid var(--tf-border)",
             borderRadius: 6,
-            fontSize: 12,
+            fontSize: 13,
             color: "var(--tf-text)",
             fontFamily: "var(--tf-font-body)",
             outline: "none",
@@ -65,7 +65,7 @@ export function RetroActionItemForm({
             padding: "7px 12px",
             borderRadius: 6,
             border: "none",
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             background:
               title.trim() && !isPending
@@ -89,7 +89,7 @@ export function RetroActionItemForm({
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          fontSize: 11,
+          fontSize: 13,
           color: "var(--tf-text3)",
           cursor: "pointer",
         }}

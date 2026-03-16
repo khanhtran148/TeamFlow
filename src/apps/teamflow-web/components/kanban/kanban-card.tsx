@@ -95,7 +95,7 @@ export function KanbanCard({ item }: KanbanCardProps) {
         <span
           style={{
             flex: 1,
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 500,
             color: "var(--tf-text)",
             fontFamily: "var(--tf-font-body)",
@@ -112,7 +112,7 @@ export function KanbanCard({ item }: KanbanCardProps) {
       {item.parentTitle && item.type !== "Epic" && (
         <div
           style={{
-            fontSize: 10,
+            fontSize: 13,
             color: "var(--tf-text3)",
             fontFamily: "var(--tf-font-body)",
             paddingLeft: 23,
@@ -224,7 +224,7 @@ export function KanbanCardGhost({ item }: { item: KanbanItemDto }) {
         <span
           style={{
             flex: 1,
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 500,
             color: "var(--tf-text)",
             fontFamily: "var(--tf-font-body)",

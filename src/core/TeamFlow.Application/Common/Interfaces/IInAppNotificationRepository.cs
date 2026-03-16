@@ -4,6 +4,7 @@ namespace TeamFlow.Application.Common.Interfaces;
 
 public interface IInAppNotificationRepository
 {
+    Task<InAppNotification?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<InAppNotification> AddAsync(InAppNotification notification, CancellationToken ct = default);
     Task<(IEnumerable<InAppNotification> Items, int TotalCount)> GetByRecipientPagedAsync(
         Guid recipientId,

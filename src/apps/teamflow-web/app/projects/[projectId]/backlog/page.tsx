@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { useProjectContext } from "@/lib/contexts/project-context";
 import { useBacklog } from "@/lib/hooks/use-backlog";
 import { useReorderBacklog } from "@/lib/hooks/use-backlog";
@@ -13,6 +14,7 @@ import { BacklogList } from "@/components/backlog/backlog-list";
 import { CreateWorkItemDialog } from "@/components/work-items/create-work-item-dialog";
 import { Pagination } from "@/components/shared/pagination";
 import { ErrorDisplay } from "@/components/shared/error-display";
+import { getBlockers } from "@/lib/api/work-items";
 import type { BacklogItemDto, BlockerItemDto, GetBacklogParams } from "@/lib/api/types";
 
 const PAGE_SIZE = 50;
@@ -62,28 +64,33 @@ export default function BacklogPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.items]);
 
-  // Build a blockers map from items that are blocked
-  // In the real app this would come from the API, but we derive it from the isBlocked flag
-  // and relying on each item's isBlocked field. For the tooltip, we use placeholder data.
+  // Compute blocked item IDs from display items
+  const blockedItemIds = useMemo(
+    () => displayItems.filter((item) => item.isBlocked).map((item) => item.id),
+    [displayItems],
+  );
+
+  // Fetch real blocker details for all blocked items
+  const { data: blockersData } = useQuery({
+    queryKey: ["blockers", blockedItemIds],
+    queryFn: async () => {
+      const results = await Promise.all(blockedItemIds.map((id) => getBlockers(id)));
+      return results;
+    },
+    enabled: blockedItemIds.length > 0,
+    staleTime: 30_000,
+  });
+
+  // Build a blockers map from real API data
   const blockersMap: Record<string, BlockerItemDto[]> = useMemo(() => {
     const map: Record<string, BlockerItemDto[]> = {};
-    // The BacklogItemDto has isBlocked but not the actual blocker details
-    // We only show the blocked icon; tooltip info comes from the flag
-    for (const item of displayItems) {
-      if (item.isBlocked) {
-        // Placeholder: the real blocker titles would require an extra API call per item
-        // For Phase C, we show the icon and a generic message
-        map[item.id] = [
-          {
-            blockerId: "unknown",
-            title: "This item has unresolved blockers",
-            status: "InProgress",
-          },
-        ];
+    if (blockersData) {
+      for (const dto of blockersData) {
+        map[dto.workItemId] = dto.blockers;
       }
     }
     return map;
-  }, [displayItems]);
+  }, [blockersData]);
 
   function handleReorder(reorderedItems: BacklogItemDto[]) {
     setLocalItems(reorderedItems);

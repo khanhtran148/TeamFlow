@@ -143,7 +143,7 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label
               htmlFor="edit-project-name"
-              style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+              style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
             >
               Name <span style={{ color: "var(--tf-red)" }}>*</span>
             </label>
@@ -179,7 +179,7 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
               }}
             />
             {nameError && (
-              <span style={{ fontSize: 11, color: "var(--tf-red)" }}>{nameError}</span>
+              <span style={{ fontSize: 13, color: "var(--tf-red)" }}>{nameError}</span>
             )}
           </div>
 
@@ -187,7 +187,7 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label
               htmlFor="edit-project-description"
-              style={{ fontSize: 12, fontWeight: 500, color: "var(--tf-text2)" }}
+              style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text2)" }}
             >
               Description
             </label>
@@ -229,7 +229,7 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
                 border: "1px solid var(--tf-border)",
                 background: "transparent",
                 color: "var(--tf-text2)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 500,
                 cursor: isPending ? "not-allowed" : "pointer",
                 opacity: isPending ? 0.5 : 1,
@@ -246,7 +246,7 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
                 border: "1px solid var(--tf-accent)",
                 background: "var(--tf-accent)",
                 color: "var(--primary-foreground)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: isPending ? "not-allowed" : "pointer",
                 opacity: isPending ? 0.7 : 1,

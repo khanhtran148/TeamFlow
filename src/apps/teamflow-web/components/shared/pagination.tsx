@@ -33,7 +33,7 @@ export function Pagination({ page, pageSize, totalCount, onPageChange }: Paginat
     >
       <span
         style={{
-          fontSize: 11,
+          fontSize: 13,
           color: "var(--tf-text3)",
           fontFamily: "var(--tf-font-mono)",
         }}
@@ -57,7 +57,7 @@ export function Pagination({ page, pageSize, totalCount, onPageChange }: Paginat
               key={`dots-${i}`}
               style={{
                 padding: "3px 6px",
-                fontSize: 11,
+                fontSize: 13,
                 color: "var(--tf-text3)",
                 fontFamily: "var(--tf-font-mono)",
               }}
@@ -117,7 +117,7 @@ function NavButton({
         border: `1px solid ${active ? "var(--tf-accent)" : "var(--tf-border)"}`,
         background: active ? "var(--tf-accent-dim2)" : "var(--tf-bg3)",
         color: active ? "var(--tf-accent)" : disabled ? "var(--tf-text3)" : "var(--tf-text2)",
-        fontSize: 11,
+        fontSize: 13,
         fontFamily: "var(--tf-font-mono)",
         cursor: disabled ? "not-allowed" : "pointer",
         display: "flex",

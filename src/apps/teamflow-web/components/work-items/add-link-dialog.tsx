@@ -99,7 +99,7 @@ export function AddLinkDialog({
 
   const labelStyle: React.CSSProperties = {
     display: "block",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 600,
     color: "var(--tf-text2)",
     fontFamily: "var(--tf-font-body)",
@@ -185,7 +185,7 @@ export function AddLinkDialog({
                       alignItems: "center",
                       justifyContent: "center",
                       color: "var(--tf-text3)",
-                      fontSize: 12,
+                      fontSize: 13,
                     }}
                   >
                     <Loader2 size={14} className="animate-spin" />
@@ -196,7 +196,7 @@ export function AddLinkDialog({
                       padding: 16,
                       textAlign: "center",
                       color: "var(--tf-text3)",
-                      fontSize: 12,
+                      fontSize: 13,
                     }}
                   >
                     {search ? "No matching items" : "No items found"}
@@ -228,7 +228,7 @@ export function AddLinkDialog({
                         <span
                           style={{
                             fontFamily: "var(--tf-font-mono)",
-                            fontSize: 10,
+                            fontSize: 13,
                             color: "var(--tf-text3)",
                             minWidth: 60,
                             flexShrink: 0,
@@ -239,7 +239,7 @@ export function AddLinkDialog({
                         <span
                           style={{
                             flex: 1,
-                            fontSize: 12,
+                            fontSize: 13,
                             color: "var(--tf-text)",
                             fontFamily: "var(--tf-font-body)",
                             overflow: "hidden",
@@ -270,7 +270,7 @@ export function AddLinkDialog({
                   border: "1px solid var(--tf-accent-dim2)",
                   borderRadius: 6,
                   padding: "8px 12px",
-                  fontSize: 12,
+                  fontSize: 13,
                   color: "var(--tf-text2)",
                   display: "flex",
                   alignItems: "center",
@@ -306,7 +306,7 @@ export function AddLinkDialog({
                   border: "1px solid var(--tf-red)",
                   borderRadius: 6,
                   padding: "8px 12px",
-                  fontSize: 12,
+                  fontSize: 13,
                   color: "var(--tf-red)",
                 }}
               >

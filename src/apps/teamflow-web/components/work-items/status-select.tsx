@@ -209,7 +209,7 @@ export function StatusSelect({
                         alignItems: "center",
                         gap: 8,
                         padding: "4px 0",
-                        fontSize: 12,
+                        fontSize: 13,
                         color: "var(--tf-text2)",
                       }}
                     >

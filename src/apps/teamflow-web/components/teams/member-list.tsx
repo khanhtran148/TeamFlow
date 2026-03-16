@@ -77,7 +77,7 @@ export function MemberList({ teamId, members }: MemberListProps) {
               <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tf-text)" }}>
                 {member.userName}
               </div>
-              <div style={{ fontSize: 11, color: "var(--tf-text3)" }}>
+              <div style={{ fontSize: 13, color: "var(--tf-text3)" }}>
                 {member.userEmail}
               </div>
             </div>
@@ -90,7 +90,7 @@ export function MemberList({ teamId, members }: MemberListProps) {
                 border: "1px solid var(--tf-border)",
                 background: "var(--tf-bg3)",
                 color: "var(--tf-text2)",
-                fontSize: 12,
+                fontSize: 13,
               }}
             >
               {ROLES.map((role) => (

@@ -56,7 +56,7 @@ export default function ReleasesPage() {
             Releases
           </h1>
           {!isLoading && !isError && (
-            <p style={{ fontSize: 12, color: "var(--tf-text3)", marginTop: 3 }}>
+            <p style={{ fontSize: 13, color: "var(--tf-text3)", marginTop: 3 }}>
               {releases.length} {releases.length === 1 ? "release" : "releases"} in {project.name}
             </p>
           )}
@@ -73,7 +73,7 @@ export default function ReleasesPage() {
             border: "1px solid var(--tf-accent)",
             background: "var(--tf-accent)",
             color: "var(--primary-foreground)",
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             cursor: "pointer",
             fontFamily: "var(--tf-font-body)",
@@ -162,7 +162,7 @@ export default function ReleasesPage() {
                   color: "var(--tf-bg)",
                   border: "none",
                   borderRadius: 6,
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: "var(--tf-font-body)",

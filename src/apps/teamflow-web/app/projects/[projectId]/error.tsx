@@ -87,7 +87,7 @@ export default function ProjectError({ error, reset }: ErrorPageProps) {
               border: "1px solid var(--tf-border)",
               background: "var(--tf-bg3)",
               color: "var(--tf-text2)",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
               fontFamily: "var(--tf-font-body)",
@@ -117,7 +117,7 @@ export default function ProjectError({ error, reset }: ErrorPageProps) {
               border: "1px solid var(--tf-accent)",
               background: "var(--tf-accent-dim)",
               color: "var(--tf-accent)",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 500,
               textDecoration: "none",
               fontFamily: "var(--tf-font-body)",
@@ -131,7 +131,7 @@ export default function ProjectError({ error, reset }: ErrorPageProps) {
         {error.digest && (
           <p
             style={{
-              fontSize: 10,
+              fontSize: 13,
               color: "var(--tf-text3)",
               fontFamily: "var(--tf-font-mono)",
             }}
