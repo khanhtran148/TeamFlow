@@ -1,51 +1,39 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Organizations.ListOrganizations;
-using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Organizations;
 
-public sealed class ListOrganizationsTests
+[Collection("Projects")]
+public sealed class ListOrganizationsTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IOrganizationRepository _orgRepo = Substitute.For<IOrganizationRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    public ListOrganizationsTests()
-    {
-        _currentUser.Id.Returns(Guid.NewGuid());
-    }
-
-    private ListOrganizationsHandler CreateHandler() =>
-        new(_orgRepo, _currentUser);
-
     [Fact]
     public async Task Handle_UserHasOrganizations_ReturnsMappedDtos()
     {
-        var orgs = new List<Organization>
-        {
-            new() { Name = "Org A" },
-            new() { Name = "Org B" }
-        };
-        _orgRepo.ListByUserAsync(_currentUser.Id, Arg.Any<CancellationToken>())
-            .Returns(orgs);
+        var org1 = OrganizationBuilder.New().WithName("Org A").WithSlug("list-org-a-" + Guid.NewGuid().ToString("N")[..6]).Build();
+        var org2 = OrganizationBuilder.New().WithName("Org B").WithSlug("list-org-b-" + Guid.NewGuid().ToString("N")[..6]).Build();
+        DbContext.Organizations.AddRange(org1, org2);
 
-        var result = await CreateHandler().Handle(new ListOrganizationsQuery(), CancellationToken.None);
+        var m1 = OrganizationMemberBuilder.New().WithOrganization(org1.Id).WithUser(SeedUserId).Build();
+        var m2 = OrganizationMemberBuilder.New().WithOrganization(org2.Id).WithUser(SeedUserId).Build();
+        DbContext.OrganizationMembers.AddRange(m1, m2);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new ListOrganizationsQuery());
 
         result.IsSuccess.Should().BeTrue();
         var items = result.Value.ToList();
-        items.Should().HaveCount(2);
-        items[0].Name.Should().Be("Org A");
-        items[1].Name.Should().Be("Org B");
+        items.Should().Contain(o => o.Name == "Org A");
+        items.Should().Contain(o => o.Name == "Org B");
     }
 
     [Fact]
     public async Task Handle_UserHasNoOrganizations_ReturnsEmptyList()
     {
-        _orgRepo.ListByUserAsync(_currentUser.Id, Arg.Any<CancellationToken>())
-            .Returns(Enumerable.Empty<Organization>());
-
-        var result = await CreateHandler().Handle(new ListOrganizationsQuery(), CancellationToken.None);
+        // SeedUserId has no memberships in this transaction
+        var result = await Sender.Send(new ListOrganizationsQuery());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();
@@ -54,11 +42,21 @@ public sealed class ListOrganizationsTests
     [Fact]
     public async Task Handle_QueriesForCurrentUser()
     {
-        _orgRepo.ListByUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(Enumerable.Empty<Organization>());
+        // Ensure the current user's orgs are returned (not another user's orgs)
+        var otherUser = UserBuilder.New().Build();
+        DbContext.Users.Add(otherUser);
+        var otherOrg = OrganizationBuilder.New().WithSlug("other-user-org-" + Guid.NewGuid().ToString("N")[..6]).Build();
+        DbContext.Organizations.Add(otherOrg);
+        var otherMembership = OrganizationMemberBuilder.New()
+            .WithOrganization(otherOrg.Id)
+            .WithUser(otherUser.Id)
+            .Build();
+        DbContext.OrganizationMembers.Add(otherMembership);
+        await DbContext.SaveChangesAsync();
 
-        await CreateHandler().Handle(new ListOrganizationsQuery(), CancellationToken.None);
+        var result = await Sender.Send(new ListOrganizationsQuery());
 
-        await _orgRepo.Received(1).ListByUserAsync(_currentUser.Id, Arg.Any<CancellationToken>());
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotContain(o => o.Id == otherOrg.Id);
     }
 }

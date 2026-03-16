@@ -1,43 +1,27 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Sprints.ListSprints;
-using TeamFlow.Domain.Entities;
-using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Sprints;
 
-public sealed class ListSprintsTests
+[Collection("Sprints")]
+public sealed class ListSprintsTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ISprintRepository _sprintRepo = Substitute.For<ISprintRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public ListSprintsTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private ListSprintsHandler CreateHandler() =>
-        new(_sprintRepo, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_ReturnsPaginatedSprints()
     {
-        var projectId = Guid.NewGuid();
-        var sprint1 = SprintBuilder.New().WithProject(projectId).WithName("Sprint 1").Build();
-        var sprint2 = SprintBuilder.New().WithProject(projectId).WithName("Sprint 2").Build();
+        var project = await SeedProjectAsync();
+        var sprint1 = SprintBuilder.New().WithProject(project.Id).WithName("Sprint 1").Build();
+        var sprint2 = SprintBuilder.New().WithProject(project.Id).WithName("Sprint 2").Build();
+        DbContext.Sprints.AddRange(sprint1, sprint2);
+        await DbContext.SaveChangesAsync();
 
-        _sprintRepo.ListByProjectPagedAsync(projectId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns(([sprint1, sprint2], 2));
-
-        var query = new ListSprintsQuery(projectId);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var query = new ListSprintsQuery(project.Id);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().HaveCount(2);
@@ -45,16 +29,22 @@ public sealed class ListSprintsTests
         result.Value.Page.Should().Be(1);
         result.Value.PageSize.Should().Be(20);
     }
+}
+
+[Collection("Sprints")]
+public sealed class ListSprintsDeniedTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+        => services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
 
     [Fact]
     public async Task Handle_NoPermission_ReturnsAccessDenied()
     {
-        var projectId = Guid.NewGuid();
-        _permissions.HasPermissionAsync(ActorId, projectId, Permission.Project_View, Arg.Any<CancellationToken>())
-            .Returns(false);
+        var project = await SeedProjectAsync();
 
-        var query = new ListSprintsQuery(projectId);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var query = new ListSprintsQuery(project.Id);
+        var result = await Sender.Send(query);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");

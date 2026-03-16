@@ -1,41 +1,41 @@
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Auth.Login;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Auth;
 
-public sealed class LoginTests
+[Collection("Auth")]
+public sealed class LoginTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IUserRepository _userRepo = Substitute.For<IUserRepository>();
-    private readonly IRefreshTokenRepository _refreshTokenRepo = Substitute.For<IRefreshTokenRepository>();
     private readonly IAuthService _authService = Substitute.For<IAuthService>();
 
-    private static readonly User TestUser = new()
-    {
-        Email = "user@test.com",
-        Name = "Test User",
-        PasswordHash = "hashed-password"
-    };
-
-    public LoginTests()
+    protected override void ConfigureServices(IServiceCollection services)
     {
         _authService.GenerateJwt(Arg.Any<User>()).Returns("jwt-token");
         _authService.GenerateRefreshToken().Returns("refresh-token");
         _authService.HashToken(Arg.Any<string>()).Returns("hashed-refresh-token");
+        services.AddSingleton(_authService);
     }
-
-    private LoginHandler CreateHandler() => new(_userRepo, _refreshTokenRepo, _authService);
 
     [Fact]
     public async Task Handle_ValidCredentials_ReturnsTokens()
     {
-        _userRepo.GetByEmailAsync("user@test.com", Arg.Any<CancellationToken>()).Returns(TestUser);
-        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
-        var cmd = new LoginCommand("user@test.com", "Password1");
+        var user = UserBuilder.New()
+            .WithEmail("login-valid@test.com")
+            .WithPasswordHash("hashed-password")
+            .Build();
+        DbContext.Set<User>().Add(user);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
+
+        var result = await Sender.Send(new LoginCommand("login-valid@test.com", "Password1"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.AccessToken.Should().Be("jwt-token");
@@ -45,11 +45,16 @@ public sealed class LoginTests
     [Fact]
     public async Task Handle_WrongPassword_ReturnsFailure()
     {
-        _userRepo.GetByEmailAsync("user@test.com", Arg.Any<CancellationToken>()).Returns(TestUser);
-        _authService.VerifyPassword("wrong", "hashed-password").Returns(false);
-        var cmd = new LoginCommand("user@test.com", "wrong");
+        var user = UserBuilder.New()
+            .WithEmail("login-wrong@test.com")
+            .WithPasswordHash("hashed-password")
+            .Build();
+        DbContext.Set<User>().Add(user);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        _authService.VerifyPassword("wrong", "hashed-password").Returns(false);
+
+        var result = await Sender.Send(new LoginCommand("login-wrong@test.com", "wrong"));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Invalid");
@@ -58,10 +63,7 @@ public sealed class LoginTests
     [Fact]
     public async Task Handle_NonExistentEmail_ReturnsFailure()
     {
-        _userRepo.GetByEmailAsync("nobody@test.com", Arg.Any<CancellationToken>()).Returns((User?)null);
-        var cmd = new LoginCommand("nobody@test.com", "Password1");
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new LoginCommand("nobody@test.com", "Password1"));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Invalid");
@@ -70,18 +72,17 @@ public sealed class LoginTests
     [Fact]
     public async Task Handle_UserWithMustChangePassword_ReturnsFlag()
     {
-        var user = new User
-        {
-            Email = "admin@test.com",
-            Name = "Admin",
-            PasswordHash = "hashed-password",
-            MustChangePassword = true
-        };
-        _userRepo.GetByEmailAsync("admin@test.com", Arg.Any<CancellationToken>()).Returns(user);
-        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
-        var cmd = new LoginCommand("admin@test.com", "Password1");
+        var user = UserBuilder.New()
+            .WithEmail("login-mcp@test.com")
+            .WithPasswordHash("hashed-password")
+            .WithMustChangePassword(true)
+            .Build();
+        DbContext.Set<User>().Add(user);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
+
+        var result = await Sender.Send(new LoginCommand("login-mcp@test.com", "Password1"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.MustChangePassword.Should().BeTrue();
@@ -90,11 +91,17 @@ public sealed class LoginTests
     [Fact]
     public async Task Handle_UserWithoutMustChangePassword_ReturnsFlagFalse()
     {
-        _userRepo.GetByEmailAsync("user@test.com", Arg.Any<CancellationToken>()).Returns(TestUser);
-        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
-        var cmd = new LoginCommand("user@test.com", "Password1");
+        var user = UserBuilder.New()
+            .WithEmail("login-nomcp@test.com")
+            .WithPasswordHash("hashed-password")
+            .WithMustChangePassword(false)
+            .Build();
+        DbContext.Set<User>().Add(user);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
+
+        var result = await Sender.Send(new LoginCommand("login-nomcp@test.com", "Password1"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.MustChangePassword.Should().BeFalse();
@@ -103,18 +110,17 @@ public sealed class LoginTests
     [Fact]
     public async Task Handle_DeactivatedUser_ReturnsForbidden()
     {
-        var deactivatedUser = new User
-        {
-            Email = "deactivated@test.com",
-            Name = "Deactivated User",
-            PasswordHash = "hashed-password",
-            IsActive = false
-        };
-        _userRepo.GetByEmailAsync("deactivated@test.com", Arg.Any<CancellationToken>()).Returns(deactivatedUser);
-        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
-        var cmd = new LoginCommand("deactivated@test.com", "Password1");
+        var user = UserBuilder.New()
+            .WithEmail("login-deactivated@test.com")
+            .WithPasswordHash("hashed-password")
+            .WithIsActive(false)
+            .Build();
+        DbContext.Set<User>().Add(user);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        _authService.VerifyPassword("Password1", "hashed-password").Returns(true);
+
+        var result = await Sender.Send(new LoginCommand("login-deactivated@test.com", "Password1"));
 
         result.IsFailure.Should().BeTrue();
         result.Error.ToLowerInvariant().Should().Contain("deactivated");

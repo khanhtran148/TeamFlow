@@ -1,46 +1,36 @@
 using System.Text.Json;
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Reports.GetTeamHealthSummary;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Reports;
 
-public sealed class GetTeamHealthSummaryTests
+[Collection("Reports")]
+public sealed class GetTeamHealthSummaryTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ITeamHealthSummaryRepository _repo = Substitute.For<ITeamHealthSummaryRepository>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public GetTeamHealthSummaryTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private GetTeamHealthSummaryHandler CreateHandler() => new(_repo, _permissions, _currentUser);
-
     [Fact]
     public async Task Handle_SummaryExists_ReturnsLatestSummary()
     {
+        var project = await SeedProjectAsync();
         var summary = new TeamHealthSummary
         {
-            ProjectId = ProjectId,
+            ProjectId = project.Id,
             PeriodStart = new DateOnly(2026, 3, 1),
             PeriodEnd = new DateOnly(2026, 3, 14),
             SummaryData = JsonDocument.Parse("""{"morale":4.2,"velocity_trend":"up"}"""),
         };
-        _repo.GetLatestByProjectAsync(ProjectId, Arg.Any<CancellationToken>()).Returns(summary);
+        DbContext.TeamHealthSummaries.Add(summary);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new GetTeamHealthSummaryQuery(ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new GetTeamHealthSummaryQuery(project.Id));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.ProjectId.Should().Be(ProjectId);
+        result.Value.ProjectId.Should().Be(project.Id);
         result.Value.PeriodStart.Should().Be(new DateOnly(2026, 3, 1));
         result.Value.PeriodEnd.Should().Be(new DateOnly(2026, 3, 14));
     }
@@ -48,21 +38,28 @@ public sealed class GetTeamHealthSummaryTests
     [Fact]
     public async Task Handle_NoSummary_ReturnsNotFound()
     {
-        _repo.GetLatestByProjectAsync(ProjectId, Arg.Any<CancellationToken>()).Returns((TeamHealthSummary?)null);
+        var project = await SeedProjectAsync();
 
-        var result = await CreateHandler().Handle(new GetTeamHealthSummaryQuery(ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new GetTeamHealthSummaryQuery(project.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
     }
+}
+
+[Collection("Reports")]
+public sealed class GetTeamHealthSummaryDeniedTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+        => services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
 
     [Fact]
     public async Task Handle_NoPermission_ReturnsAccessDenied()
     {
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(false);
+        var project = await SeedProjectAsync();
 
-        var result = await CreateHandler().Handle(new GetTeamHealthSummaryQuery(ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new GetTeamHealthSummaryQuery(project.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");

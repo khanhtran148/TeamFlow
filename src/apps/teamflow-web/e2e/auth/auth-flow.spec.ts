@@ -20,13 +20,14 @@ test.describe("AC1: Register → Login → JWT → call protected API → succes
     await page.getByLabel("Confirm").fill(password);
     await page.getByRole("button", { name: /register/i }).click();
 
-    // Should redirect to /projects after successful registration
-    await expect(page).toHaveURL(/\/projects/);
+    // Should redirect to /onboarding after successful registration
+    // (then further to /onboarding/no-orgs for a fresh user with no org)
+    await expect(page).toHaveURL(/\/onboarding/, { timeout: 10_000 });
 
-    // Verify user can call protected API (projects page loads)
+    // Verify user lands on onboarding flow (fresh user has no org)
     await expect(
-      page.getByText(/projects/i).first(),
-    ).toBeVisible();
+      page.getByText(/welcome to teamflow|not a member of any organization/i).first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test("register then login with same credentials", async ({ page }) => {
@@ -51,7 +52,7 @@ test.describe("AC1: Register → Login → JWT → call protected API → succes
     await page.getByLabel("Password").fill(password);
     await page.getByRole("button", { name: /sign in/i }).click();
 
-    await expect(page).toHaveURL(/\/projects/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/onboarding/, { timeout: 10_000 });
   });
 });
 

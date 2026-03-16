@@ -1,100 +1,91 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Features.Backlog.MarkReadyForSprint;
-using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Backlog;
 
-public sealed class MarkReadyTests
+[Collection("WorkItems")]
+public sealed class MarkReadyTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly IHistoryService _historyService = Substitute.For<IHistoryService>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    private static readonly Guid UserId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public MarkReadyTests()
-    {
-        _currentUser.Id.Returns(UserId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-        _workItemRepo.UpdateAsync(Arg.Any<WorkItem>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<WorkItem>());
-    }
-
-    private MarkReadyForSprintHandler CreateHandler() =>
-        new(_workItemRepo, _historyService, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_ValidItem_MarksReady()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        var result = await CreateHandler().Handle(
-            new MarkReadyForSprintCommand(workItem.Id, true), CancellationToken.None);
+        var result = await Sender.Send(new MarkReadyForSprintCommand(workItem.Id, true));
 
         result.IsSuccess.Should().BeTrue();
-        workItem.IsReadyForSprint.Should().BeTrue();
+        DbContext.ChangeTracker.Clear();
+        var updated = await DbContext.WorkItems.AsNoTracking().FirstAsync(w => w.Id == workItem.Id);
+        updated.IsReadyForSprint.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_ValidItem_UnmarksReady()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id, b => b.AsTask());
         workItem.IsReadyForSprint = true;
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
+        DbContext.WorkItems.Update(workItem);
+        await DbContext.SaveChangesAsync();
+        DbContext.ChangeTracker.Clear();
 
-        var result = await CreateHandler().Handle(
-            new MarkReadyForSprintCommand(workItem.Id, false), CancellationToken.None);
+        var result = await Sender.Send(new MarkReadyForSprintCommand(workItem.Id, false));
 
         result.IsSuccess.Should().BeTrue();
-        workItem.IsReadyForSprint.Should().BeFalse();
+        DbContext.ChangeTracker.Clear();
+        var updated = await DbContext.WorkItems.AsNoTracking().FirstAsync(w => w.Id == workItem.Id);
+        updated.IsReadyForSprint.Should().BeFalse();
     }
 
     [Fact]
     public async Task Handle_NonExistentItem_ReturnsNotFound()
     {
-        _workItemRepo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns((WorkItem?)null);
-
-        var result = await CreateHandler().Handle(
-            new MarkReadyForSprintCommand(Guid.NewGuid(), true), CancellationToken.None);
+        var result = await Sender.Send(new MarkReadyForSprintCommand(Guid.NewGuid(), true));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
     }
 
     [Fact]
-    public async Task Handle_NoPermission_ReturnsForbidden()
+    public async Task Handle_RecordsHistory()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
-        _permissions.HasPermissionAsync(UserId, ProjectId, Permission.WorkItem_Edit, Arg.Any<CancellationToken>())
-            .Returns(false);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        var result = await CreateHandler().Handle(
-            new MarkReadyForSprintCommand(workItem.Id, true), CancellationToken.None);
+        await Sender.Send(new MarkReadyForSprintCommand(workItem.Id, true));
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Contain("Access denied");
+        DbContext.ChangeTracker.Clear();
+        var historyEntry = await DbContext.Set<Domain.Entities.WorkItemHistory>()
+            .Where(h => h.WorkItemId == workItem.Id && h.FieldName == "IsReadyForSprint")
+            .FirstOrDefaultAsync();
+        historyEntry.Should().NotBeNull();
+    }
+}
+
+[Collection("WorkItems")]
+public sealed class MarkReadyPermissionTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<Application.Common.Interfaces.IPermissionChecker, AlwaysDenyTestPermissionChecker>();
     }
 
     [Fact]
-    public async Task Handle_RecordsHistory()
+    public async Task Handle_NoPermission_ReturnsForbidden()
     {
-        var workItem = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(workItem.Id, Arg.Any<CancellationToken>()).Returns(workItem);
+        var project = await SeedProjectAsync();
+        var workItem = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        await CreateHandler().Handle(
-            new MarkReadyForSprintCommand(workItem.Id, true), CancellationToken.None);
+        var result = await Sender.Send(new MarkReadyForSprintCommand(workItem.Id, true));
 
-        await _historyService.Received(1).RecordAsync(
-            Arg.Is<WorkItemHistoryEntry>(e => e.FieldName == "IsReadyForSprint"),
-            Arg.Any<CancellationToken>());
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("Access denied");
     }
 }

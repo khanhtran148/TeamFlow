@@ -1,31 +1,16 @@
 using FluentAssertions;
-using MediatR;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Features.WorkItems.ChangeStatus;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.WorkItems;
 
-public sealed class ChangeStatusTests
+[Collection("WorkItems")]
+public sealed class ChangeStatusTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly IHistoryService _historyService = Substitute.For<IHistoryService>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
-
-    public ChangeStatusTests()
-    {
-        _currentUser.Id.Returns(Guid.NewGuid());
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private ChangeWorkItemStatusHandler CreateHandler() =>
-        new(_workItemRepo, _historyService, _currentUser, _permissions, _publisher);
-
     [Theory]
     [InlineData(WorkItemStatus.ToDo, WorkItemStatus.InProgress)]
     [InlineData(WorkItemStatus.InProgress, WorkItemStatus.InReview)]
@@ -33,13 +18,10 @@ public sealed class ChangeStatusTests
     [InlineData(WorkItemStatus.InProgress, WorkItemStatus.ToDo)]
     public async Task Handle_ValidTransition_Succeeds(WorkItemStatus from, WorkItemStatus to)
     {
-        var item = WorkItemBuilder.New().WithStatus(from).Build();
-        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
-        _workItemRepo.UpdateAsync(Arg.Any<Domain.Entities.WorkItem>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Domain.Entities.WorkItem>());
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.WithStatus(from));
 
-        var cmd = new ChangeWorkItemStatusCommand(item.Id, to);
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new ChangeWorkItemStatusCommand(item.Id, to));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be(to);
@@ -51,11 +33,10 @@ public sealed class ChangeStatusTests
     [InlineData(WorkItemStatus.InReview, WorkItemStatus.InProgress)]
     public async Task Handle_InvalidTransition_ReturnsValidationError(WorkItemStatus from, WorkItemStatus to)
     {
-        var item = WorkItemBuilder.New().WithStatus(from).Build();
-        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.WithStatus(from));
 
-        var cmd = new ChangeWorkItemStatusCommand(item.Id, to);
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new ChangeWorkItemStatusCommand(item.Id, to));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Invalid status transition");
@@ -64,27 +45,22 @@ public sealed class ChangeStatusTests
     [Fact]
     public async Task Handle_StatusChange_RecordsHistory()
     {
-        var item = WorkItemBuilder.New().WithStatus(WorkItemStatus.ToDo).Build();
-        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
-        _workItemRepo.UpdateAsync(Arg.Any<Domain.Entities.WorkItem>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Domain.Entities.WorkItem>());
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.WithStatus(WorkItemStatus.ToDo));
 
-        var cmd = new ChangeWorkItemStatusCommand(item.Id, WorkItemStatus.InProgress);
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        await Sender.Send(new ChangeWorkItemStatusCommand(item.Id, WorkItemStatus.InProgress));
 
-        await _historyService.Received(1).RecordAsync(
-            Arg.Is<WorkItemHistoryEntry>(e => e.FieldName == "Status"),
-            Arg.Any<CancellationToken>());
+        DbContext.ChangeTracker.Clear();
+        var historyEntry = await DbContext.Set<Domain.Entities.WorkItemHistory>()
+            .Where(h => h.WorkItemId == item.Id && h.FieldName == "Status")
+            .FirstOrDefaultAsync();
+        historyEntry.Should().NotBeNull();
     }
 
     [Fact]
     public async Task Handle_NonExistentItem_ReturnsNotFound()
     {
-        var itemId = Guid.NewGuid();
-        _workItemRepo.GetByIdAsync(itemId, Arg.Any<CancellationToken>()).Returns((Domain.Entities.WorkItem?)null);
-
-        var cmd = new ChangeWorkItemStatusCommand(itemId, WorkItemStatus.InProgress);
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new ChangeWorkItemStatusCommand(Guid.NewGuid(), WorkItemStatus.InProgress));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");

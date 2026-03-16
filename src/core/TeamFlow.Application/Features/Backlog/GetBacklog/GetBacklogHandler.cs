@@ -54,6 +54,7 @@ public sealed class GetBacklogHandler(
             item.Priority,
             item.AssigneeId,
             item.Assignee?.Name,
+            item.AssignedAt,
             item.ReleaseId,
             item.Release?.Name,
             blockedIds.Contains(item.Id),

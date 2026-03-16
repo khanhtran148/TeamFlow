@@ -1,48 +1,42 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Releases.DeleteRelease;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Releases;
 
-public sealed class DeleteReleaseTests
+[Collection("Releases")]
+public sealed class DeleteReleaseTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IReleaseRepository _releaseRepo = Substitute.For<IReleaseRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    public DeleteReleaseTests()
-    {
-        _currentUser.Id.Returns(Guid.NewGuid());
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private DeleteReleaseHandler CreateHandler() => new(_releaseRepo, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_UnreleasedRelease_Deletes()
     {
-        var release = ReleaseBuilder.New().WithStatus(ReleaseStatus.Unreleased).Build();
-        _releaseRepo.GetByIdAsync(release.Id, Arg.Any<CancellationToken>()).Returns(release);
+        var project = await SeedProjectAsync();
+        var release = ReleaseBuilder.New().WithProject(project.Id).WithStatus(ReleaseStatus.Unreleased).Build();
+        DbContext.Releases.Add(release);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new DeleteReleaseCommand(release.Id), CancellationToken.None);
+        var releaseId = release.Id;
+        var result = await Sender.Send(new DeleteReleaseCommand(releaseId));
 
         result.IsSuccess.Should().BeTrue();
-        await _releaseRepo.Received(1).UnlinkAllItemsAsync(release.Id, Arg.Any<CancellationToken>());
-        await _releaseRepo.Received(1).DeleteAsync(release.Id, Arg.Any<CancellationToken>());
+
+        DbContext.ChangeTracker.Clear();
+        var deleted = await DbContext.Releases.FindAsync(releaseId);
+        deleted.Should().BeNull();
     }
 
     [Fact]
     public async Task Handle_ReleasedRelease_ReturnsError()
     {
-        var release = ReleaseBuilder.New().Released().Build();
-        _releaseRepo.GetByIdAsync(release.Id, Arg.Any<CancellationToken>()).Returns(release);
+        var project = await SeedProjectAsync();
+        var release = ReleaseBuilder.New().WithProject(project.Id).Released().Build();
+        DbContext.Releases.Add(release);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new DeleteReleaseCommand(release.Id), CancellationToken.None);
+        var result = await Sender.Send(new DeleteReleaseCommand(release.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("released release");
@@ -51,10 +45,7 @@ public sealed class DeleteReleaseTests
     [Fact]
     public async Task Handle_NonExistentRelease_ReturnsNotFound()
     {
-        var id = Guid.NewGuid();
-        _releaseRepo.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns((Release?)null);
-
-        var result = await CreateHandler().Handle(new DeleteReleaseCommand(id), CancellationToken.None);
+        var result = await Sender.Send(new DeleteReleaseCommand(Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
     }

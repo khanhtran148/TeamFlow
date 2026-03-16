@@ -1,68 +1,76 @@
 using System.Text.Json;
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Features.Search.ListSavedFilters;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Search;
 
-public sealed class ListSavedFiltersTests
+[Collection("WorkItems")]
+public sealed class ListSavedFiltersTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ISavedFilterRepository _repo = Substitute.For<ISavedFilterRepository>();
-    private readonly IPermissionChecker _permissionChecker = Substitute.For<IPermissionChecker>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public ListSavedFiltersTests()
+    private async Task<Guid> SeedFilterAsync(Guid projectId, string name, bool isDefault = false)
     {
-        _currentUser.Id.Returns(ActorId);
-        _permissionChecker.HasPermissionAsync(ActorId, ProjectId, Permission.WorkItem_View, Arg.Any<CancellationToken>())
-            .Returns(true);
+        var filter = new SavedFilter
+        {
+            UserId = SeedUserId,
+            ProjectId = projectId,
+            Name = name,
+            FilterJson = JsonDocument.Parse("{}"),
+            IsDefault = isDefault
+        };
+        DbContext.Set<SavedFilter>().Add(filter);
+        await DbContext.SaveChangesAsync();
+        return filter.Id;
     }
-
-    private ListSavedFiltersHandler CreateHandler() => new(_repo, _permissionChecker, _currentUser);
 
     [Fact]
     public async Task Handle_UserHasSavedFilters_ReturnsFilterList()
     {
-        var filters = new List<SavedFilter>
-        {
-            new() { UserId = ActorId, ProjectId = ProjectId, Name = "My Bugs", FilterJson = JsonDocument.Parse("""{"type":"Bug"}"""), IsDefault = false },
-            new() { UserId = ActorId, ProjectId = ProjectId, Name = "Sprint Tasks", FilterJson = JsonDocument.Parse("""{"sprint":"current"}"""), IsDefault = true }
-        };
-        _repo.ListByUserAndProjectAsync(ActorId, ProjectId, Arg.Any<CancellationToken>()).Returns(filters);
+        var project = await SeedProjectAsync();
+        await SeedFilterAsync(project.Id, "My Bugs");
+        await SeedFilterAsync(project.Id, "Sprint Tasks", isDefault: true);
 
-        var result = await CreateHandler().Handle(new ListSavedFiltersQuery(ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new ListSavedFiltersQuery(project.Id));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().HaveCount(2);
-        result.Value[0].Name.Should().Be("My Bugs");
-        result.Value[1].Name.Should().Be("Sprint Tasks");
-        result.Value[1].IsDefault.Should().BeTrue();
+        result.Value.Should().Contain(f => f.Name == "My Bugs");
+        var sprintFilter = result.Value.FirstOrDefault(f => f.Name == "Sprint Tasks");
+        sprintFilter.Should().NotBeNull();
+        sprintFilter!.IsDefault.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_NoSavedFilters_ReturnsEmptyList()
     {
-        _repo.ListByUserAndProjectAsync(ActorId, ProjectId, Arg.Any<CancellationToken>())
-            .Returns(new List<SavedFilter>());
+        var project = await SeedProjectAsync();
 
-        var result = await CreateHandler().Handle(new ListSavedFiltersQuery(ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new ListSavedFiltersQuery(project.Id));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();
+    }
+}
+
+[Collection("WorkItems")]
+public sealed class ListSavedFiltersPermissionTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<Application.Common.Interfaces.IPermissionChecker, AlwaysDenyTestPermissionChecker>();
     }
 
     [Fact]
     public async Task Handle_NotProjectMember_ReturnsForbidden()
     {
-        _permissionChecker.HasPermissionAsync(ActorId, ProjectId, Permission.WorkItem_View, Arg.Any<CancellationToken>())
-            .Returns(false);
+        var project = await SeedProjectAsync();
 
-        var result = await CreateHandler().Handle(new ListSavedFiltersQuery(ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new ListSavedFiltersQuery(project.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");

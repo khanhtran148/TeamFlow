@@ -1,6 +1,8 @@
 using FluentAssertions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Quartz;
@@ -10,46 +12,57 @@ using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
 using TeamFlow.Domain.Events;
 using TeamFlow.Infrastructure.Persistence;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.BackgroundServices.Tests.Jobs;
 
-public sealed class StaleItemDetectorJobTests : IDisposable
+[Collection("BackgroundServices")]
+public sealed class StaleItemDetectorJobTests(PostgresCollectionFixture fixture) : IAsyncLifetime
 {
-    private readonly TeamFlowDbContext _dbContext;
-    private readonly IBroadcastService _broadcastService;
-    private readonly IPublisher _publisher;
-    private readonly ILogger<StaleItemDetectorJob> _logger;
-    private readonly StaleItemDetectorJob _sut;
-    private readonly IJobExecutionContext _jobContext;
+    private ServiceProvider _provider = null!;
+    private IServiceScope _scope = null!;
+    private TeamFlowDbContext _dbContext = null!;
+    private IDbContextTransaction _transaction = null!;
 
-    public StaleItemDetectorJobTests()
+    private readonly IBroadcastService _broadcastService = Substitute.For<IBroadcastService>();
+    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
+    private readonly ILogger<StaleItemDetectorJob> _logger = Substitute.For<ILogger<StaleItemDetectorJob>>();
+    private readonly IJobExecutionContext _jobContext = Substitute.For<IJobExecutionContext>();
+
+    public async Task InitializeAsync()
     {
-        _dbContext = TestDbContextFactory.Create();
-        _broadcastService = Substitute.For<IBroadcastService>();
-        _publisher = Substitute.For<IPublisher>();
-        _logger = Substitute.For<ILogger<StaleItemDetectorJob>>();
-        _sut = new StaleItemDetectorJob(_logger, _dbContext, _broadcastService, _publisher);
-        _jobContext = Substitute.For<IJobExecutionContext>();
+        var services = new ServiceCollection();
+        services.AddLogging(l => l.AddConsole().SetMinimumLevel(LogLevel.Warning));
+        services.AddDbContext<TeamFlowDbContext>(options =>
+            options.UseNpgsql(fixture.ConnectionString, npgsql =>
+                npgsql.MigrationsAssembly("TeamFlow.Infrastructure")));
+        _provider = services.BuildServiceProvider();
+        _scope = _provider.CreateScope();
+        _dbContext = _scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
+        _transaction = await _dbContext.Database.BeginTransactionAsync();
+
         _jobContext.CancellationToken.Returns(CancellationToken.None);
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _transaction.RollbackAsync();
+        _scope.Dispose();
+        await _provider.DisposeAsync();
     }
 
     private async Task SetWorkItemUpdatedAt(Guid itemId, DateTime updatedAt)
     {
-        var formattedDate = updatedAt.ToString("yyyy-MM-dd HH:mm:ss");
         await _dbContext.Database.ExecuteSqlAsync(
-            $"UPDATE work_items SET updated_at = {formattedDate} WHERE id = {itemId}");
+            $"UPDATE work_items SET updated_at = {updatedAt} WHERE id = {itemId}");
         _dbContext.ChangeTracker.Clear();
     }
 
     private async Task<Project> AddProjectAsync(string status = "Active")
     {
-        var org = OrganizationBuilder.New().Build();
-        _dbContext.Organizations.Add(org);
-        await _dbContext.SaveChangesAsync();
-
         var project = ProjectBuilder.New()
-            .WithOrganization(org.Id)
+            .WithOrganization(PostgresCollectionFixture.SeedOrgId)
             .WithStatus(status)
             .Build();
         _dbContext.Projects.Add(project);
@@ -77,7 +90,8 @@ public sealed class StaleItemDetectorJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new StaleItemDetectorJob(_logger, _dbContext, _broadcastService, _publisher);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         metric.RecordsProcessed.Should().BeGreaterThanOrEqualTo(1);
         await _publisher.Received(1).Publish(
@@ -108,7 +122,8 @@ public sealed class StaleItemDetectorJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new StaleItemDetectorJob(_logger, _dbContext, _broadcastService, _publisher);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         metric.RecordsProcessed.Should().Be(0);
     }
@@ -132,7 +147,8 @@ public sealed class StaleItemDetectorJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new StaleItemDetectorJob(_logger, _dbContext, _broadcastService, _publisher);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         metric.RecordsProcessed.Should().Be(0);
     }
@@ -166,7 +182,8 @@ public sealed class StaleItemDetectorJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new StaleItemDetectorJob(_logger, _dbContext, _broadcastService, _publisher);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         await _publisher.Received(1).Publish(
             Arg.Is<WorkItemStaleFlaggedDomainEvent>(e =>
@@ -202,7 +219,8 @@ public sealed class StaleItemDetectorJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new StaleItemDetectorJob(_logger, _dbContext, _broadcastService, _publisher);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         await _publisher.Received(1).Publish(
             Arg.Is<WorkItemStaleFlaggedDomainEvent>(e =>
@@ -228,13 +246,9 @@ public sealed class StaleItemDetectorJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new StaleItemDetectorJob(_logger, _dbContext, _broadcastService, _publisher);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         metric.RecordsProcessed.Should().Be(0);
-    }
-
-    public void Dispose()
-    {
-        _dbContext.Dispose();
     }
 }

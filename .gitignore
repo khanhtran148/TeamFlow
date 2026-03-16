@@ -136,3 +136,5 @@ secrets.json
 ## Certificates
 *.cer
 *.crt
+.pids/
+logs/

@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { GripVertical, AlertCircle } from "lucide-react";
 import { TypeIcon } from "@/components/shared/type-icon";
 import { PriorityIcon } from "@/components/shared/priority-icon";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserAvatar, formatAssignedAt } from "@/components/shared/user-avatar";
 import {
   Tooltip,
   TooltipContent,
@@ -229,6 +229,7 @@ export const BacklogRow = memo(function BacklogRow({
             .join("")
             .slice(0, 2)}
           name={item.assigneeName}
+          subtitle={formatAssignedAt(item.assignedAt)}
           size="xs"
         />
       ) : (

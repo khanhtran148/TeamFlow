@@ -1,40 +1,35 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Features.Backlog.ReorderBacklog;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Backlog;
 
-public sealed class ReorderBacklogTests
+[Collection("WorkItems")]
+public sealed class ReorderBacklogTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    public ReorderBacklogTests()
-    {
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private ReorderBacklogHandler CreateHandler() =>
-        new(_workItemRepo, _permissions, _currentUser);
-
     [Fact]
     public async Task Handle_ValidReorder_UpdatesSortOrders()
     {
-        var projectId = Guid.NewGuid();
+        var project = await SeedProjectAsync();
+        var wi1 = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var wi2 = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+
         var items = new[]
         {
-            new WorkItemSortOrder(Guid.NewGuid(), 1),
-            new WorkItemSortOrder(Guid.NewGuid(), 2)
+            new WorkItemSortOrder(wi1.Id, 10),
+            new WorkItemSortOrder(wi2.Id, 20)
         };
 
-        var result = await CreateHandler().Handle(
-            new ReorderBacklogCommand(projectId, items), CancellationToken.None);
+        var result = await Sender.Send(new ReorderBacklogCommand(project.Id, items));
 
         result.IsSuccess.Should().BeTrue();
-        await _workItemRepo.Received(2).UpdateSortOrderAsync(
-            Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        DbContext.ChangeTracker.Clear();
+        var updated1 = await DbContext.WorkItems.AsNoTracking().FirstAsync(w => w.Id == wi1.Id);
+        var updated2 = await DbContext.WorkItems.AsNoTracking().FirstAsync(w => w.Id == wi2.Id);
+        updated1.SortOrder.Should().Be(10);
+        updated2.SortOrder.Should().Be(20);
     }
 }

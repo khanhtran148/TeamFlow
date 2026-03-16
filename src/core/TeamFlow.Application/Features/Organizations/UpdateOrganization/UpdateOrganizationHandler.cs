@@ -14,14 +14,14 @@ public sealed class UpdateOrganizationHandler(
 {
     public async Task<Result<OrganizationDto>> Handle(UpdateOrganizationCommand request, CancellationToken ct)
     {
+        var org = await organizationRepository.GetByIdAsync(request.OrgId, ct);
+        if (org is null)
+            return DomainError.NotFound<OrganizationDto>("Organization not found.");
+
         // Check org membership — only Owner or Admin can update
         var role = await memberRepository.GetMemberRoleAsync(request.OrgId, currentUser.Id, ct);
         if (role is null || role == OrgRole.Member)
             return DomainError.Forbidden<OrganizationDto>("Only Org Owner or Admin can update this organization.");
-
-        var org = await organizationRepository.GetByIdAsync(request.OrgId, ct);
-        if (org is null)
-            return DomainError.NotFound<OrganizationDto>("Organization not found.");
 
         // Check slug uniqueness only if slug is changing
         if (org.Slug != request.Slug)

@@ -1,106 +1,92 @@
+using System.Security.Cryptography;
+using System.Text;
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Features.Invitations.Accept;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Invitations;
 
-public sealed class AcceptInvitationTests
+[Collection("Auth")]
+public sealed class AcceptInvitationTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IInvitationRepository _invitationRepo = Substitute.For<IInvitationRepository>();
-    private readonly IOrganizationMemberRepository _memberRepo = Substitute.For<IOrganizationMemberRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly Guid _userId = Guid.NewGuid();
-    private readonly Guid _orgId = Guid.NewGuid();
+    private static string ComputeHash(string rawToken) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawToken))).ToLowerInvariant();
 
-    public AcceptInvitationTests()
+    private async Task<(Organization org, Invitation invitation)> SeedPendingInvitationAsync(
+        string rawToken = "validToken123",
+        InviteStatus status = InviteStatus.Pending,
+        DateTime? expiresAt = null)
     {
-        _currentUser.Id.Returns(_userId);
+        var org = OrganizationBuilder.New().Build();
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        _memberRepo.IsMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        _memberRepo.AddAsync(Arg.Any<OrganizationMember>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<OrganizationMember>());
-        _invitationRepo.UpdateAsync(Arg.Any<Invitation>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Invitation>());
+        var invitation = InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithTokenHash(ComputeHash(rawToken))
+            .WithStatus(status)
+            .WithExpiresAt(expiresAt ?? DateTime.UtcNow.AddDays(7))
+            .Build();
+        // Lazy-load navigation needed for slug
+        DbContext.Set<Invitation>().Add(invitation);
+        await DbContext.SaveChangesAsync();
+
+        return (org, invitation);
     }
-
-    private AcceptInvitationHandler CreateHandler() =>
-        new(_invitationRepo, _memberRepo, _currentUser);
-
-    private Invitation MakePendingInvitation() => new()
-    {
-        OrganizationId = _orgId,
-        InvitedByUserId = Guid.NewGuid(),
-        Role = OrgRole.Member,
-        TokenHash = "somehash",
-        Status = InviteStatus.Pending,
-        ExpiresAt = DateTime.UtcNow.AddDays(7),
-        Organization = new Organization { Name = "Test Org", Slug = "test-org" }
-    };
 
     [Fact]
     public async Task Handle_ValidToken_CreatesMembership()
     {
         const string rawToken = "validToken123";
-        var invitation = MakePendingInvitation();
-        _invitationRepo.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(invitation);
+        var (org, _) = await SeedPendingInvitationAsync(rawToken);
 
-        var result = await CreateHandler().Handle(new AcceptInvitationCommand(rawToken), CancellationToken.None);
+        var result = await Sender.Send(new AcceptInvitationCommand(rawToken));
 
         result.IsSuccess.Should().BeTrue();
-        await _memberRepo.Received(1).AddAsync(
-            Arg.Is<OrganizationMember>(m =>
-                m.UserId == _userId &&
-                m.OrganizationId == _orgId &&
-                m.Role == OrgRole.Member),
-            Arg.Any<CancellationToken>());
+        var member = await DbContext.Set<OrganizationMember>()
+            .Where(m => m.UserId == SeedUserId && m.OrganizationId == org.Id)
+            .FirstOrDefaultAsync();
+        member.Should().NotBeNull();
+        member!.Role.Should().Be(OrgRole.Member);
     }
 
     [Fact]
     public async Task Handle_ValidToken_UpdatesInvitationStatusToAccepted()
     {
-        const string rawToken = "validToken123";
-        var invitation = MakePendingInvitation();
-        _invitationRepo.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(invitation);
+        const string rawToken = "validToken456";
+        var (_, invitation) = await SeedPendingInvitationAsync(rawToken);
 
-        await CreateHandler().Handle(new AcceptInvitationCommand(rawToken), CancellationToken.None);
+        await Sender.Send(new AcceptInvitationCommand(rawToken));
 
-        await _invitationRepo.Received(1).UpdateAsync(
-            Arg.Is<Invitation>(i =>
-                i.Status == InviteStatus.Accepted &&
-                i.AcceptedByUserId == _userId &&
-                i.AcceptedAt.HasValue),
-            Arg.Any<CancellationToken>());
+        var updatedInv = await DbContext.Set<Invitation>().FindAsync(invitation.Id);
+        updatedInv!.Status.Should().Be(InviteStatus.Accepted);
+        updatedInv.AcceptedByUserId.Should().Be(SeedUserId);
+        updatedInv.AcceptedAt.Should().NotBeNull();
     }
 
     [Fact]
     public async Task Handle_ValidToken_ReturnsOrgInfo()
     {
-        const string rawToken = "validToken123";
-        var invitation = MakePendingInvitation();
-        _invitationRepo.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(invitation);
+        const string rawToken = "validToken789";
+        var (org, _) = await SeedPendingInvitationAsync(rawToken);
 
-        var result = await CreateHandler().Handle(new AcceptInvitationCommand(rawToken), CancellationToken.None);
+        var result = await Sender.Send(new AcceptInvitationCommand(rawToken));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.OrganizationId.Should().Be(_orgId);
-        result.Value.OrganizationSlug.Should().Be("test-org");
+        result.Value.OrganizationId.Should().Be(org.Id);
         result.Value.Role.Should().Be(OrgRole.Member);
     }
 
     [Fact]
     public async Task Handle_UnknownToken_ReturnsNotFound()
     {
-        _invitationRepo.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((Invitation?)null);
-
-        var result = await CreateHandler().Handle(new AcceptInvitationCommand("badtoken"), CancellationToken.None);
+        var result = await Sender.Send(new AcceptInvitationCommand("badtoken"));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().ContainEquivalentOf("not found", Exactly.Once(), o => o.IgnoringCase());
@@ -109,12 +95,10 @@ public sealed class AcceptInvitationTests
     [Fact]
     public async Task Handle_ExpiredToken_ReturnsBadRequest()
     {
-        var invitation = MakePendingInvitation();
-        invitation.ExpiresAt = DateTime.UtcNow.AddMinutes(-1);
-        _invitationRepo.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(invitation);
+        const string rawToken = "expiredToken";
+        await SeedPendingInvitationAsync(rawToken, expiresAt: DateTime.UtcNow.AddMinutes(-1));
 
-        var result = await CreateHandler().Handle(new AcceptInvitationCommand("expiredtoken"), CancellationToken.None);
+        var result = await Sender.Send(new AcceptInvitationCommand(rawToken));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().ContainEquivalentOf("expired", Exactly.Once(), o => o.IgnoringCase());
@@ -123,12 +107,10 @@ public sealed class AcceptInvitationTests
     [Fact]
     public async Task Handle_AlreadyAcceptedToken_ReturnsBadRequest()
     {
-        var invitation = MakePendingInvitation();
-        invitation.Status = InviteStatus.Accepted;
-        _invitationRepo.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(invitation);
+        const string rawToken = "acceptedToken";
+        await SeedPendingInvitationAsync(rawToken, status: InviteStatus.Accepted);
 
-        var result = await CreateHandler().Handle(new AcceptInvitationCommand("acceptedtoken"), CancellationToken.None);
+        var result = await Sender.Send(new AcceptInvitationCommand(rawToken));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().ContainEquivalentOf("already", Exactly.Once(), o => o.IgnoringCase());
@@ -137,12 +119,10 @@ public sealed class AcceptInvitationTests
     [Fact]
     public async Task Handle_RevokedToken_ReturnsBadRequest()
     {
-        var invitation = MakePendingInvitation();
-        invitation.Status = InviteStatus.Revoked;
-        _invitationRepo.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(invitation);
+        const string rawToken = "revokedToken";
+        await SeedPendingInvitationAsync(rawToken, status: InviteStatus.Revoked);
 
-        var result = await CreateHandler().Handle(new AcceptInvitationCommand("revokedtoken"), CancellationToken.None);
+        var result = await Sender.Send(new AcceptInvitationCommand(rawToken));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().ContainEquivalentOf("revoked", Exactly.Once(), o => o.IgnoringCase());
@@ -151,13 +131,19 @@ public sealed class AcceptInvitationTests
     [Fact]
     public async Task Handle_AlreadyMember_ReturnsBadRequest()
     {
-        var invitation = MakePendingInvitation();
-        _invitationRepo.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(invitation);
-        _memberRepo.IsMemberAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(true);
+        const string rawToken = "alreadyMemberToken";
+        var (org, _) = await SeedPendingInvitationAsync(rawToken);
 
-        var result = await CreateHandler().Handle(new AcceptInvitationCommand("validtoken"), CancellationToken.None);
+        // Make user already a member
+        DbContext.Set<OrganizationMember>().Add(new OrganizationMember
+        {
+            OrganizationId = org.Id,
+            UserId = SeedUserId,
+            Role = OrgRole.Member
+        });
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new AcceptInvitationCommand(rawToken));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().ContainEquivalentOf("already", Exactly.Once(), o => o.IgnoringCase());

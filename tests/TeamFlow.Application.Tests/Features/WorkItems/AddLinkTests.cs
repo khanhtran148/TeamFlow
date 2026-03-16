@@ -1,69 +1,50 @@
 using FluentAssertions;
-using MediatR;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Features.WorkItems.AddLink;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.WorkItems;
 
-public sealed class AddLinkTests
+[Collection("WorkItems")]
+public sealed class AddLinkTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly IWorkItemLinkRepository _linkRepo = Substitute.For<IWorkItemLinkRepository>();
-    private readonly IHistoryService _historyService = Substitute.For<IHistoryService>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
-
-    private static readonly Guid ProjectId = Guid.NewGuid();
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public AddLinkTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private AddWorkItemLinkHandler CreateHandler() =>
-        new(_workItemRepo, _linkRepo, _historyService, _currentUser, _permissions, _publisher);
-
     [Fact]
     public async Task Handle_ValidLink_CreatesBidirectionalPair()
     {
-        var itemA = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        var itemB = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(itemA.Id, Arg.Any<CancellationToken>()).Returns(itemA);
-        _workItemRepo.GetByIdAsync(itemB.Id, Arg.Any<CancellationToken>()).Returns(itemB);
-        _linkRepo.ExistsAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<LinkType>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        _linkRepo.GetReachableTargetsAsync(Arg.Any<Guid>(), Arg.Any<LinkType>(), Arg.Any<CancellationToken>())
-            .Returns(Enumerable.Empty<Guid>());
+        var project = await SeedProjectAsync();
+        var itemA = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var itemB = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
         var cmd = new AddWorkItemLinkCommand(itemA.Id, itemB.Id, LinkType.RelatesTo);
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
-        await _linkRepo.Received(1).AddRangeAsync(
-            Arg.Is<IEnumerable<WorkItemLink>>(links => links.Count() == 2),
-            Arg.Any<CancellationToken>());
+        DbContext.ChangeTracker.Clear();
+        var links = await DbContext.Set<Domain.Entities.WorkItemLink>()
+            .Where(l => (l.SourceId == itemA.Id && l.TargetId == itemB.Id)
+                     || (l.SourceId == itemB.Id && l.TargetId == itemA.Id))
+            .ToListAsync();
+        links.Should().HaveCount(2);
     }
 
     [Fact]
     public async Task Handle_DuplicateLink_ReturnsConflict()
     {
-        var itemA = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        var itemB = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(itemA.Id, Arg.Any<CancellationToken>()).Returns(itemA);
-        _workItemRepo.GetByIdAsync(itemB.Id, Arg.Any<CancellationToken>()).Returns(itemB);
-        _linkRepo.ExistsAsync(itemA.Id, itemB.Id, LinkType.RelatesTo, Arg.Any<CancellationToken>())
-            .Returns(true);
+        var project = await SeedProjectAsync();
+        var itemA = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var itemB = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        var cmd = new AddWorkItemLinkCommand(itemA.Id, itemB.Id, LinkType.RelatesTo);
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        // Create the link first
+        await Sender.Send(new AddWorkItemLinkCommand(itemA.Id, itemB.Id, LinkType.RelatesTo));
+
+        DbContext.ChangeTracker.Clear();
+
+        // Try to add the same link again
+        var result = await Sender.Send(new AddWorkItemLinkCommand(itemA.Id, itemB.Id, LinkType.RelatesTo));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("already exists");
@@ -72,18 +53,16 @@ public sealed class AddLinkTests
     [Fact]
     public async Task Handle_CircularBlock_ReturnsConflict()
     {
-        var itemA = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        var itemB = WorkItemBuilder.New().WithProject(ProjectId).Build();
-        _workItemRepo.GetByIdAsync(itemA.Id, Arg.Any<CancellationToken>()).Returns(itemA);
-        _workItemRepo.GetByIdAsync(itemB.Id, Arg.Any<CancellationToken>()).Returns(itemB);
-        _linkRepo.ExistsAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<LinkType>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        // B already reaches A via Blocks chain -> adding A Blocks B would be circular
-        _linkRepo.GetReachableTargetsAsync(itemB.Id, LinkType.Blocks, Arg.Any<CancellationToken>())
-            .Returns(new[] { itemA.Id });
+        var project = await SeedProjectAsync();
+        var itemA = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var itemB = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        var cmd = new AddWorkItemLinkCommand(itemA.Id, itemB.Id, LinkType.Blocks);
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        // B blocks A first
+        await Sender.Send(new AddWorkItemLinkCommand(itemB.Id, itemA.Id, LinkType.Blocks));
+        DbContext.ChangeTracker.Clear();
+
+        // Now try A blocks B — should be circular
+        var result = await Sender.Send(new AddWorkItemLinkCommand(itemA.Id, itemB.Id, LinkType.Blocks));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Circular");
@@ -92,39 +71,52 @@ public sealed class AddLinkTests
     [Fact]
     public async Task Handle_CrossProjectLink_SetsScopeCorrectly()
     {
-        var projectA = Guid.NewGuid();
-        var projectB = Guid.NewGuid();
-        var itemA = WorkItemBuilder.New().WithProject(projectA).Build();
-        var itemB = WorkItemBuilder.New().WithProject(projectB).Build();
-        _workItemRepo.GetByIdAsync(itemA.Id, Arg.Any<CancellationToken>()).Returns(itemA);
-        _workItemRepo.GetByIdAsync(itemB.Id, Arg.Any<CancellationToken>()).Returns(itemB);
-        _linkRepo.ExistsAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<LinkType>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        _linkRepo.GetReachableTargetsAsync(Arg.Any<Guid>(), Arg.Any<LinkType>(), Arg.Any<CancellationToken>())
-            .Returns(Enumerable.Empty<Guid>());
-
-        IEnumerable<WorkItemLink>? capturedLinks = null;
-        await _linkRepo.AddRangeAsync(
-            Arg.Do<IEnumerable<WorkItemLink>>(links => capturedLinks = links.ToList()),
-            Arg.Any<CancellationToken>());
+        var projectA = await SeedProjectAsync();
+        var projectB = await SeedProjectAsync();
+        var itemA = await SeedWorkItemAsync(projectA.Id, b => b.AsTask());
+        var itemB = await SeedWorkItemAsync(projectB.Id, b => b.AsTask());
 
         var cmd = new AddWorkItemLinkCommand(itemA.Id, itemB.Id, LinkType.RelatesTo);
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
-        capturedLinks.Should().NotBeNull();
-        capturedLinks!.All(l => l.Scope == LinkScope.CrossProject).Should().BeTrue();
+        DbContext.ChangeTracker.Clear();
+        var links = await DbContext.Set<Domain.Entities.WorkItemLink>()
+            .Where(l => l.SourceId == itemA.Id && l.TargetId == itemB.Id)
+            .ToListAsync();
+        links.Should().ContainSingle();
+        links.First().Scope.Should().Be(LinkScope.CrossProject);
     }
 
     [Fact]
     public async Task Handle_MissingSourceItem_ReturnsNotFound()
     {
-        _workItemRepo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((WorkItem?)null);
-
-        var cmd = new AddWorkItemLinkCommand(Guid.NewGuid(), Guid.NewGuid(), LinkType.RelatesTo);
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AddWorkItemLinkCommand(Guid.NewGuid(), Guid.NewGuid(), LinkType.RelatesTo));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
+    }
+}
+
+[Collection("WorkItems")]
+public sealed class AddLinkPermissionTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<Application.Common.Interfaces.IPermissionChecker, AlwaysDenyTestPermissionChecker>();
+    }
+
+    [Fact]
+    public async Task Handle_NoPermission_ReturnsForbidden()
+    {
+        var project = await SeedProjectAsync();
+        var itemA = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var itemB = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+
+        var result = await Sender.Send(new AddWorkItemLinkCommand(itemA.Id, itemB.Id, LinkType.RelatesTo));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("Access denied");
     }
 }

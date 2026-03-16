@@ -40,6 +40,7 @@ public sealed record KanbanItemDto(
     Priority? Priority,
     Guid? AssigneeId,
     string? AssigneeName,
+    DateTime? AssignedAt,
     Guid? ParentId,
     string? ParentTitle,
     bool IsBlocked,

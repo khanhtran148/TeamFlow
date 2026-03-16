@@ -44,7 +44,8 @@ public sealed class TeamRepository(TeamFlowDbContext context) : ITeamRepository
 
     public async Task<Team> UpdateAsync(Team team, CancellationToken ct = default)
     {
-        context.Teams.Update(team);
+        if (context.Entry(team).State == Microsoft.EntityFrameworkCore.EntityState.Detached)
+            context.Teams.Update(team);
         await context.SaveChangesAsync(ct);
         return team;
     }
@@ -52,6 +53,18 @@ public sealed class TeamRepository(TeamFlowDbContext context) : ITeamRepository
     public async Task DeleteAsync(Team team, CancellationToken ct = default)
     {
         context.Teams.Remove(team);
+        await context.SaveChangesAsync(ct);
+    }
+
+    public async Task AddMemberAsync(TeamMember member, CancellationToken ct = default)
+    {
+        context.TeamMembers.Add(member);
+        await context.SaveChangesAsync(ct);
+    }
+
+    public async Task RemoveMemberAsync(TeamMember member, CancellationToken ct = default)
+    {
+        context.TeamMembers.Remove(member);
         await context.SaveChangesAsync(ct);
     }
 }

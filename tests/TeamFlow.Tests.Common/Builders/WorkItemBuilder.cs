@@ -17,6 +17,7 @@ public sealed class WorkItemBuilder
     private WorkItemStatus _status = WorkItemStatus.ToDo;
     private Priority _priority = Priority.Medium;
     private Guid? _assigneeId;
+    private DateTime? _assignedAt;
     private Guid? _sprintId;
     private Guid? _releaseId;
     private decimal? _estimationValue;
@@ -31,6 +32,7 @@ public sealed class WorkItemBuilder
     public WorkItemBuilder WithStatus(WorkItemStatus status) { _status = status; return this; }
     public WorkItemBuilder WithPriority(Priority priority) { _priority = priority; return this; }
     public WorkItemBuilder WithAssignee(Guid assigneeId) { _assigneeId = assigneeId; return this; }
+    public WorkItemBuilder WithAssignedAt(DateTime assignedAt) { _assignedAt = assignedAt; return this; }
     public WorkItemBuilder WithSprint(Guid sprintId) { _sprintId = sprintId; return this; }
     public WorkItemBuilder WithRelease(Guid releaseId) { _releaseId = releaseId; return this; }
     public WorkItemBuilder WithEstimation(decimal points) { _estimationValue = points; return this; }
@@ -48,6 +50,7 @@ public sealed class WorkItemBuilder
         Status = _status,
         Priority = _priority,
         AssigneeId = _assigneeId,
+        AssignedAt = _assignedAt,
         SprintId = _sprintId,
         ReleaseId = _releaseId,
         EstimationValue = _estimationValue

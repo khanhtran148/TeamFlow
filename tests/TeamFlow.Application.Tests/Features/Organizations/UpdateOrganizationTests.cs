@@ -1,56 +1,56 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Organizations.UpdateOrganization;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Infrastructure.Repositories;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Organizations;
 
-public sealed class UpdateOrganizationTests
+[Collection("Projects")]
+public sealed class UpdateOrganizationTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IOrganizationRepository _orgRepo = Substitute.For<IOrganizationRepository>();
-    private readonly IOrganizationMemberRepository _memberRepo = Substitute.For<IOrganizationMemberRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly Guid _orgId = Guid.NewGuid();
-    private readonly Guid _userId = Guid.NewGuid();
-
-    public UpdateOrganizationTests()
+    private async Task<(TeamFlow.Domain.Entities.Organization Org, Guid OrgId)> SeedOrgWithMemberAsync(OrgRole role)
     {
-        _currentUser.Id.Returns(_userId);
-        _currentUser.SystemRole.Returns(SystemRole.User);
+        var org = OrganizationBuilder.New()
+            .WithName("Old Name")
+            .WithSlug("update-test-" + Guid.NewGuid().ToString("N")[..8])
+            .Build();
+        DbContext.Organizations.Add(org);
 
-        var org = new Organization { Name = "Old Name", Slug = "old-name" };
-        _orgRepo.GetByIdAsync(_orgId, Arg.Any<CancellationToken>()).Returns(org);
-        _orgRepo.ExistsBySlugAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
-        _orgRepo.UpdateAsync(Arg.Any<Organization>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Organization>());
+        var member = OrganizationMemberBuilder.New()
+            .WithOrganization(org.Id)
+            .WithUser(SeedUserId)
+            .WithRole(role)
+            .Build();
+        DbContext.OrganizationMembers.Add(member);
+        await DbContext.SaveChangesAsync();
+        return (org, org.Id);
     }
-
-    private UpdateOrganizationHandler CreateHandler() => new(_orgRepo, _memberRepo, _currentUser);
 
     [Fact]
     public async Task Handle_OrgOwner_CanUpdateNameAndSlug()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Owner);
-        var cmd = new UpdateOrganizationCommand(_orgId, "New Name", "new-name");
+        var (_, orgId) = await SeedOrgWithMemberAsync(OrgRole.Owner);
+        var newSlug = "new-name-" + Guid.NewGuid().ToString("N")[..6];
+        var cmd = new UpdateOrganizationCommand(orgId, "New Name", newSlug);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Name.Should().Be("New Name");
-        result.Value.Slug.Should().Be("new-name");
+        result.Value.Slug.Should().Be(newSlug);
     }
 
     [Fact]
     public async Task Handle_OrgAdmin_CanUpdateNameAndSlug()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Admin);
-        var cmd = new UpdateOrganizationCommand(_orgId, "New Name", "new-name");
+        var (_, orgId) = await SeedOrgWithMemberAsync(OrgRole.Admin);
+        var newSlug = "admin-slug-" + Guid.NewGuid().ToString("N")[..6];
+        var cmd = new UpdateOrganizationCommand(orgId, "New Name", newSlug);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
     }
@@ -58,25 +58,26 @@ public sealed class UpdateOrganizationTests
     [Fact]
     public async Task Handle_OrgMember_ReturnsForbidden()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Member);
-        var cmd = new UpdateOrganizationCommand(_orgId, "New Name", "new-name");
+        var (_, orgId) = await SeedOrgWithMemberAsync(OrgRole.Member);
+        var cmd = new UpdateOrganizationCommand(orgId, "New Name", "new-name");
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
-        // DomainError.Forbidden returns "Only Org Owner or Admin can update this organization."
         result.Error.Should().Contain("Owner or Admin");
     }
 
     [Fact]
     public async Task Handle_NonMember_ReturnsForbidden()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns((OrgRole?)null);
-        var cmd = new UpdateOrganizationCommand(_orgId, "New Name", "new-name");
+        var org = OrganizationBuilder.New()
+            .WithSlug("no-member-" + Guid.NewGuid().ToString("N")[..8])
+            .Build();
+        DbContext.Organizations.Add(org);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var cmd = new UpdateOrganizationCommand(org.Id, "New Name", "new-name");
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Owner or Admin");
@@ -85,31 +86,25 @@ public sealed class UpdateOrganizationTests
     [Fact]
     public async Task Handle_OrgNotFound_ReturnsNotFound()
     {
-        _orgRepo.GetByIdAsync(_orgId, Arg.Any<CancellationToken>()).Returns((Organization?)null);
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Owner);
-        var cmd = new UpdateOrganizationCommand(_orgId, "New Name", "new-name");
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var cmd = new UpdateOrganizationCommand(Guid.NewGuid(), "New Name", "new-name");
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Should().ContainEquivalentOf("not found", Exactly.Once(),
-            options => options.IgnoringCase());
+        result.Error.Should().ContainEquivalentOf("not found", o => o.IgnoringCase());
     }
 
     [Fact]
     public async Task Handle_DuplicateSlug_ReturnsConflict()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>())
-            .Returns(OrgRole.Owner);
-        _orgRepo.ExistsBySlugAsync("new-name", Arg.Any<CancellationToken>()).Returns(true);
-        var cmd = new UpdateOrganizationCommand(_orgId, "New Name", "new-name");
+        var existingOrg = OrganizationBuilder.New().WithSlug("taken-slug-" + Guid.NewGuid().ToString("N")[..6]).Build();
+        DbContext.Organizations.Add(existingOrg);
+        var (_, orgId) = await SeedOrgWithMemberAsync(OrgRole.Owner);
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var cmd = new UpdateOrganizationCommand(orgId, "New Name", existingOrg.Slug);
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Should().ContainEquivalentOf("already exists", Exactly.Once(),
-            options => options.IgnoringCase());
+        result.Error.Should().ContainEquivalentOf("already exists", o => o.IgnoringCase());
     }
 
     [Theory]
@@ -117,8 +112,8 @@ public sealed class UpdateOrganizationTests
     [InlineData(null)]
     public async Task Validate_EmptyName_ReturnsValidationError(string? name)
     {
-        var validator = new UpdateOrganizationValidator(_orgRepo);
-        var cmd = new UpdateOrganizationCommand(_orgId, name!, "valid-slug");
+        var validator = new UpdateOrganizationValidator(new OrganizationRepository(DbContext));
+        var cmd = new UpdateOrganizationCommand(SeedOrgId, name!, "valid-slug");
 
         var validationResult = await validator.ValidateAsync(cmd);
 
@@ -131,9 +126,8 @@ public sealed class UpdateOrganizationTests
     [InlineData("this-slug-is-way-too-long-to-be-acceptable-for-any-org")]
     public async Task Validate_InvalidSlug_ReturnsValidationError(string slug)
     {
-        _orgRepo.ExistsBySlugAsync(slug, Arg.Any<CancellationToken>()).Returns(false);
-        var validator = new UpdateOrganizationValidator(_orgRepo);
-        var cmd = new UpdateOrganizationCommand(_orgId, "Valid Name", slug);
+        var validator = new UpdateOrganizationValidator(new OrganizationRepository(DbContext));
+        var cmd = new UpdateOrganizationCommand(SeedOrgId, "Valid Name", slug);
 
         var validationResult = await validator.ValidateAsync(cmd);
 

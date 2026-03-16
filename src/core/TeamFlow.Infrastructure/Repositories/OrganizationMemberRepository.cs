@@ -72,7 +72,19 @@ public sealed class OrganizationMemberRepository(TeamFlowDbContext context) : IO
 
     public async Task UpdateAsync(OrganizationMember member, CancellationToken ct = default)
     {
-        context.OrganizationMembers.Update(member);
+        var entry = context.ChangeTracker.Entries<OrganizationMember>()
+            .FirstOrDefault(e => e.Entity.Id == member.Id);
+
+        if (entry is not null)
+        {
+            // Already tracked — copy modified values onto the tracked instance
+            entry.CurrentValues.SetValues(member);
+        }
+        else
+        {
+            context.OrganizationMembers.Update(member);
+        }
+
         await context.SaveChangesAsync(ct);
     }
 

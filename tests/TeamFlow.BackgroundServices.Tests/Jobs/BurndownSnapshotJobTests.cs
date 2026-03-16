@@ -1,5 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Quartz;
@@ -8,45 +10,68 @@ using TeamFlow.BackgroundServices.Scheduled.Jobs;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
 using TeamFlow.Infrastructure.Persistence;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.BackgroundServices.Tests.Jobs;
 
-public sealed class BurndownSnapshotJobTests : IDisposable
+[Collection("BackgroundServices")]
+public sealed class BurndownSnapshotJobTests(PostgresCollectionFixture fixture) : IAsyncLifetime
 {
-    private readonly TeamFlowDbContext _dbContext;
-    private readonly IBroadcastService _broadcastService;
-    private readonly ILogger<BurndownSnapshotJob> _logger;
-    private readonly BurndownSnapshotJob _sut;
-    private readonly IJobExecutionContext _jobContext;
+    private ServiceProvider _provider = null!;
+    private IServiceScope _scope = null!;
+    private TeamFlowDbContext _dbContext = null!;
+    private IDbContextTransaction _transaction = null!;
+    private Project _project = null!;
 
-    public BurndownSnapshotJobTests()
+    private readonly IBroadcastService _broadcastService = Substitute.For<IBroadcastService>();
+    private readonly ILogger<BurndownSnapshotJob> _logger = Substitute.For<ILogger<BurndownSnapshotJob>>();
+    private readonly IJobExecutionContext _jobContext = Substitute.For<IJobExecutionContext>();
+
+    public async Task InitializeAsync()
     {
-        _dbContext = TestDbContextFactory.Create();
-        _broadcastService = Substitute.For<IBroadcastService>();
-        _logger = Substitute.For<ILogger<BurndownSnapshotJob>>();
-        _sut = new BurndownSnapshotJob(_logger, _dbContext, _broadcastService);
-        _jobContext = Substitute.For<IJobExecutionContext>();
+        var services = new ServiceCollection();
+        services.AddLogging(l => l.AddConsole().SetMinimumLevel(LogLevel.Warning));
+        services.AddDbContext<TeamFlowDbContext>(options =>
+            options.UseNpgsql(fixture.ConnectionString, npgsql =>
+                npgsql.MigrationsAssembly("TeamFlow.Infrastructure")));
+        _provider = services.BuildServiceProvider();
+        _scope = _provider.CreateScope();
+        _dbContext = _scope.ServiceProvider.GetRequiredService<TeamFlowDbContext>();
+        _transaction = await _dbContext.Database.BeginTransactionAsync();
+
+        _project = ProjectBuilder.New().WithOrganization(PostgresCollectionFixture.SeedOrgId).Build();
+        _dbContext.Projects.Add(_project);
+        await _dbContext.SaveChangesAsync();
+
         _jobContext.CancellationToken.Returns(CancellationToken.None);
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _transaction.RollbackAsync();
+        _scope.Dispose();
+        await _provider.DisposeAsync();
     }
 
     [Fact]
     public async Task ExecuteInternal_ActiveSprint_CreatesBurndownDataPoint()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)))
             .Build();
 
         var workItem1 = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithStatus(WorkItemStatus.Done)
             .WithEstimation(3)
             .Build();
 
         var workItem2 = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithStatus(WorkItemStatus.InProgress)
             .WithEstimation(5)
@@ -60,7 +85,8 @@ public sealed class BurndownSnapshotJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new BurndownSnapshotJob(_logger, _dbContext, _broadcastService);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         var dataPoint = await _dbContext.BurndownDataPoints
             .FirstOrDefaultAsync(b => b.SprintId == sprint.Id);
@@ -75,6 +101,7 @@ public sealed class BurndownSnapshotJobTests : IDisposable
     public async Task ExecuteInternal_AlreadyHasTodayDataPoint_SkipsSprint()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)))
             .Build();
@@ -92,7 +119,8 @@ public sealed class BurndownSnapshotJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new BurndownSnapshotJob(_logger, _dbContext, _broadcastService);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         var count = await _dbContext.BurndownDataPoints.CountAsync(b => b.SprintId == sprint.Id);
         count.Should().Be(1);
@@ -105,7 +133,8 @@ public sealed class BurndownSnapshotJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new BurndownSnapshotJob(_logger, _dbContext, _broadcastService);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         metric.RecordsProcessed.Should().Be(0);
         metric.RecordsFailed.Should().Be(0);
@@ -118,19 +147,20 @@ public sealed class BurndownSnapshotJobTests : IDisposable
         var endDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2));
 
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(startDate, endDate)
             .Build();
 
         var doneItem = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithStatus(WorkItemStatus.Done)
             .WithEstimation(1)
             .Build();
 
         var todoItem = WorkItemBuilder.New()
-            .WithProject(sprint.ProjectId)
+            .WithProject(_project.Id)
             .WithSprint(sprint.Id)
             .WithStatus(WorkItemStatus.ToDo)
             .WithEstimation(9)
@@ -144,7 +174,8 @@ public sealed class BurndownSnapshotJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new BurndownSnapshotJob(_logger, _dbContext, _broadcastService);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         _logger.Received().Log(
             LogLevel.Warning,
@@ -158,6 +189,7 @@ public sealed class BurndownSnapshotJobTests : IDisposable
     public async Task ExecuteInternal_ActiveSprint_BroadcastsSignalR()
     {
         var sprint = SprintBuilder.New()
+            .WithProject(_project.Id)
             .Active()
             .WithDates(DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(11)))
             .Build();
@@ -169,17 +201,13 @@ public sealed class BurndownSnapshotJobTests : IDisposable
         _dbContext.JobExecutionMetrics.Add(metric);
         await _dbContext.SaveChangesAsync();
 
-        await _sut.ExecuteJobAsync(_jobContext, metric);
+        var sut = new BurndownSnapshotJob(_logger, _dbContext, _broadcastService);
+        await sut.ExecuteJobAsync(_jobContext, metric);
 
         await _broadcastService.Received(1).BroadcastToSprintAsync(
             sprint.Id,
             "burndown.updated",
             Arg.Any<object>(),
             Arg.Any<CancellationToken>());
-    }
-
-    public void Dispose()
-    {
-        _dbContext.Dispose();
     }
 }

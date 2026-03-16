@@ -1,78 +1,68 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Projects.ListProjects;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Projects;
 
-public sealed class ListProjectsTests
+[Collection("Projects")]
+public sealed class ListProjectsTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IProjectRepository _projectRepo = Substitute.For<IProjectRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public ListProjectsTests()
+    private async Task<Project> SeedProjectWithMembershipAsync(string? name = null)
     {
-        _currentUser.Id.Returns(ActorId);
+        var project = await SeedProjectAsync(b =>
+        {
+            if (name is not null) b.WithName(name);
+        });
+        DbContext.ProjectMemberships.Add(
+            ProjectMembershipBuilder.New()
+                .WithProject(project.Id)
+                .WithMember(SeedUserId)
+                .Build());
+        await DbContext.SaveChangesAsync();
+        return project;
     }
-
-    private ListProjectsHandler CreateHandler() => new(_projectRepo, _currentUser);
 
     [Fact]
     public async Task Handle_WithProjects_ReturnsPagedResult()
     {
-        var projects = new List<Project>
-        {
-            ProjectBuilder.New().WithName("Project A").Build(),
-            ProjectBuilder.New().WithName("Project B").Build()
-        };
-        _projectRepo.ListAsync(ActorId, Arg.Any<Guid?>(), Arg.Any<string?>(), Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>())
-            .Returns((projects, 2));
+        await SeedProjectWithMembershipAsync("Project A");
+        await SeedProjectWithMembershipAsync("Project B");
 
         var query = new ListProjectsQuery(null, null, null, 1, 20);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Items.Should().HaveCount(2);
-        result.Value.TotalCount.Should().Be(2);
+        result.Value.Items.Should().HaveCountGreaterThanOrEqualTo(2);
     }
 
     [Fact]
-    public async Task Handle_FilterByStatus_PassesStatusToRepository()
+    public async Task Handle_FilterByStatus_ReturnsOnlyMatchingProjects()
     {
-        _projectRepo.ListAsync(ActorId, Arg.Any<Guid?>(), "Active", Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>())
-            .Returns((new List<Project>(), 0));
+        await SeedProjectWithMembershipAsync("Active Project");
+        var archivedProject = await SeedProjectWithMembershipAsync("Archived Project");
+        archivedProject.Status = "Archived";
+        await DbContext.SaveChangesAsync();
 
         var query = new ListProjectsQuery(null, "Active", null, 1, 20);
-        await CreateHandler().Handle(query, CancellationToken.None);
+        var result = await Sender.Send(query);
 
-        await _projectRepo.Received(1).ListAsync(ActorId, null, "Active", null, 1, 20, Arg.Any<CancellationToken>());
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().OnlyContain(p => p.Status == "Active");
     }
 
     [Fact]
-    public async Task Handle_SearchByName_PassesSearchToRepository()
+    public async Task Handle_SearchByName_ReturnsMatchingProject()
     {
-        _projectRepo.ListAsync(ActorId, Arg.Any<Guid?>(), Arg.Any<string?>(), "alpha", 1, 20, Arg.Any<CancellationToken>())
-            .Returns((new List<Project>(), 0));
+        var uniqueName = "UniqueName_" + Guid.NewGuid().ToString("N")[..8];
+        await SeedProjectWithMembershipAsync(uniqueName);
 
-        var query = new ListProjectsQuery(null, null, "alpha", 1, 20);
-        await CreateHandler().Handle(query, CancellationToken.None);
+        var query = new ListProjectsQuery(null, null, uniqueName, 1, 20);
+        var result = await Sender.Send(query);
 
-        await _projectRepo.Received(1).ListAsync(ActorId, null, null, "alpha", 1, 20, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_PassesCurrentUserIdToRepository()
-    {
-        _projectRepo.ListAsync(ActorId, Arg.Any<Guid?>(), Arg.Any<string?>(), Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>())
-            .Returns((new List<Project>(), 0));
-
-        var query = new ListProjectsQuery(null, null, null, 1, 20);
-        await CreateHandler().Handle(query, CancellationToken.None);
-
-        await _projectRepo.Received(1).ListAsync(ActorId, Arg.Any<Guid?>(), Arg.Any<string?>(), Arg.Any<string?>(), 1, 20, Arg.Any<CancellationToken>());
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().Contain(p => p.Name == uniqueName);
     }
 }

@@ -1,70 +1,60 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Features.Notifications;
 using TeamFlow.Application.Features.Notifications.UpdatePreferences;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 
 namespace TeamFlow.Application.Tests.Features.Notifications;
 
-public sealed class UpdatePreferencesTests
+[Collection("Social")]
+public sealed class UpdatePreferencesTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly INotificationPreferenceRepository _repo = Substitute.For<INotificationPreferenceRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-
-    public UpdatePreferencesTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-    }
-
-    private UpdatePreferencesHandler CreateHandler() => new(_repo, _currentUser);
-
     [Fact]
     public async Task Handle_NewPreference_CreatesIt()
     {
-        _repo.GetByUserAndTypeAsync(ActorId, NotificationType.WorkItemAssigned, Arg.Any<CancellationToken>())
-            .Returns((NotificationPreference?)null);
-
         var prefs = new List<NotificationPreferenceDto>
         {
             new("WorkItemAssigned", false, true)
         };
 
-        var result = await CreateHandler().Handle(new UpdatePreferencesCommand(prefs), CancellationToken.None);
+        var result = await Sender.Send(new UpdatePreferencesCommand(prefs));
 
         result.IsSuccess.Should().BeTrue();
-        await _repo.Received(1).UpsertAsync(
-            Arg.Is<NotificationPreference>(p => p.NotificationType == NotificationType.WorkItemAssigned && !p.EmailEnabled),
-            Arg.Any<CancellationToken>());
+        var saved = await DbContext.Set<TeamFlow.Domain.Entities.NotificationPreference>()
+            .SingleOrDefaultAsync(p => p.UserId == SeedUserId && p.NotificationType == NotificationType.WorkItemAssigned);
+        saved.Should().NotBeNull();
+        saved!.EmailEnabled.Should().BeFalse();
+        saved.InAppEnabled.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_ExistingPreference_UpdatesIt()
     {
-        var existing = new NotificationPreference
-        {
-            UserId = ActorId,
-            NotificationType = NotificationType.WorkItemAssigned,
-            EmailEnabled = true,
-            InAppEnabled = true
-        };
-        _repo.GetByUserAndTypeAsync(ActorId, NotificationType.WorkItemAssigned, Arg.Any<CancellationToken>())
-            .Returns(existing);
+        DbContext.Set<TeamFlow.Domain.Entities.NotificationPreference>().Add(
+            new TeamFlow.Domain.Entities.NotificationPreference
+            {
+                UserId = SeedUserId,
+                NotificationType = NotificationType.WorkItemAssigned,
+                EmailEnabled = true,
+                InAppEnabled = true
+            }
+        );
+        await DbContext.SaveChangesAsync();
 
         var prefs = new List<NotificationPreferenceDto>
         {
             new("WorkItemAssigned", false, false)
         };
 
-        var result = await CreateHandler().Handle(new UpdatePreferencesCommand(prefs), CancellationToken.None);
+        var result = await Sender.Send(new UpdatePreferencesCommand(prefs));
 
         result.IsSuccess.Should().BeTrue();
-        await _repo.Received(1).UpsertAsync(
-            Arg.Is<NotificationPreference>(p => !p.EmailEnabled && !p.InAppEnabled),
-            Arg.Any<CancellationToken>());
+        var updated = await DbContext.Set<TeamFlow.Domain.Entities.NotificationPreference>()
+            .SingleAsync(p => p.UserId == SeedUserId && p.NotificationType == NotificationType.WorkItemAssigned);
+        updated.EmailEnabled.Should().BeFalse();
+        updated.InAppEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -75,7 +65,7 @@ public sealed class UpdatePreferencesTests
             new("InvalidType", false, true)
         };
 
-        var result = await CreateHandler().Handle(new UpdatePreferencesCommand(prefs), CancellationToken.None);
+        var result = await Sender.Send(new UpdatePreferencesCommand(prefs));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Invalid notification type");

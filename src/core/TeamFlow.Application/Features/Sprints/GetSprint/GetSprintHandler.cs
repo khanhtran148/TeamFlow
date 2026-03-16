@@ -31,7 +31,7 @@ public sealed class GetSprintHandler(
         var workItemDtos = items.Select(w => new WorkItemDto(
             w.Id, w.ProjectId, w.ParentId, w.Type, w.Title, w.Description,
             w.Status, w.Priority, w.EstimationValue, w.AssigneeId,
-            w.Assignee?.Name, w.SprintId, w.ReleaseId, 0, 0, w.SortOrder,
+            w.Assignee?.Name, w.AssignedAt, w.SprintId, w.ReleaseId, 0, 0, w.SortOrder,
             w.CreatedAt, w.UpdatedAt
         )).ToList();
 

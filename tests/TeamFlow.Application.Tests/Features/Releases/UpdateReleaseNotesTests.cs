@@ -1,69 +1,64 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Releases.UpdateReleaseNotes;
-using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Releases;
 
-public sealed class UpdateReleaseNotesTests
+[Collection("Releases")]
+public sealed class UpdateReleaseNotesTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IReleaseRepository _releaseRepo = Substitute.For<IReleaseRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    private static readonly Guid UserId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public UpdateReleaseNotesTests()
-    {
-        _currentUser.Id.Returns(UserId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-        _releaseRepo.UpdateAsync(Arg.Any<Release>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Release>());
-    }
-
-    private UpdateReleaseNotesHandler CreateHandler() =>
-        new(_releaseRepo, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_ValidRelease_UpdatesNotes()
     {
-        var release = ReleaseBuilder.New().WithProject(ProjectId).Build();
-        _releaseRepo.GetByIdAsync(release.Id, Arg.Any<CancellationToken>()).Returns(release);
+        var project = await SeedProjectAsync();
+        var release = ReleaseBuilder.New().WithProject(project.Id).Build();
+        DbContext.Releases.Add(release);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(
-            new UpdateReleaseNotesCommand(release.Id, "## Changes\n- Feature A"), CancellationToken.None);
+        var result = await Sender.Send(new UpdateReleaseNotesCommand(release.Id, "## Changes\n- Feature A"));
 
         result.IsSuccess.Should().BeTrue();
-        release.ReleaseNotes.Should().Be("## Changes\n- Feature A");
+
+        DbContext.ChangeTracker.Clear();
+        var updated = await DbContext.Releases.FindAsync(release.Id);
+        updated!.ReleaseNotes.Should().Be("## Changes\n- Feature A");
     }
 
     [Fact]
     public async Task Handle_NotesLocked_ReturnsFailure()
     {
-        var release = ReleaseBuilder.New().WithProject(ProjectId).WithNotesLocked().Build();
-        _releaseRepo.GetByIdAsync(release.Id, Arg.Any<CancellationToken>()).Returns(release);
+        var project = await SeedProjectAsync();
+        var release = ReleaseBuilder.New().WithProject(project.Id).WithNotesLocked().Build();
+        DbContext.Releases.Add(release);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(
-            new UpdateReleaseNotesCommand(release.Id, "New notes"), CancellationToken.None);
+        var result = await Sender.Send(new UpdateReleaseNotesCommand(release.Id, "New notes"));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("locked");
     }
+}
+
+[Collection("Releases")]
+public sealed class UpdateReleaseNotesDeniedTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+        => services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
 
     [Fact]
     public async Task Handle_NoPermission_ReturnsForbidden()
     {
-        var release = ReleaseBuilder.New().WithProject(ProjectId).Build();
-        _releaseRepo.GetByIdAsync(release.Id, Arg.Any<CancellationToken>()).Returns(release);
-        _permissions.HasPermissionAsync(UserId, ProjectId, Permission.Release_Edit, Arg.Any<CancellationToken>())
-            .Returns(false);
+        var project = await SeedProjectAsync();
+        var release = ReleaseBuilder.New().WithProject(project.Id).Build();
+        DbContext.Releases.Add(release);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(
-            new UpdateReleaseNotesCommand(release.Id, "Notes"), CancellationToken.None);
+        var result = await Sender.Send(new UpdateReleaseNotesCommand(release.Id, "Notes"));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Access denied");

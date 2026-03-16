@@ -1,53 +1,35 @@
 using FluentAssertions;
-using MediatR;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using TeamFlow.Application.Features.WorkItems.DeleteWorkItem;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.WorkItems;
 
-public sealed class DeleteWorkItemTests
+[Collection("WorkItems")]
+public sealed class DeleteWorkItemTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly IHistoryService _historyService = Substitute.For<IHistoryService>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
-
-    public DeleteWorkItemTests()
-    {
-        _currentUser.Id.Returns(Guid.NewGuid());
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private DeleteWorkItemHandler CreateHandler() =>
-        new(_workItemRepo, _historyService, _currentUser, _permissions, _publisher);
-
     [Fact]
     public async Task Handle_ExistingItem_SoftDeletes()
     {
-        var item = WorkItemBuilder.New().Build();
-        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
-        _workItemRepo.SoftDeleteCascadeAsync(item.Id, Arg.Any<CancellationToken>())
-            .Returns([item.Id]);
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        var result = await CreateHandler().Handle(new DeleteWorkItemCommand(item.Id), CancellationToken.None);
+        var result = await Sender.Send(new DeleteWorkItemCommand(item.Id));
 
         result.IsSuccess.Should().BeTrue();
-        await _workItemRepo.Received(1).SoftDeleteCascadeAsync(item.Id, Arg.Any<CancellationToken>());
+        DbContext.ChangeTracker.Clear();
+        // Soft-deleted item should not appear via normal query (has query filter for DeletedAt)
+        var found = await DbContext.WorkItems.AsNoTracking().FirstOrDefaultAsync(w => w.Id == item.Id);
+        found.Should().BeNull();
     }
 
     [Fact]
     public async Task Handle_NonExistentItem_ReturnsNotFound()
     {
-        var itemId = Guid.NewGuid();
-        _workItemRepo.GetByIdAsync(itemId, Arg.Any<CancellationToken>()).Returns((WorkItem?)null);
-
-        var result = await CreateHandler().Handle(new DeleteWorkItemCommand(itemId), CancellationToken.None);
+        var result = await Sender.Send(new DeleteWorkItemCommand(Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not found");
@@ -56,16 +38,17 @@ public sealed class DeleteWorkItemTests
     [Fact]
     public async Task Handle_DeleteEpic_RecordsHistoryForEachDeleted()
     {
-        var epic = WorkItemBuilder.New().AsEpic().Build();
-        var storyId = Guid.NewGuid();
-        _workItemRepo.GetByIdAsync(epic.Id, Arg.Any<CancellationToken>()).Returns(epic);
-        _workItemRepo.SoftDeleteCascadeAsync(epic.Id, Arg.Any<CancellationToken>())
-            .Returns([epic.Id, storyId]);
+        var project = await SeedProjectAsync();
+        // Create epic then a child story
+        var epic = await SeedWorkItemAsync(project.Id, b => b.AsEpic());
+        var story = await SeedWorkItemAsync(project.Id, b => b.WithType(WorkItemType.UserStory).WithParent(epic.Id));
 
-        await CreateHandler().Handle(new DeleteWorkItemCommand(epic.Id), CancellationToken.None);
+        await Sender.Send(new DeleteWorkItemCommand(epic.Id));
 
-        await _historyService.Received(2).RecordAsync(
-            Arg.Any<WorkItemHistoryEntry>(),
-            Arg.Any<CancellationToken>());
+        DbContext.ChangeTracker.Clear();
+        var historyEntries = await DbContext.Set<Domain.Entities.WorkItemHistory>()
+            .Where(h => (h.WorkItemId == epic.Id || h.WorkItemId == story.Id) && h.ActionType == "Deleted")
+            .ToListAsync();
+        historyEntries.Should().HaveCount(2);
     }
 }

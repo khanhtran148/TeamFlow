@@ -99,6 +99,7 @@ public sealed class GetKanbanBoardHandler(
             item.Priority,
             item.AssigneeId,
             item.Assignee?.Name,
+            item.AssignedAt,
             item.ParentId,
             item.Parent?.Title,
             blockedIds.Contains(item.Id),

@@ -1,86 +1,65 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Admin.TransferOrgOwnership;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Admin;
 
-public sealed class TransferOrgOwnershipTests
+[Collection("Auth")]
+public sealed class TransferOrgOwnershipTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IOrganizationRepository _orgRepo = Substitute.For<IOrganizationRepository>();
-    private readonly IOrganizationMemberRepository _memberRepo = Substitute.For<IOrganizationMemberRepository>();
-    private readonly IUserRepository _userRepo = Substitute.For<IUserRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private AdminTransferOrgOwnershipHandler CreateHandler() =>
-        new(_orgRepo, _memberRepo, _userRepo, _currentUser);
-
-    private void SetupSystemAdmin() =>
-        _currentUser.SystemRole.Returns(SystemRole.SystemAdmin);
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<ICurrentUser>(_ => new TestAdminCurrentUser(SeedUserId));
+    }
 
     [Fact]
     public async Task Handle_SystemAdmin_TransfersOwnershipSuccessfully()
     {
-        SetupSystemAdmin();
         var org = OrganizationBuilder.New().Build();
-        var currentOwnerUser = UserBuilder.New().Build();
-        var newOwnerUser = UserBuilder.New().Build();
+        var currentOwner = UserBuilder.New().WithEmail("too-owner@example.com").Build();
+        var newOwner = UserBuilder.New().WithEmail("too-newowner@example.com").Build();
+        DbContext.Set<Organization>().Add(org);
+        DbContext.Set<User>().AddRange(currentOwner, newOwner);
+        await DbContext.SaveChangesAsync();
 
-        var ownerMembership = new OrganizationMember
-        {
-            OrganizationId = org.Id,
-            UserId = currentOwnerUser.Id,
-            Role = OrgRole.Owner
-        };
-        var newOwnerMembership = new OrganizationMember
-        {
-            OrganizationId = org.Id,
-            UserId = newOwnerUser.Id,
-            Role = OrgRole.Admin
-        };
+        DbContext.Set<OrganizationMember>().AddRange(
+            new OrganizationMember { OrganizationId = org.Id, UserId = currentOwner.Id, Role = OrgRole.Owner },
+            new OrganizationMember { OrganizationId = org.Id, UserId = newOwner.Id, Role = OrgRole.Admin }
+        );
+        await DbContext.SaveChangesAsync();
 
-        _orgRepo.GetByIdAsync(org.Id, Arg.Any<CancellationToken>()).Returns(org);
-        _userRepo.GetByIdAsync(newOwnerUser.Id, Arg.Any<CancellationToken>()).Returns(newOwnerUser);
-        _memberRepo.GetByOrgAndUserAsync(org.Id, newOwnerUser.Id, Arg.Any<CancellationToken>())
-            .Returns(newOwnerMembership);
-        _memberRepo.GetByOrgAndUserAsync(org.Id, Arg.Is<Guid>(id => id != newOwnerUser.Id), Arg.Any<CancellationToken>())
-            .Returns(ownerMembership);
-
-        // Simulate finding current owner via listing
-        _memberRepo.ListByOrgWithUsersAsync(org.Id, Arg.Any<CancellationToken>())
-            .Returns(new List<(OrganizationMember, User)>
-            {
-                (ownerMembership, currentOwnerUser),
-                (newOwnerMembership, newOwnerUser)
-            });
-
-        var cmd = new AdminTransferOrgOwnershipCommand(org.Id, newOwnerUser.Id);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminTransferOrgOwnershipCommand(org.Id, newOwner.Id));
 
         result.IsSuccess.Should().BeTrue();
+
+        var newOwnerMembership = await DbContext.Set<OrganizationMember>()
+            .Where(m => m.OrganizationId == org.Id && m.UserId == newOwner.Id)
+            .SingleAsync();
         newOwnerMembership.Role.Should().Be(OrgRole.Owner);
-        ownerMembership.Role.Should().Be(OrgRole.Admin);
+
+        var oldOwnerMembership = await DbContext.Set<OrganizationMember>()
+            .Where(m => m.OrganizationId == org.Id && m.UserId == currentOwner.Id)
+            .SingleAsync();
+        oldOwnerMembership.Role.Should().Be(OrgRole.Admin);
     }
 
     [Fact]
     public async Task Handle_NewOwnerNotMember_ReturnsBadRequest()
     {
-        SetupSystemAdmin();
         var org = OrganizationBuilder.New().Build();
-        var newOwnerUser = UserBuilder.New().Build();
+        var newOwner = UserBuilder.New().WithEmail("too-notmember@example.com").Build();
+        DbContext.Set<Organization>().Add(org);
+        DbContext.Set<User>().Add(newOwner);
+        await DbContext.SaveChangesAsync();
 
-        _orgRepo.GetByIdAsync(org.Id, Arg.Any<CancellationToken>()).Returns(org);
-        _userRepo.GetByIdAsync(newOwnerUser.Id, Arg.Any<CancellationToken>()).Returns(newOwnerUser);
-        _memberRepo.GetByOrgAndUserAsync(org.Id, newOwnerUser.Id, Arg.Any<CancellationToken>())
-            .Returns((OrganizationMember?)null);
-
-        var cmd = new AdminTransferOrgOwnershipCommand(org.Id, newOwnerUser.Id);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminTransferOrgOwnershipCommand(org.Id, newOwner.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.ToLowerInvariant().Should().Contain("not a member");
@@ -89,52 +68,30 @@ public sealed class TransferOrgOwnershipTests
     [Fact]
     public async Task Handle_NewOwnerIsAlreadyOwner_ReturnsBadRequest()
     {
-        SetupSystemAdmin();
         var org = OrganizationBuilder.New().Build();
-        var ownerUser = UserBuilder.New().Build();
+        var ownerUser = UserBuilder.New().WithEmail("too-alreadyowner@example.com").Build();
+        DbContext.Set<Organization>().Add(org);
+        DbContext.Set<User>().Add(ownerUser);
+        await DbContext.SaveChangesAsync();
 
-        var ownerMembership = new OrganizationMember
-        {
-            OrganizationId = org.Id,
-            UserId = ownerUser.Id,
-            Role = OrgRole.Owner
-        };
+        DbContext.Set<OrganizationMember>().Add(
+            new OrganizationMember { OrganizationId = org.Id, UserId = ownerUser.Id, Role = OrgRole.Owner });
+        await DbContext.SaveChangesAsync();
 
-        _orgRepo.GetByIdAsync(org.Id, Arg.Any<CancellationToken>()).Returns(org);
-        _userRepo.GetByIdAsync(ownerUser.Id, Arg.Any<CancellationToken>()).Returns(ownerUser);
-        _memberRepo.GetByOrgAndUserAsync(org.Id, ownerUser.Id, Arg.Any<CancellationToken>())
-            .Returns(ownerMembership);
-
-        var cmd = new AdminTransferOrgOwnershipCommand(org.Id, ownerUser.Id);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminTransferOrgOwnershipCommand(org.Id, ownerUser.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.ToLowerInvariant().Should().Contain("already the owner");
     }
 
-    [Theory]
-    [InlineData(SystemRole.User)]
-    public async Task Handle_NonSystemAdmin_ReturnsForbidden(SystemRole role)
-    {
-        _currentUser.SystemRole.Returns(role);
-        var cmd = new AdminTransferOrgOwnershipCommand(Guid.NewGuid(), Guid.NewGuid());
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.ToLowerInvariant().Should().Contain("forbidden");
-    }
-
     [Fact]
     public async Task Handle_OrgNotFound_ReturnsNotFound()
     {
-        SetupSystemAdmin();
-        var orgId = Guid.NewGuid();
-        _orgRepo.GetByIdAsync(orgId, Arg.Any<CancellationToken>()).Returns((Organization?)null);
-        var cmd = new AdminTransferOrgOwnershipCommand(orgId, Guid.NewGuid());
+        var newOwner = UserBuilder.New().WithEmail("too-orgnotfound@example.com").Build();
+        DbContext.Set<User>().Add(newOwner);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminTransferOrgOwnershipCommand(Guid.NewGuid(), newOwner.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.ToLowerInvariant().Should().Contain("not found");
@@ -143,16 +100,11 @@ public sealed class TransferOrgOwnershipTests
     [Fact]
     public async Task Handle_NewOwnerUserNotFound_ReturnsNotFound()
     {
-        SetupSystemAdmin();
         var org = OrganizationBuilder.New().Build();
-        var newOwnerUserId = Guid.NewGuid();
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        _orgRepo.GetByIdAsync(org.Id, Arg.Any<CancellationToken>()).Returns(org);
-        _userRepo.GetByIdAsync(newOwnerUserId, Arg.Any<CancellationToken>()).Returns((User?)null);
-
-        var cmd = new AdminTransferOrgOwnershipCommand(org.Id, newOwnerUserId);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminTransferOrgOwnershipCommand(org.Id, Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.ToLowerInvariant().Should().Contain("not found");
@@ -163,9 +115,7 @@ public sealed class TransferOrgOwnershipTests
     {
         var validator = new AdminTransferOrgOwnershipValidator();
         var cmd = new AdminTransferOrgOwnershipCommand(Guid.Empty, Guid.NewGuid());
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeFalse();
     }
 
@@ -174,9 +124,7 @@ public sealed class TransferOrgOwnershipTests
     {
         var validator = new AdminTransferOrgOwnershipValidator();
         var cmd = new AdminTransferOrgOwnershipCommand(Guid.NewGuid(), Guid.Empty);
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeFalse();
     }
 
@@ -185,9 +133,21 @@ public sealed class TransferOrgOwnershipTests
     {
         var validator = new AdminTransferOrgOwnershipValidator();
         var cmd = new AdminTransferOrgOwnershipCommand(Guid.NewGuid(), Guid.NewGuid());
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeTrue();
+    }
+}
+
+[Collection("Auth")]
+public sealed class TransferOrgOwnershipForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    [Fact]
+    public async Task Handle_NonSystemAdmin_ReturnsForbidden()
+    {
+        var result = await Sender.Send(new AdminTransferOrgOwnershipCommand(Guid.NewGuid(), Guid.NewGuid()));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.ToLowerInvariant().Should().Contain("forbidden");
     }
 }

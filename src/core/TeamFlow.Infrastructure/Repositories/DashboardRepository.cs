@@ -39,11 +39,15 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
     public async Task<CumulativeFlowDto> GetCumulativeFlowDataAsync(
         Guid projectId, DateOnly fromDate, DateOnly toDate, CancellationToken ct = default)
     {
-        var burndownPoints = await context.BurndownDataPoints
+        var rawPoints = await context.BurndownDataPoints
             .AsNoTracking()
             .Where(b => b.Sprint!.ProjectId == projectId
                 && b.RecordedDate >= fromDate
                 && b.RecordedDate <= toDate)
+            .Select(b => new { b.RecordedDate, b.RemainingPoints, b.CompletedPoints })
+            .ToListAsync(ct);
+
+        var burndownPoints = rawPoints
             .GroupBy(b => b.RecordedDate)
             .Select(g => new CumulativeFlowPointDto(
                 g.Key,
@@ -53,7 +57,7 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
                 g.Sum(b => b.CompletedPoints)
             ))
             .OrderBy(p => p.Date)
-            .ToListAsync(ct);
+            .ToList();
 
         return new CumulativeFlowDto(burndownPoints);
     }
@@ -115,19 +119,29 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
     public async Task<WorkloadHeatmapDto> GetWorkloadDataAsync(
         Guid projectId, CancellationToken ct = default)
     {
-        var members = await context.WorkItems
+        var rawItems = await context.WorkItems
             .AsNoTracking()
             .Where(w => w.ProjectId == projectId && w.AssigneeId.HasValue)
-            .GroupBy(w => new { w.AssigneeId, w.Assignee!.Name })
+            .Select(w => new
+            {
+                w.AssigneeId,
+                AssigneeName = w.Assignee!.Name,
+                w.Status,
+                w.EstimationValue
+            })
+            .ToListAsync(ct);
+
+        var members = rawItems
+            .GroupBy(w => new { w.AssigneeId, w.AssigneeName })
             .Select(g => new WorkloadMemberDto(
                 g.Key.AssigneeId!.Value,
-                g.Key.Name,
+                g.Key.AssigneeName,
                 g.Count(),
                 g.Count(w => w.Status == WorkItemStatus.InProgress),
                 g.Sum(w => w.EstimationValue ?? 0)
             ))
             .OrderByDescending(m => m.AssignedCount)
-            .ToListAsync(ct);
+            .ToList();
 
         return new WorkloadHeatmapDto(members);
     }
@@ -137,34 +151,34 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
     {
         var staleThreshold = DateTime.UtcNow.AddDays(-14);
 
-        // Run all independent queries in parallel
-        var activeSprintTask = context.Sprints
+        // Single query for all work item aggregates to avoid multiple round-trips
+        var itemAggregates = await context.WorkItems
+            .AsNoTracking()
+            .Where(w => w.ProjectId == projectId)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Open = g.Count(w => w.Status != WorkItemStatus.Done && w.Status != WorkItemStatus.Rejected),
+                Stale = g.Count(w => w.Status == WorkItemStatus.InProgress && w.UpdatedAt < staleThreshold)
+            })
+            .FirstOrDefaultAsync(ct);
+
+        var totalItems = itemAggregates?.Total ?? 0;
+        var openItems = itemAggregates?.Open ?? 0;
+        var staleItems = itemAggregates?.Stale ?? 0;
+
+        var activeSprint = await context.Sprints
             .AsNoTracking()
             .Where(s => s.ProjectId == projectId && s.Status == SprintStatus.Active)
             .Select(s => new { s.Id, s.Name })
             .FirstOrDefaultAsync(ct);
 
-        var totalItemsTask = context.WorkItems
-            .AsNoTracking()
-            .CountAsync(w => w.ProjectId == projectId, ct);
-
-        var openItemsTask = context.WorkItems
-            .AsNoTracking()
-            .CountAsync(w => w.ProjectId == projectId
-                && w.Status != WorkItemStatus.Done
-                && w.Status != WorkItemStatus.Rejected, ct);
-
-        var overdueReleasesTask = context.Releases
+        var overdueReleases = await context.Releases
             .AsNoTracking()
             .CountAsync(r => r.ProjectId == projectId && r.Status == ReleaseStatus.Overdue, ct);
 
-        var staleItemsTask = context.WorkItems
-            .AsNoTracking()
-            .CountAsync(w => w.ProjectId == projectId
-                && w.Status == WorkItemStatus.InProgress
-                && w.UpdatedAt < staleThreshold, ct);
-
-        var velocity3AvgTask = context.TeamVelocityHistories
+        var velocity3Avg = await context.TeamVelocityHistories
             .AsNoTracking()
             .Where(v => v.ProjectId == projectId)
             .OrderByDescending(v => v.RecordedAt)
@@ -172,12 +186,6 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
             .Select(v => v.Velocity3SprintAvg)
             .FirstOrDefaultAsync(ct);
 
-        await Task.WhenAll(activeSprintTask, totalItemsTask, openItemsTask,
-            overdueReleasesTask, staleItemsTask, velocity3AvgTask);
-
-        var activeSprint = await activeSprintTask;
-        var totalItems = await totalItemsTask;
-        var openItems = await openItemsTask;
         var completionPct = totalItems > 0 ? Math.Round((double)(totalItems - openItems) / totalItems, 3) : 0;
 
         return new DashboardSummaryDto(
@@ -186,9 +194,9 @@ public sealed class DashboardRepository(TeamFlowDbContext context) : IDashboardR
             totalItems,
             openItems,
             completionPct,
-            await overdueReleasesTask,
-            await staleItemsTask,
-            (decimal)(await velocity3AvgTask ?? 0)
+            overdueReleases,
+            staleItems,
+            (decimal)(velocity3Avg ?? 0)
         );
     }
 

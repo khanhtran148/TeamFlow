@@ -1,50 +1,39 @@
-using CSharpFunctionalExtensions;
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
-using TeamFlow.Application.Features.Teams;
 using TeamFlow.Application.Features.Teams.ListTeams;
-using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Teams;
 
-public sealed class ListTeamsTests
+[Collection("Projects")]
+public sealed class ListTeamsTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly ITeamRepository _teamRepo = Substitute.For<ITeamRepository>();
-
-    private ListTeamsHandler CreateHandler() => new(_teamRepo);
-
     [Fact]
     public async Task Handle_ValidQuery_ReturnsPaginatedTeams()
     {
-        var orgId = Guid.NewGuid();
-        var teams = new[]
-        {
-            TeamBuilder.New().WithOrganization(orgId).WithName("Alpha").Build(),
-            TeamBuilder.New().WithOrganization(orgId).WithName("Beta").Build()
-        };
+        var team1 = TeamBuilder.New().WithOrganization(SeedOrgId).WithName("Alpha").Build();
+        var team2 = TeamBuilder.New().WithOrganization(SeedOrgId).WithName("Beta").Build();
+        DbContext.Teams.AddRange(team1, team2);
+        await DbContext.SaveChangesAsync();
 
-        _teamRepo.ListByOrgAsync(orgId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((teams.AsEnumerable(), 2));
-
-        var query = new ListTeamsQuery(orgId, 1, 20);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var query = new ListTeamsQuery(SeedOrgId, 1, 20);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.TotalCount.Should().Be(2);
-        result.Value.Items.Should().HaveCount(2);
+        result.Value.TotalCount.Should().BeGreaterThanOrEqualTo(2);
+        result.Value.Items.Should().HaveCountGreaterThanOrEqualTo(2);
     }
 
     [Fact]
     public async Task Handle_EmptyOrg_ReturnsEmptyList()
     {
-        var orgId = Guid.NewGuid();
-        _teamRepo.ListByOrgAsync(orgId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((Enumerable.Empty<Team>(), 0));
+        var emptyOrg = OrganizationBuilder.New().Build();
+        DbContext.Organizations.Add(emptyOrg);
+        await DbContext.SaveChangesAsync();
 
-        var query = new ListTeamsQuery(orgId, 1, 20);
-        var result = await CreateHandler().Handle(query, CancellationToken.None);
+        var query = new ListTeamsQuery(emptyOrg.Id, 1, 20);
+        var result = await Sender.Send(query);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().BeEmpty();

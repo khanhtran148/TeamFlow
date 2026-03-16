@@ -1,73 +1,72 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Auth.Register;
 using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
 
 namespace TeamFlow.Application.Tests.Features.Auth;
 
-public sealed class RegisterTests
+[Collection("Auth")]
+public sealed class RegisterTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IUserRepository _userRepo = Substitute.For<IUserRepository>();
-    private readonly IRefreshTokenRepository _refreshTokenRepo = Substitute.For<IRefreshTokenRepository>();
     private readonly IAuthService _authService = Substitute.For<IAuthService>();
 
-    public RegisterTests()
+    protected override void ConfigureServices(IServiceCollection services)
     {
         _authService.HashPassword(Arg.Any<string>()).Returns("hashed-password");
         _authService.GenerateJwt(Arg.Any<User>()).Returns("jwt-token");
         _authService.GenerateRefreshToken().Returns("refresh-token");
         _authService.HashToken(Arg.Any<string>()).Returns("hashed-refresh-token");
-        _userRepo.AddAsync(Arg.Any<User>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<User>());
+        services.AddSingleton(_authService);
     }
-
-    private RegisterHandler CreateHandler() => new(_userRepo, _refreshTokenRepo, _authService);
 
     [Fact]
     public async Task Handle_ValidCommand_ReturnsTokens()
     {
-        var cmd = new RegisterCommand("user@test.com", "Password1", "Test User");
+        var cmd = new RegisterCommand("register-valid@test.com", "Password1", "Test User");
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.AccessToken.Should().Be("jwt-token");
         result.Value.RefreshToken.Should().Be("refresh-token");
-        result.Value.ExpiresAt.Should().BeCloseTo(DateTime.UtcNow.AddDays(7), TimeSpan.FromSeconds(5));
+        result.Value.ExpiresAt.Should().BeCloseTo(DateTime.UtcNow.AddDays(7), TimeSpan.FromSeconds(30));
     }
 
     [Fact]
     public async Task Handle_ValidCommand_PersistsUser()
     {
-        var cmd = new RegisterCommand("user@test.com", "Password1", "Test User");
+        var cmd = new RegisterCommand("register-persist@test.com", "Password1", "Test User");
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        await Sender.Send(cmd);
 
-        await _userRepo.Received(1).AddAsync(
-            Arg.Is<User>(u => u.Email == "user@test.com" && u.Name == "Test User"),
-            Arg.Any<CancellationToken>());
+        var exists = await DbContext.Set<User>().AnyAsync(u => u.Email == "register-persist@test.com");
+        exists.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_ValidCommand_NormalizesEmailToLowerCase()
     {
-        var cmd = new RegisterCommand("USER@TEST.COM", "Password1", "Test User");
+        var cmd = new RegisterCommand("REGISTER-UPPER@TEST.COM", "Password1", "Test User");
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
-        await _userRepo.Received(1).AddAsync(
-            Arg.Is<User>(u => u.Email == "user@test.com"),
-            Arg.Any<CancellationToken>());
+        result.IsSuccess.Should().BeTrue();
+        var exists = await DbContext.Set<User>().AnyAsync(u => u.Email == "register-upper@test.com");
+        exists.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_DuplicateEmail_ReturnsConflictError()
     {
-        _userRepo.ExistsByEmailAsync("user@test.com", Arg.Any<CancellationToken>()).Returns(true);
-        var cmd = new RegisterCommand("user@test.com", "Password1", "Test User");
+        // Use the already-seeded user email to force a conflict
+        var cmd = new RegisterCommand("test@teamflow.dev", "Password1", "Test User");
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("already exists");

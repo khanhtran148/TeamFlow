@@ -1,73 +1,27 @@
-using CSharpFunctionalExtensions;
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Errors;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Projects.CreateProject;
-using TeamFlow.Domain.Entities;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Projects;
 
-public sealed class CreateProjectTests
+[Collection("Projects")]
+public sealed class CreateProjectTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IProjectRepository _projectRepo = Substitute.For<IProjectRepository>();
-    private readonly IProjectMembershipRepository _membershipRepo = Substitute.For<IProjectMembershipRepository>();
-    private readonly IHistoryService _historyService = Substitute.For<IHistoryService>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-
-    public CreateProjectTests()
-    {
-        _currentUser.Id.Returns(Guid.NewGuid());
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private CreateProjectHandler CreateHandler() =>
-        new(_projectRepo, _membershipRepo, _historyService, _currentUser, _permissions);
-
     [Fact]
     public async Task Handle_ValidCommand_ReturnsSuccessWithProjectDto()
     {
-        var orgId = Guid.NewGuid();
-        var cmd = new CreateProjectCommand(orgId, "My Project", "Some description");
-        _projectRepo.AddAsync(Arg.Any<Project>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Project>());
+        var cmd = new CreateProjectCommand(SeedOrgId, "My Project", "Some description");
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Name.Should().Be("My Project");
-        result.Value.OrgId.Should().Be(orgId);
+        result.Value.OrgId.Should().Be(SeedOrgId);
         result.Value.Status.Should().Be("Active");
-    }
-
-    [Fact]
-    public async Task Handle_InsufficientPermission_ReturnsForbidden()
-    {
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        var cmd = new CreateProjectCommand(Guid.NewGuid(), "My Project", null);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be("Access denied");
-        await _projectRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
-    }
-
-    [Fact]
-    public async Task Handle_PermissionCheckedAgainstOrgId()
-    {
-        var orgId = Guid.NewGuid();
-        var cmd = new CreateProjectCommand(orgId, "My Project", null);
-        _projectRepo.AddAsync(Arg.Any<Project>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Project>());
-
-        await CreateHandler().Handle(cmd, CancellationToken.None);
-
-        await _permissions.Received(1)
-            .HasPermissionAsync(_currentUser.Id, orgId, Permission.Org_Admin, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -75,9 +29,8 @@ public sealed class CreateProjectTests
     [InlineData(null)]
     public async Task Handle_EmptyName_ReturnsValidationError(string? name)
     {
-        var orgId = Guid.NewGuid();
         var validator = new CreateProjectValidator();
-        var cmd = new CreateProjectCommand(orgId, name!, null);
+        var cmd = new CreateProjectCommand(SeedOrgId, name!, null);
 
         var validationResult = await validator.ValidateAsync(cmd);
 
@@ -95,18 +48,25 @@ public sealed class CreateProjectTests
 
         validationResult.IsValid.Should().BeFalse();
     }
+}
+
+[Collection("Projects")]
+public sealed class CreateProjectForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
+    }
 
     [Fact]
-    public async Task Handle_ValidCommand_RecordsHistory()
+    public async Task Handle_InsufficientPermission_ReturnsForbidden()
     {
-        var orgId = Guid.NewGuid();
-        var cmd = new CreateProjectCommand(orgId, "My Project", null);
-        _projectRepo.AddAsync(Arg.Any<Project>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<Project>());
+        var cmd = new CreateProjectCommand(SeedOrgId, "My Project", null);
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(cmd);
 
-        await _historyService.DidNotReceiveWithAnyArgs().RecordAsync(default!);
-        // Project creation doesn't log work-item history (only work items do)
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be("Access denied");
     }
 }

@@ -23,5 +23,6 @@ public interface IRetroSessionRepository
     Task<RetroVote> UpdateVoteAsync(RetroVote vote, CancellationToken ct = default);
     Task<int> GetTotalVoteCountForUserInSessionAsync(Guid sessionId, Guid voterId, CancellationToken ct = default);
     Task<RetroActionItem> AddActionItemAsync(RetroActionItem actionItem, CancellationToken ct = default);
+    Task<RetroActionItem> UpdateActionItemAsync(RetroActionItem actionItem, CancellationToken ct = default);
     Task<IEnumerable<RetroActionItem>> GetActionItemsBySessionAsync(Guid sessionId, CancellationToken ct = default);
 }

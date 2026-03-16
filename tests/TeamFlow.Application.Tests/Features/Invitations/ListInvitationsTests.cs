@@ -1,49 +1,48 @@
 using FluentAssertions;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Invitations;
 using TeamFlow.Application.Features.Invitations.List;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Invitations;
 
-public sealed class ListInvitationsTests
+[Collection("Auth")]
+public sealed class ListInvitationsTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IInvitationRepository _invitationRepo = Substitute.For<IInvitationRepository>();
-    private readonly IOrganizationMemberRepository _memberRepo = Substitute.For<IOrganizationMemberRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly Guid _orgId = Guid.NewGuid();
-    private readonly Guid _userId = Guid.NewGuid();
-
-    public ListInvitationsTests()
+    private async Task<Organization> SeedOrgWithMemberAsync(OrgRole role)
     {
-        _currentUser.Id.Returns(_userId);
-    }
+        var org = OrganizationBuilder.New().Build();
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-    private ListInvitationsHandler CreateHandler() =>
-        new(_invitationRepo, _memberRepo, _currentUser);
+        DbContext.Set<OrganizationMember>().Add(new OrganizationMember
+        {
+            OrganizationId = org.Id,
+            UserId = SeedUserId,
+            Role = role
+        });
+        await DbContext.SaveChangesAsync();
+
+        return org;
+    }
 
     [Theory]
     [InlineData(OrgRole.Owner)]
     [InlineData(OrgRole.Admin)]
     public async Task Handle_OrgOwnerOrAdmin_ReturnsInvitations(OrgRole role)
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>()).Returns(role);
-        _invitationRepo.ListByOrgAsync(_orgId, Arg.Any<CancellationToken>())
-            .Returns([
-                new Invitation
-                {
-                    OrganizationId = _orgId,
-                    InvitedByUserId = _userId,
-                    Role = OrgRole.Member,
-                    TokenHash = "hash1",
-                    Status = InviteStatus.Pending,
-                    ExpiresAt = DateTime.UtcNow.AddDays(7)
-                }
-            ]);
+        var org = await SeedOrgWithMemberAsync(role);
+        DbContext.Set<Invitation>().Add(InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithStatus(InviteStatus.Pending)
+            .Build());
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new ListInvitationsQuery(_orgId), CancellationToken.None);
+        var result = await Sender.Send(new ListInvitationsQuery(org.Id));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().HaveCount(1);
@@ -52,9 +51,9 @@ public sealed class ListInvitationsTests
     [Fact]
     public async Task Handle_OrgMember_ReturnsForbidden()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>()).Returns(OrgRole.Member);
+        var org = await SeedOrgWithMemberAsync(OrgRole.Member);
 
-        var result = await CreateHandler().Handle(new ListInvitationsQuery(_orgId), CancellationToken.None);
+        var result = await Sender.Send(new ListInvitationsQuery(org.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Owner or Admin");
@@ -63,9 +62,11 @@ public sealed class ListInvitationsTests
     [Fact]
     public async Task Handle_NonMember_ReturnsForbidden()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>()).Returns((OrgRole?)null);
+        var org = OrganizationBuilder.New().Build();
+        DbContext.Set<Organization>().Add(org);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new ListInvitationsQuery(_orgId), CancellationToken.None);
+        var result = await Sender.Send(new ListInvitationsQuery(org.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Owner or Admin");
@@ -74,21 +75,17 @@ public sealed class ListInvitationsTests
     [Fact]
     public async Task Handle_OrgOwner_ReturnsMappedDtos()
     {
-        _memberRepo.GetMemberRoleAsync(_orgId, _userId, Arg.Any<CancellationToken>()).Returns(OrgRole.Owner);
-        var invitation = new Invitation
-        {
-            OrganizationId = _orgId,
-            InvitedByUserId = _userId,
-            Email = "user@example.com",
-            Role = OrgRole.Admin,
-            TokenHash = "hashval",
-            Status = InviteStatus.Pending,
-            ExpiresAt = DateTime.UtcNow.AddDays(7)
-        };
-        _invitationRepo.ListByOrgAsync(_orgId, Arg.Any<CancellationToken>())
-            .Returns([invitation]);
+        var org = await SeedOrgWithMemberAsync(OrgRole.Owner);
+        DbContext.Set<Invitation>().Add(InvitationBuilder.New()
+            .WithOrganization(org.Id)
+            .WithInvitedBy(SeedUserId)
+            .WithEmail("user@example.com")
+            .WithRole(OrgRole.Admin)
+            .WithStatus(InviteStatus.Pending)
+            .Build());
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new ListInvitationsQuery(_orgId), CancellationToken.None);
+        var result = await Sender.Send(new ListInvitationsQuery(org.Id));
 
         result.IsSuccess.Should().BeTrue();
         var dto = result.Value.Single();

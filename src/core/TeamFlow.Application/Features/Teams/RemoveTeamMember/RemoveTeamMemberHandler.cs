@@ -23,8 +23,7 @@ public sealed class RemoveTeamMemberHandler(
         if (member is null)
             return Result.Failure("Team member not found");
 
-        team.Members.Remove(member);
-        await teamRepository.UpdateAsync(team, ct);
+        await teamRepository.RemoveMemberAsync(member, ct);
 
         return Result.Success();
     }

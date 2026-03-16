@@ -35,6 +35,8 @@ public sealed class CreateRetroActionItemHandler(
             DueDate = request.DueDate
         };
 
+        await retroRepo.AddActionItemAsync(actionItem, ct);
+
         if (request.LinkToBacklog)
         {
             var workItem = new WorkItem
@@ -48,9 +50,8 @@ public sealed class CreateRetroActionItemHandler(
 
             var created = await workItemRepo.AddAsync(workItem, ct);
             actionItem.LinkedTaskId = created.Id;
+            await retroRepo.UpdateActionItemAsync(actionItem, ct);
         }
-
-        await retroRepo.AddActionItemAsync(actionItem, ct);
 
         await publisher.Publish(new RetroActionItemCreatedDomainEvent(
             session.Id, actionItem.Id, actionItem.Title, actionItem.AssigneeId, currentUser.Id), ct);

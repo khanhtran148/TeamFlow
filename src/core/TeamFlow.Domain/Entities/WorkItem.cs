@@ -22,6 +22,7 @@ public class WorkItem : BaseEntity
 
     // Assignments
     public Guid? AssigneeId { get; set; }
+    public DateTime? AssignedAt { get; set; }
     public Guid? SprintId { get; set; }
     public Guid? ReleaseId { get; set; }
 

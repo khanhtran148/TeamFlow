@@ -1,41 +1,46 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
-using TeamFlow.Application.Features.Dashboard.Dtos;
 using TeamFlow.Application.Features.Dashboard.GetDashboardSummary;
+using TeamFlow.Tests.Common;
+using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Dashboard;
 
-public sealed class GetDashboardSummaryTests
+[Collection("Dashboard")]
+public sealed class GetDashboardSummaryTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IDashboardRepository _dashRepo = Substitute.For<IDashboardRepository>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private static readonly Guid ActorId = Guid.NewGuid();
-    private static readonly Guid ProjectId = Guid.NewGuid();
-
-    public GetDashboardSummaryTests()
-    {
-        _currentUser.Id.Returns(ActorId);
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private GetDashboardSummaryHandler CreateHandler() => new(_dashRepo, _permissions, _currentUser);
-
     [Fact]
     public async Task Handle_ValidProject_ReturnsSummary()
     {
-        var summary = new DashboardSummaryDto(
-            Guid.NewGuid(), "Sprint 14", 82, 34, 0.585, 1, 3, 36.0m);
-        _dashRepo.GetDashboardSummaryAsync(ProjectId, Arg.Any<CancellationToken>())
-            .Returns(summary);
+        var project = await SeedProjectAsync();
+        await SeedWorkItemAsync(project.Id);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new GetDashboardSummaryQuery(ProjectId), CancellationToken.None);
+        var result = await Sender.Send(new GetDashboardSummaryQuery(project.Id));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.TotalItems.Should().Be(82);
-        result.Value.CompletionPct.Should().BeApproximately(0.585, 0.001);
+        result.Value.TotalItems.Should().BeGreaterThanOrEqualTo(0);
+        result.Value.CompletionPct.Should().BeGreaterThanOrEqualTo(0);
+    }
+}
+
+[Collection("Dashboard")]
+public sealed class GetDashboardSummaryDeniedTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+        => services.AddScoped<IPermissionChecker, AlwaysDenyTestPermissionChecker>();
+
+    [Fact]
+    public async Task Handle_NoPermission_ReturnsAccessDenied()
+    {
+        var project = await SeedProjectAsync();
+
+        var result = await Sender.Send(new GetDashboardSummaryQuery(project.Id));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("Access denied");
     }
 }

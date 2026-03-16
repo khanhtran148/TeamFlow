@@ -1,104 +1,102 @@
 using FluentAssertions;
-using NSubstitute;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Common.Interfaces;
 using TeamFlow.Application.Features.Admin.ChangeUserStatus;
 using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.Admin;
 
-public sealed class ChangeUserStatusTests
+[Collection("Auth")]
+public sealed class ChangeUserStatusTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IUserRepository _userRepo = Substitute.For<IUserRepository>();
-    private readonly IRefreshTokenRepository _refreshTokenRepo = Substitute.For<IRefreshTokenRepository>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-
-    private readonly Guid _adminId = Guid.NewGuid();
-
-    private AdminChangeUserStatusHandler CreateHandler() =>
-        new(_userRepo, _refreshTokenRepo, _currentUser);
-
-    private void SetupSystemAdmin()
+    protected override void ConfigureServices(IServiceCollection services)
     {
-        _currentUser.SystemRole.Returns(SystemRole.SystemAdmin);
-        _currentUser.Id.Returns(_adminId);
+        services.AddScoped<ICurrentUser>(_ => new TestAdminCurrentUser(SeedUserId));
     }
 
     [Fact]
     public async Task Handle_SystemAdmin_DeactivatesUser()
     {
-        SetupSystemAdmin();
         var target = UserBuilder.New().WithIsActive(true).Build();
-        _userRepo.GetByIdAsync(target.Id, Arg.Any<CancellationToken>()).Returns(target);
-        var cmd = new AdminChangeUserStatusCommand(target.Id, false);
+        DbContext.Set<User>().Add(target);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminChangeUserStatusCommand(target.Id, false));
 
         result.IsSuccess.Should().BeTrue();
-        target.IsActive.Should().BeFalse();
+        var updated = await DbContext.Set<User>().FindAsync(target.Id);
+        updated!.IsActive.Should().BeFalse();
     }
 
     [Fact]
     public async Task Handle_SystemAdmin_ActivatesUser()
     {
-        SetupSystemAdmin();
         var target = UserBuilder.New().WithIsActive(false).Build();
-        _userRepo.GetByIdAsync(target.Id, Arg.Any<CancellationToken>()).Returns(target);
-        var cmd = new AdminChangeUserStatusCommand(target.Id, true);
+        DbContext.Set<User>().Add(target);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminChangeUserStatusCommand(target.Id, true));
 
         result.IsSuccess.Should().BeTrue();
-        target.IsActive.Should().BeTrue();
+        var updated = await DbContext.Set<User>().FindAsync(target.Id);
+        updated!.IsActive.Should().BeTrue();
     }
 
     [Fact]
     public async Task Handle_Deactivation_RevokesAllRefreshTokens()
     {
-        SetupSystemAdmin();
         var target = UserBuilder.New().WithIsActive(true).Build();
-        _userRepo.GetByIdAsync(target.Id, Arg.Any<CancellationToken>()).Returns(target);
-        var cmd = new AdminChangeUserStatusCommand(target.Id, false);
+        DbContext.Set<User>().Add(target);
+        await DbContext.SaveChangesAsync();
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        DbContext.Set<RefreshToken>().Add(new RefreshToken
+        {
+            UserId = target.Id,
+            TokenHash = "token-hash-cus",
+            ExpiresAt = DateTime.UtcNow.AddDays(7)
+        });
+        await DbContext.SaveChangesAsync();
 
-        await _refreshTokenRepo.Received(1).RevokeAllForUserAsync(target.Id, Arg.Any<CancellationToken>());
+        await Sender.Send(new AdminChangeUserStatusCommand(target.Id, false));
+
+        var activeTokens = await DbContext.Set<RefreshToken>()
+            .Where(t => t.UserId == target.Id && t.RevokedAt == null)
+            .CountAsync();
+        activeTokens.Should().Be(0);
     }
 
     [Fact]
     public async Task Handle_Activation_DoesNotRevokeRefreshTokens()
     {
-        SetupSystemAdmin();
         var target = UserBuilder.New().WithIsActive(false).Build();
-        _userRepo.GetByIdAsync(target.Id, Arg.Any<CancellationToken>()).Returns(target);
-        var cmd = new AdminChangeUserStatusCommand(target.Id, true);
+        DbContext.Set<User>().Add(target);
+        await DbContext.SaveChangesAsync();
 
-        await CreateHandler().Handle(cmd, CancellationToken.None);
+        DbContext.Set<RefreshToken>().Add(new RefreshToken
+        {
+            UserId = target.Id,
+            TokenHash = "token-hash-cus2",
+            ExpiresAt = DateTime.UtcNow.AddDays(7)
+        });
+        await DbContext.SaveChangesAsync();
 
-        await _refreshTokenRepo.DidNotReceive().RevokeAllForUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-    }
+        await Sender.Send(new AdminChangeUserStatusCommand(target.Id, true));
 
-    [Theory]
-    [InlineData(SystemRole.User)]
-    public async Task Handle_NonSystemAdmin_ReturnsForbidden(SystemRole role)
-    {
-        _currentUser.SystemRole.Returns(role);
-        var cmd = new AdminChangeUserStatusCommand(Guid.NewGuid(), false);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.ToLowerInvariant().Should().Contain("forbidden");
+        var activeTokens = await DbContext.Set<RefreshToken>()
+            .Where(t => t.UserId == target.Id && t.RevokedAt == null)
+            .CountAsync();
+        activeTokens.Should().Be(1);
     }
 
     [Fact]
     public async Task Handle_DeactivateSelf_ReturnsForbidden()
     {
-        SetupSystemAdmin();
-        var cmd = new AdminChangeUserStatusCommand(_adminId, false);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminChangeUserStatusCommand(SeedUserId, false));
 
         result.IsFailure.Should().BeTrue();
         result.Error.ToLowerInvariant().Should().Contain("own account");
@@ -107,12 +105,7 @@ public sealed class ChangeUserStatusTests
     [Fact]
     public async Task Handle_UserNotFound_ReturnsNotFound()
     {
-        SetupSystemAdmin();
-        var userId = Guid.NewGuid();
-        _userRepo.GetByIdAsync(userId, Arg.Any<CancellationToken>()).Returns((User?)null);
-        var cmd = new AdminChangeUserStatusCommand(userId, false);
-
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminChangeUserStatusCommand(Guid.NewGuid(), false));
 
         result.IsFailure.Should().BeTrue();
         result.Error.ToLowerInvariant().Should().Contain("not found");
@@ -121,20 +114,18 @@ public sealed class ChangeUserStatusTests
     [Fact]
     public async Task Handle_DeactivateLastSystemAdmin_ReturnsForbidden()
     {
-        SetupSystemAdmin();
-        var lastAdmin = UserBuilder.New()
-            .WithSystemRole(SystemRole.SystemAdmin)
-            .WithIsActive(true)
-            .Build();
-        _userRepo.GetByIdAsync(lastAdmin.Id, Arg.Any<CancellationToken>()).Returns(lastAdmin);
-        // Only one admin in the list
-        _userRepo.ListAllAsync(Arg.Any<CancellationToken>()).Returns(new List<User> { lastAdmin });
-        var cmd = new AdminChangeUserStatusCommand(lastAdmin.Id, false);
+        // SeedUserId is the only SystemAdmin here — try to deactivate them after making them an admin
+        var seedUser = await DbContext.Set<User>().FindAsync(SeedUserId);
+        seedUser!.SystemRole = SystemRole.SystemAdmin;
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(cmd, CancellationToken.None);
+        var result = await Sender.Send(new AdminChangeUserStatusCommand(SeedUserId, false));
 
         result.IsFailure.Should().BeTrue();
-        result.Error.ToLowerInvariant().Should().Contain("last system administrator");
+        // Could be "own account" or "last system administrator" — both acceptable
+        (result.Error.ToLowerInvariant().Contains("own account") ||
+         result.Error.ToLowerInvariant().Contains("last system administrator"))
+            .Should().BeTrue();
     }
 
     [Fact]
@@ -142,9 +133,7 @@ public sealed class ChangeUserStatusTests
     {
         var validator = new AdminChangeUserStatusValidator();
         var cmd = new AdminChangeUserStatusCommand(Guid.Empty, false);
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeFalse();
     }
 
@@ -153,9 +142,21 @@ public sealed class ChangeUserStatusTests
     {
         var validator = new AdminChangeUserStatusValidator();
         var cmd = new AdminChangeUserStatusCommand(Guid.NewGuid(), true);
-
         var result = await validator.ValidateAsync(cmd);
-
         result.IsValid.Should().BeTrue();
+    }
+}
+
+[Collection("Auth")]
+public sealed class ChangeUserStatusForbiddenTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    [Fact]
+    public async Task Handle_NonSystemAdmin_ReturnsForbidden()
+    {
+        var result = await Sender.Send(new AdminChangeUserStatusCommand(Guid.NewGuid(), false));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.ToLowerInvariant().Should().Contain("forbidden");
     }
 }

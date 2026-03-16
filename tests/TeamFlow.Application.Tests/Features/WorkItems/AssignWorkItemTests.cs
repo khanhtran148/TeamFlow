@@ -1,57 +1,44 @@
 using FluentAssertions;
-using MediatR;
-using NSubstitute;
-using TeamFlow.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using TeamFlow.Application.Features.WorkItems.AssignWorkItem;
-using TeamFlow.Domain.Entities;
 using TeamFlow.Domain.Enums;
+using TeamFlow.Tests.Common;
 using TeamFlow.Tests.Common.Builders;
 
 namespace TeamFlow.Application.Tests.Features.WorkItems;
 
-public sealed class AssignWorkItemTests
+[Collection("WorkItems")]
+public sealed class AssignWorkItemTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
 {
-    private readonly IWorkItemRepository _workItemRepo = Substitute.For<IWorkItemRepository>();
-    private readonly IHistoryService _historyService = Substitute.For<IHistoryService>();
-    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
-    private readonly IPermissionChecker _permissions = Substitute.For<IPermissionChecker>();
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
-
-    public AssignWorkItemTests()
-    {
-        _currentUser.Id.Returns(Guid.NewGuid());
-        _permissions.HasPermissionAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Permission>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-    }
-
-    private AssignWorkItemHandler CreateHandler() =>
-        new(_workItemRepo, _historyService, _currentUser, _permissions, _publisher);
-
     [Fact]
     public async Task Handle_ValidAssignment_SetsAssignee()
     {
-        var item = WorkItemBuilder.New().WithType(WorkItemType.Task).Build();
-        var assigneeId = Guid.NewGuid();
-        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
-        _workItemRepo.UserExistsAsync(assigneeId, Arg.Any<CancellationToken>()).Returns(true);
-        _workItemRepo.UpdateAsync(Arg.Any<WorkItem>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<WorkItem>());
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var assignee = UserBuilder.New().Build();
+        DbContext.Users.Add(assignee);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new AssignWorkItemCommand(item.Id, assigneeId), CancellationToken.None);
+        var result = await Sender.Send(new AssignWorkItemCommand(item.Id, assignee.Id));
 
         result.IsSuccess.Should().BeTrue();
-        item.AssigneeId.Should().Be(assigneeId);
+        DbContext.ChangeTracker.Clear();
+        var updated = await DbContext.WorkItems.AsNoTracking().FirstAsync(w => w.Id == item.Id);
+        updated.AssigneeId.Should().Be(assignee.Id);
     }
 
     [Fact]
     public async Task Handle_AssignEpic_ReturnsValidationError()
     {
-        var epic = WorkItemBuilder.New().AsEpic().Build();
-        var assigneeId = Guid.NewGuid();
-        _workItemRepo.GetByIdAsync(epic.Id, Arg.Any<CancellationToken>()).Returns(epic);
-        _workItemRepo.UserExistsAsync(assigneeId, Arg.Any<CancellationToken>()).Returns(true);
+        var project = await SeedProjectAsync();
+        var epic = await SeedWorkItemAsync(project.Id, b => b.AsEpic());
+        var assignee = UserBuilder.New().Build();
+        DbContext.Users.Add(assignee);
+        await DbContext.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new AssignWorkItemCommand(epic.Id, assigneeId), CancellationToken.None);
+        var result = await Sender.Send(new AssignWorkItemCommand(epic.Id, assignee.Id));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Epic");
@@ -60,12 +47,10 @@ public sealed class AssignWorkItemTests
     [Fact]
     public async Task Handle_InvalidUser_ReturnsNotFound()
     {
-        var item = WorkItemBuilder.New().WithType(WorkItemType.Task).Build();
-        var assigneeId = Guid.NewGuid();
-        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
-        _workItemRepo.UserExistsAsync(assigneeId, Arg.Any<CancellationToken>()).Returns(false);
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.AsTask());
 
-        var result = await CreateHandler().Handle(new AssignWorkItemCommand(item.Id, assigneeId), CancellationToken.None);
+        var result = await Sender.Send(new AssignWorkItemCommand(item.Id, Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("User not found");
@@ -74,18 +59,91 @@ public sealed class AssignWorkItemTests
     [Fact]
     public async Task Handle_Assignment_RecordsHistory()
     {
-        var prevAssigneeId = Guid.NewGuid();
-        var item = WorkItemBuilder.New().WithType(WorkItemType.Task).WithAssignee(prevAssigneeId).Build();
-        var newAssigneeId = Guid.NewGuid();
-        _workItemRepo.GetByIdAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
-        _workItemRepo.UserExistsAsync(newAssigneeId, Arg.Any<CancellationToken>()).Returns(true);
-        _workItemRepo.UpdateAsync(Arg.Any<WorkItem>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.Arg<WorkItem>());
+        var project = await SeedProjectAsync();
+        var prevAssignee = UserBuilder.New().Build();
+        DbContext.Users.Add(prevAssignee);
+        await DbContext.SaveChangesAsync();
 
-        await CreateHandler().Handle(new AssignWorkItemCommand(item.Id, newAssigneeId), CancellationToken.None);
+        var item = await SeedWorkItemAsync(project.Id, b => b.AsTask().WithAssignee(prevAssignee.Id));
 
-        await _historyService.Received(1).RecordAsync(
-            Arg.Is<WorkItemHistoryEntry>(e => e.FieldName == "AssigneeId" && e.OldValue == prevAssigneeId.ToString()),
-            Arg.Any<CancellationToken>());
+        var newAssignee = UserBuilder.New().Build();
+        DbContext.Users.Add(newAssignee);
+        await DbContext.SaveChangesAsync();
+
+        await Sender.Send(new AssignWorkItemCommand(item.Id, newAssignee.Id));
+
+        DbContext.ChangeTracker.Clear();
+        var historyEntry = await DbContext.Set<Domain.Entities.WorkItemHistory>()
+            .Where(h => h.WorkItemId == item.Id && h.FieldName == "AssigneeId")
+            .FirstOrDefaultAsync();
+        historyEntry.Should().NotBeNull();
+        historyEntry!.OldValue.Should().Be(prevAssignee.Id.ToString());
+    }
+
+    [Fact]
+    public async Task Handle_ValidAssignment_SetsAssignedAt()
+    {
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var assignee = UserBuilder.New().Build();
+        DbContext.Users.Add(assignee);
+        await DbContext.SaveChangesAsync();
+
+        var beforeAssign = DateTime.UtcNow;
+        await Sender.Send(new AssignWorkItemCommand(item.Id, assignee.Id));
+
+        DbContext.ChangeTracker.Clear();
+        var updated = await DbContext.WorkItems.AsNoTracking().FirstAsync(w => w.Id == item.Id);
+        updated.AssignedAt.Should().NotBeNull();
+        updated.AssignedAt.Should().BeOnOrAfter(beforeAssign);
+        updated.AssignedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task Handle_Reassignment_UpdatesAssignedAt()
+    {
+        var project = await SeedProjectAsync();
+        var originalAssignee = UserBuilder.New().Build();
+        DbContext.Users.Add(originalAssignee);
+        await DbContext.SaveChangesAsync();
+
+        var originalAssignedAt = DateTime.UtcNow.AddDays(-7);
+        var item = await SeedWorkItemAsync(project.Id,
+            b => b.AsTask().WithAssignee(originalAssignee.Id).WithAssignedAt(originalAssignedAt));
+
+        var newAssignee = UserBuilder.New().Build();
+        DbContext.Users.Add(newAssignee);
+        await DbContext.SaveChangesAsync();
+
+        var beforeReassign = DateTime.UtcNow;
+        await Sender.Send(new AssignWorkItemCommand(item.Id, newAssignee.Id));
+
+        DbContext.ChangeTracker.Clear();
+        var updated = await DbContext.WorkItems.AsNoTracking().FirstAsync(w => w.Id == item.Id);
+        updated.AssignedAt.Should().BeOnOrAfter(beforeReassign);
+    }
+}
+
+[Collection("WorkItems")]
+public sealed class AssignWorkItemPermissionTests(PostgresCollectionFixture fixture)
+    : ApplicationTestBase(fixture)
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<Application.Common.Interfaces.IPermissionChecker, AlwaysDenyTestPermissionChecker>();
+    }
+
+    [Fact]
+    public async Task Handle_NoPermission_ReturnsForbidden()
+    {
+        var project = await SeedProjectAsync();
+        var item = await SeedWorkItemAsync(project.Id, b => b.AsTask());
+        var assignee = UserBuilder.New().Build();
+        DbContext.Users.Add(assignee);
+        await DbContext.SaveChangesAsync();
+
+        var result = await Sender.Send(new AssignWorkItemCommand(item.Id, assignee.Id));
+
+        result.IsFailure.Should().BeTrue();
     }
 }
